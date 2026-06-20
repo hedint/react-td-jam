@@ -180,20 +180,20 @@ Purpose: make the core fantasy visible end-to-end as early as possible, and exer
 
 - [x] Add a minimal serializable `RunState` (phase, seed/RNG state, tick, elapsed time, core HP, board, placed towers, enemies) — only what the slice needs.
 - [x] Add a deterministic seeded RNG (introduced now; foundational and cheap).
-- [ ] Extract the fixed-step accumulator/driver out of the Phaser scene so the scene's `update()` and a headless test both call `stepRun(state, deltaMs)` at the same step.
+- [x] Extract the fixed-step accumulator/driver out of the Phaser scene so the scene's `update()` and a headless test both call `stepRun(state, deltaMs)` at the same step.
 - [x] Add a hardcoded small loop board (subset of the full board; may be fewer than 16 cells for the slice) with the cells/slots needed for a 2-cell Электролужа.
 - [x] Add the starting bench (2 Водомёта + 1 Разрядник) and place them to form Вода + Вода + Искра.
 - [x] Implement T1 Электролужа only: a water pool plus Искра energy reacts on the cell(s).
 - [x] Spawn one Грунт that walks the loop, takes electro damage on the puddle cell, and dies; if it survives a lap it leaks and reduces core HP.
-- [ ] Replace `SmokeScene` as the primary scene with a 540x960 portrait scene that renders board/tower/enemy/puddle from `GameSnapshot`.
-- [ ] Ship a readable Электролужа VFX (ground layer); duplicate color meaning with simple shape/pattern.
-- [ ] Keep player-facing names in Russian fiction naming while internal ids remain stable English identifiers.
+- [x] Replace `SmokeScene` as the primary scene with a 540x960 portrait scene that renders board/tower/enemy/puddle from `GameSnapshot`.
+- [x] Ship a readable Электролужа VFX (ground layer); duplicate color meaning with simple shape/pattern.
+- [x] Keep player-facing names in Russian fiction naming while internal ids remain stable English identifiers.
 
 ### Acceptance Criteria
 
-- [ ] On load, the slice shows 2 Водомёта + Разрядник -> 2-cell Электролужа -> a Грунт melts (or leaks for core HP), readable without explanation (wow #1, design §12).
-- [ ] A single tower alone deals no damage; only the Вода + Искра combination does.
-- [ ] `stepRun` is deterministic for a fixed seed; the same driver steps the slice in-scene and headless.
+- [x] On load, the slice shows 2 Водомёта + Разрядник -> 2-cell Электролужа -> a Грунт melts (or leaks for core HP), readable without explanation (wow #1, design §12).
+- [x] A single tower alone deals no damage; only the Вода + Искра combination does.
+- [x] `stepRun` is deterministic for a fixed seed; the same driver steps the slice in-scene and headless.
 - [x] No Phaser or DOM objects exist in `RunState`.
 
 ### Tests
@@ -205,23 +205,41 @@ Purpose: make the core fantasy visible end-to-end as early as possible, and exer
 
 ### Verification
 
-- [ ] `npm run typecheck`
-- [ ] `npm test`
-- [ ] Manual browser check: wow #1 reads on a portrait viewport; `SmokeScene` no longer primary.
+- [x] `npm run typecheck`
+- [x] `npm test`
+- [x] Manual browser check: wow #1 reads on a portrait viewport; `SmokeScene` no longer primary.
 
 ### Exit gate
 
-- [ ] **Wow #1 verified on screen.**
+- [x] **Wow #1 verified on screen.**
 
 ### Phase notes
 
 - Decisions/contradictions:
-  - Added Phase 1 simulation as a headless TypeScript slice first. `SmokeScene` still owns the accumulator for now; extraction and primary portrait rendering remain open.
+  - Added Phase 1 simulation as a headless TypeScript slice first, then moved fixed-step accumulation into a shared driver used by `RunScene` and headless tests.
   - Full typed content configs are still deferred to Phase 2. Current slice constants live in `simulation.ts`.
+  - `SmokeScene` remains in the codebase as unused starter code, but `RunScene` is now the primary scene.
+  - Debug HUD is hidden by default and available with `?debug=1`, so it no longer covers the portrait playfield during normal checks.
 
 ### Phase completion summary
 
-TBD
+- Implemented:
+  - Minimal serializable `RunState` and `GameSnapshot` with seed/RNG state, tick, elapsed time, core HP, board, placed towers, enemies, reactions, and last tap.
+  - Deterministic seeded RNG and shared fixed-step driver used by both `RunScene.update()` and headless tests.
+  - Hardcoded Phase 1 loop board, starting `2 Водомёта + 1 Разрядник`, T1 `Электролужа`, one moving `Грунт`, electro damage/death, and leak/core HP behavior.
+  - New 540x960 portrait `RunScene` as the primary Phaser scene, rendering board, tower names, enemy, core, and patterned ground Электролужа VFX from `GameSnapshot`.
+  - Portrait phone-frame layout; debug HUD hidden unless `?debug=1`.
+- Intentionally deferred:
+  - Full 16-cell board generator, typed content configs, placement input, drafts, save/resume, and full reaction graph remain in later phases.
+  - `SmokeScene` removal/cleanup is deferred; it is no longer primary.
+- Accepted deviations/tradeoffs:
+  - Phase 1 constants remain local in `simulation.ts`; Phase 2 will move balance/content into typed configs.
+- Tests/checks run:
+  - `npm run lint:fix`
+  - `npm run typecheck`
+  - `npm test` passed: 2 test files, 11 tests.
+  - `npm run build` passed with Vite's existing large chunk warning.
+  - Browser check on `http://127.0.0.1:5178`: desktop and mobile screenshots saved to `output/playwright/phase1-desktop.png` and `output/playwright/phase1-mobile.png`.
 
 ## Phase 2 - Foundation Hardening, Content Data, and Run Shell
 
@@ -231,58 +249,81 @@ Purpose: turn the slice's ad-hoc state into the full deterministic, serializable
 
 Data and state:
 
-- [ ] Formalize serializable `RunState` with phase, seed/RNG state, elapsed time, wave index, core HP, board, bench, enemies, draft state, upgrades, boss state, and stats.
-- [ ] Formalize `GameSnapshot` (renderer/UI read model), `GameAction`, and `RunPhase`.
-- [ ] Add typed TS configs for board, emitters, reactions, enemies, waves, boss, upgrades, display names, and balance constants (`pathCellCount` default 16).
-- [ ] Add config validation tests so malformed ids, missing display names, missing reactions, invalid wave references, and impossible upgrade references fail fast.
-- [ ] Implement `createRun(seed)` with full P0 starting state: 16-cell board, all slots unlocked, starting bench with 2 Водомёта and 1 Разрядник, core HP from config.
-- [ ] Expand `applyAction(state, action)` for run control, placement, draft, reroll, pause/speed, save/resume, restart, and debug toggles.
-- [ ] Add `serializeRun` and `deserializeRun` with schema versioning. Note: save/resume is beyond the design doc's P0 ask and is the first thing to cut if time slips.
+- [x] Formalize serializable `RunState` with phase, seed/RNG state, elapsed time, wave index, core HP, board, bench, enemies, draft state, upgrades, boss state, and stats.
+- [x] Formalize `GameSnapshot` (renderer/UI read model), `GameAction`, and `RunPhase`.
+- [x] Add typed TS configs for board, emitters, reactions, enemies, waves, boss, upgrades, display names, and balance constants (`pathCellCount` default 16).
+- [x] Add config validation tests so malformed ids, missing display names, missing reactions, invalid wave references, and impossible upgrade references fail fast.
+- [x] Implement `createRun(seed)` with full P0 starting state: 16-cell board, all slots unlocked, starting bench with 2 Водомёта and 1 Разрядник, core HP from config.
+- [x] Expand `applyAction(state, action)` for run control, placement, draft, reroll, pause/speed, save/resume, restart, and debug toggles.
+- [x] Add `serializeRun` and `deserializeRun` with schema versioning. Note: save/resume is beyond the design doc's P0 ask and is the first thing to cut if time slips.
 
 Run shell and lifecycle:
 
-- [ ] Finalize the 540x960 portrait logical scene and center it in a desktop phone-frame layout; preserve mobile safe-area handling.
-- [ ] Game scene shell renders from `GameSnapshot`; keep the debug HUD behind a dev toggle or URL flag.
-- [ ] Add boot resume prompt when a saved run exists: Resume / New Run; add full-save persistence to `localStorage`.
-- [ ] Add pause overlay with Resume, Restart, speed x1/x2, seed, and basic run stats.
-- [ ] Add top HUD for core HP, wave, phase/countdown, pause, and speed.
-- [ ] Add bottom bench area for tower selection and placement state.
-- [ ] Implement manual first-wave start and automatic 3-second countdown after later drafts unless paused.
-- [ ] Ensure speed x1/x2 affects simulation stepping (via the shared driver), not renderer-only animation.
+- [x] Finalize the 540x960 portrait logical scene and center it in a desktop phone-frame layout; preserve mobile safe-area handling.
+- [x] Game scene shell renders from `GameSnapshot`; keep the debug HUD behind a dev toggle or URL flag.
+- [x] Add boot resume prompt when a saved run exists: Resume / New Run; add full-save persistence to `localStorage`.
+- [x] Add pause overlay with Resume, Restart, speed x1/x2, seed, and basic run stats.
+- [x] Add top HUD for core HP, wave, phase/countdown, pause, and speed.
+- [x] Add bottom bench area for tower selection and placement state.
+- [x] Implement manual first-wave start and automatic 3-second countdown after later drafts unless paused.
+- [x] Ensure speed x1/x2 affects simulation stepping (via the shared driver), not renderer-only animation.
 
 ### Acceptance Criteria
 
-- [ ] A new run can be created from a seed; the same seed produces deterministic draft/RNG behavior.
-- [ ] A run can be serialized, deserialized, and stepped without losing relevant state; balance is tunable in configs without editing simulation logic; no Phaser/DOM objects in state.
-- [ ] Game opens portrait on a mobile-sized viewport; desktop shows the same game in a centered phone-frame; the smoke placeholder is no longer primary.
-- [ ] Player can start a new run, pause/resume, change speed, restart, save, reload, and resume; first wave waits for manual start; later waves auto-start after countdown; debug HUD is hidden in normal UI.
+- [x] A new run can be created from a seed; the same seed produces deterministic draft/RNG behavior.
+- [x] A run can be serialized, deserialized, and stepped without losing relevant state; balance is tunable in configs without editing simulation logic; no Phaser/DOM objects in state.
+- [x] Game opens portrait on a mobile-sized viewport; desktop shows the same game in a centered phone-frame; the smoke placeholder is no longer primary.
+- [x] Player can start a new run, pause/resume, change speed, restart, save, reload, and resume; first wave waits for manual start; later waves auto-start after countdown; debug HUD is hidden in normal UI.
 
 ### Tests
 
-- [ ] Seeded RNG determinism tests.
-- [ ] Config validity tests.
-- [ ] Run creation tests.
-- [ ] Serialization/deserialization round-trip tests.
-- [ ] Snapshot shape tests.
-- [ ] Run-lifecycle store/action tests.
-- [ ] Save/resume round-trip tests.
-- [ ] Pause and speed behavior tests.
-- [ ] Countdown transition tests.
+- [x] Seeded RNG determinism tests.
+- [x] Config validity tests.
+- [x] Run creation tests.
+- [x] Serialization/deserialization round-trip tests.
+- [x] Snapshot shape tests.
+- [x] Run-lifecycle store/action tests.
+- [x] Save/resume round-trip tests.
+- [x] Pause and speed behavior tests.
+- [x] Countdown transition tests.
 
 ### Verification
 
-- [ ] `npm run typecheck`
-- [ ] `npm test`
-- [ ] Manual browser check: mobile portrait and desktop phone-frame, full run lifecycle.
+- [x] `npm run typecheck`
+- [x] `npm test`
+- [x] Manual browser check: mobile portrait and desktop phone-frame, full run lifecycle.
 
 ### Phase notes
 
 - Decisions/contradictions:
-  - TBD
+  - Added Phase 2 foundation slice before lifecycle UI: typed `gameConfig`, config validation, broader serializable `RunState`, `GameAction`, and schema-versioned `serializeRun`/`deserializeRun`.
+  - The board is now a static authored 16-cell config with two unlocked slots per cell. The parameterized stadium-loop generator, corner slot influence, and placement rules remain Phase 3 work.
+  - `createRun` still auto-places the Phase 1 starting towers so wow #1 remains visible on load. The full P0 bench-first placement lifecycle remains open.
+  - Added DOM run shell with autosave/resume prompt, top HUD, pause overlay, speed toggle, and restart.
+  - Added manual first-wave start and deterministic `ready -> wave -> draft -> countdown -> wave` lifecycle. The `draft` phase is still a placeholder transition with no real draft choices; full draft UI/content remains Phase 6.
+  - Bottom bench/loadout area displays starting tower instances and selection state. True tap-to-place rules remain Phase 3.
+  - `applyAction` now exposes reducer contracts for draft/reroll/placement/debug actions; save/resume remains handled by the persistence module and event bridge around serialized `RunState`.
 
 ### Phase completion summary
 
-TBD
+- Implemented:
+  - Serializable config-backed run foundation with typed board, emitters, reactions, enemies, waves, boss, upgrades, balance constants, `RunState`, `GameSnapshot`, `GameAction`, `serializeRun`, and `deserializeRun`.
+  - 16-cell authored board with two unlocked slots per cell; starting tower instances are auto-placed to preserve wow #1 while the loadout/bench area displays them.
+  - DOM run shell: top HUD, bottom loadout/bench area, pause overlay, speed x1/x2, restart, local autosave, resume/new-run prompt, first-wave manual start, and 3-second post-draft countdown.
+  - Reducer contracts for run control, tower selection/placement, draft pick/reroll, pause/speed, restart, and debug toggle.
+- Intentionally deferred:
+  - Real tap-to-place interaction, move/remove/swap rules, geometry generator, corner slot influence, and live placement feedback remain Phase 3.
+  - Full-screen draft choices remain Phase 6; current draft phase is a placeholder lifecycle gate.
+- Accepted deviations/tradeoffs:
+  - Starting towers are auto-placed for the playable slice even though the bottom area displays them as loadout items. This keeps wow #1 readable until Phase 3 introduces real placement.
+  - Save/resume is implemented through `persistence.ts` and event bridge rather than as a pure `applyAction` side effect, keeping `RunState` serialization separate from browser APIs.
+- Tests/checks run:
+  - `npm run lint:fix`
+  - `npm run typecheck`
+  - `npm test` passed: 2 test files, 21 tests.
+  - `npm run build` passed with Vite's existing large chunk warning.
+  - Browser checks on `http://127.0.0.1:5178`: mobile portrait, desktop phone-frame, start wave, pause/resume, speed, restart, save/reload/resume, countdown, and bottom loadout selection.
+  - Screenshots saved under `output/playwright/`, including `phase2-complete-ready-bench.png`.
 
 ## Phase 3 - Board and Placement
 
@@ -290,45 +331,63 @@ Purpose: full board geometry, slots, bench, and the placement rule.
 
 ### Tasks
 
-- [ ] Implement a parameterized stadium-loop geometry generator: given `pathCellCount` (default 16), produce ordered cell centers around a rounded-rectangle path in 540x960, classify corner cells, and compute inner/outer slot positions plus each slot's affected path cell(s).
-- [ ] Add two slots per path cell: inner and outer.
-- [ ] Support slot `locked/unlocked` state in model/config while keeping all slots unlocked for P0 balance.
-- [ ] Mark corner slots; make corner slots affect two adjacent path cells and non-corner slots affect one target path cell.
-- [ ] Implement bench inventory as physical tower instances, not type unlocks.
-- [ ] Implement tap-select from bench and tap slot to place the selected tower.
-- [ ] Enforce the placement rule: placing from the bench is allowed any time (running or paused); picking up, moving, or swapping an existing tower is allowed only while paused. During a running wave, tapping an occupied slot is non-destructive (no pickup).
-- [ ] Recompute tower projection after every placement change: a bench placement triggers a live recompute on the next tick; removal happens while paused (frozen) and recomputes on resume.
-- [ ] Render slots, selected state, occupied state, and valid placement feedback without text tutorial.
+- [x] Implement a parameterized stadium-loop geometry generator: given `pathCellCount` (default 16), produce ordered cell centers around a rounded-rectangle path in 540x960, classify corner cells, and compute inner/outer slot positions plus each slot's affected path cell(s).
+- [x] Add two slots per path cell: inner and outer.
+- [x] Support slot `locked/unlocked` state in model/config while keeping all slots unlocked for P0 balance.
+- [x] Mark corner slots; make corner slots affect two adjacent path cells and non-corner slots affect one target path cell.
+- [x] Implement bench inventory as physical tower instances, not type unlocks.
+- [x] Implement tap-select from bench and tap slot to place the selected tower.
+- [x] Enforce the placement rule: placing from the bench is allowed any time (running or paused); picking up, moving, or swapping an existing tower is allowed only while paused. During a running wave, tapping an occupied slot is non-destructive (no pickup).
+- [x] Recompute tower projection after every placement change: a bench placement triggers a live recompute on the next tick; removal happens while paused (frozen) and recomputes on resume.
+- [x] Render slots, selected state, occupied state, and valid placement feedback without text tutorial.
 
 ### Acceptance Criteria
 
-- [ ] The player can place, move, remove, and swap towers under the rule (add anytime; destructive ops only in pause).
-- [ ] Placement works before wave 1 and additively during waves; tower instances retain identity when moved (in pause).
-- [ ] Board model does not depend on Phaser objects; corner influence is testable from board data; the generator produces a valid 16-cell loop with correct corner and slot-to-cell mapping.
-- [ ] No ghost hints or tutorial text are required for placement.
+- [x] The player can place, move, remove, and swap towers under the rule (add anytime; destructive ops only in pause).
+- [x] Placement works before wave 1 and additively during waves; tower instances retain identity when moved (in pause).
+- [x] Board model does not depend on Phaser objects; corner influence is testable from board data; the generator produces a valid 16-cell loop with correct corner and slot-to-cell mapping.
+- [x] No ghost hints or tutorial text are required for placement.
 
 ### Tests
 
-- [ ] Geometry generator tests (cell count, ordering, corner classification, slot-to-cell mapping).
-- [ ] Slot influence tests.
-- [ ] Bench inventory tests.
-- [ ] Placement action reducer tests, including the paused-only-removal rule.
-- [ ] Live projection invalidation tests.
+- [x] Geometry generator tests (cell count, ordering, corner classification, slot-to-cell mapping).
+- [x] Slot influence tests.
+- [x] Bench inventory tests.
+- [x] Placement action reducer tests, including the paused-only-removal rule.
+- [x] Live projection invalidation tests.
 
 ### Verification
 
-- [ ] `npm run typecheck`
-- [ ] `npm test`
-- [ ] Manual browser check: tap-select placement on desktop/mobile viewport.
+- [x] `npm run typecheck`
+- [x] `npm test`
+- [x] Manual browser check: tap-select placement on desktop/mobile viewport.
 
 ### Phase notes
 
 - Decisions/contradictions:
-  - TBD
+  - Replaced the static authored board with a pure `createStadiumLoopBoard` generator. The default 16-cell loop uses four corner cells (`3/7/11/15`), and each corner slot affects its own cell plus the next ring cell.
+  - Starting towers are now physical bench instances (`2 Водомёта + 1 Разрядник`) instead of the Phase 2 auto-placed compatibility setup. Tests that need wow #1 now place that setup explicitly.
+  - Projection is recomputed synchronously in the placement reducer after every placement/removal/swap so the renderer, autosave, and tests see the new board immediately; `stepRun` still recomputes reactions during wave ticks.
+  - The pause overlay now lets pointer events pass through to the canvas outside the modal, because paused editing is part of the Phase 3 placement contract.
 
 ### Phase completion summary
 
-TBD
+- Implemented:
+  - Parameterized serializable stadium-loop board generation with 16-cell default, 12-cell A/B support, inner/outer slots, corner classification, locked-slot state, and slot-to-cell influence data.
+  - Physical tower bench inventory and placement reducer rules for bench placement, paused move, paused removal, paused swap, and non-destructive occupied-slot taps while running.
+  - Phaser slot hit testing and renderer feedback for empty, valid, selected, occupied, locked, and corner slots without tutorial text.
+  - Start state now exposes the three starting towers in reserve; player placement creates the 2-cell Электролужа setup.
+- Intentionally deferred:
+  - Full P0 reaction graph, more emitter projection rules, and advanced placement affordances remain in Phase 4+.
+- Accepted deviations/tradeoffs:
+  - Placement projection updates immediately in `applyAction` instead of waiting for the next fixed tick; this keeps UI feedback and saves consistent while preserving deterministic recomputation in `stepRun`.
+- Tests/checks run:
+  - `npm run lint:fix`
+  - `npm run typecheck`
+  - `npm test` passed: 2 test files, 27 tests.
+  - `npm run build` passed with Vite's existing large chunk warning.
+  - Manual browser check on `http://127.0.0.1:5179`: reserve tower selection, canvas slot placement before wave 1 on desktop and mobile viewports, non-paused move no-op, paused move, paused removal, reaction invalidation, and HUD bench/field status.
+  - Screenshots saved to `output/playwright/phase3-placement-paused-edit.png` and `output/playwright/phase3-mobile-placement.png`.
 
 ## Phase 4 - Reaction Simulation
 
@@ -593,11 +652,11 @@ Use this as the minimum regression checklist while implementing P0.
 
 - [ ] Seeded RNG produces reproducible drafts and headless runs.
 - [ ] Config validation catches invalid ids and missing references.
-- [ ] The stadium geometry generator yields a valid loop with correct corner and slot-to-cell mapping.
+- [x] The stadium geometry generator yields a valid loop with correct corner and slot-to-cell mapping.
 - [ ] Full save round-trips current phase, board, bench, enemies, draft, upgrades, boss, and stats.
-- [ ] Live bench placement during waves updates reactions without pausing; pick-up/move/swap requires pause.
+- [x] Live bench placement during waves updates reactions without pausing; pick-up/move/swap requires pause.
 - [ ] Single towers never deal direct damage.
-- [ ] Removing a tower (in pause) removes its projected state on the next tick after resume.
+- [x] Removing a tower (in pause) removes its projected state on the next tick after resume.
 - [ ] T1, T2, and T3 reactions are reachable, with T1 < T2 < T3 per-tick damage.
 - [ ] Ground and air reaction layers coexist correctly.
 - [ ] Flying enemies are only damaged by air reactions.

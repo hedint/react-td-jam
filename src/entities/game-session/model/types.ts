@@ -8,10 +8,12 @@ export interface ViewportSize {
   readonly height: number
 }
 
-export type RunPhase = "wave" | "victory" | "defeat";
-export type EmitterId = "water" | "spark";
-export type ReactionId = "electroPuddle";
-export type EnemyId = "grunt";
+export type RunPhase = "ready" | "countdown" | "wave" | "draft" | "boss" | "victory" | "defeat";
+export type EmitterId = "water" | "oil" | "spark" | "heat";
+export type ReactionId = "electroPuddle" | "steam" | "fire" | "stormCloud" | "fireVortex" | "fireStorm";
+export type EnemyId = "grunt" | "swarm" | "tank" | "flyer" | "runner" | "insulated" | "flameproof";
+export type UpgradeId = "waterCapacity" | "sparkCapacity" | "heatReach";
+export type DraftStep = "tower" | "upgrade";
 
 export interface RngState {
   readonly seed: number
@@ -23,12 +25,17 @@ export interface PathCell {
   readonly index: number
   readonly x: number
   readonly y: number
+  readonly isCorner: boolean
 }
 
 export interface BoardSlot {
   readonly id: string
   readonly cellIndexes: readonly number[]
   readonly locked: boolean
+  readonly isCorner: boolean
+  readonly x: number
+  readonly y: number
+  readonly lane: "inner" | "outer"
 }
 
 export interface BoardState {
@@ -58,19 +65,54 @@ export interface CellReactionState {
   readonly ground: ReactionId | null
 }
 
+export interface DraftState {
+  readonly step: DraftStep
+  readonly rerollsRemaining: number
+  readonly towerOffers: readonly EmitterId[]
+  readonly upgradeOffers: readonly UpgradeId[]
+}
+
+export interface UpgradeStackState {
+  readonly upgradeId: UpgradeId
+  readonly stacks: number
+}
+
+export interface BossState {
+  readonly bossId: string
+  readonly lap: number
+  readonly vulnerableMs: number
+  readonly reactionBreakIds: readonly ReactionId[]
+}
+
+export interface RunStats {
+  readonly leaks: number
+  readonly totalDamage: number
+  readonly damageByReaction: Partial<Record<ReactionId, number>>
+}
+
 export interface RunState {
+  readonly schemaVersion: number
   readonly phase: RunPhase
   readonly seed: number
   readonly rng: RngState
   readonly tick: number
   readonly elapsedMs: number
+  readonly waveIndex: number
+  readonly countdownMs: number
   readonly paused: boolean
+  readonly speed: 1 | 2
   readonly coreHp: number
   readonly board: BoardState
   readonly bench: readonly TowerState[]
   readonly placedTowers: readonly TowerState[]
+  readonly selectedTowerId: string | null
   readonly enemies: readonly EnemyState[]
   readonly reactions: readonly CellReactionState[]
+  readonly draft: DraftState | null
+  readonly upgrades: readonly UpgradeStackState[]
+  readonly boss: BossState | null
+  readonly stats: RunStats
+  readonly debugVisible: boolean
   readonly lastTap: StagePoint | null
 }
 
@@ -84,4 +126,84 @@ export interface GameSnapshot extends RunState {
 export interface RuntimeSnapshot extends GameSnapshot {
   readonly fps: number
   readonly viewport: ViewportSize
+}
+
+export type GameAction
+  = | { readonly type: "pause" }
+    | { readonly type: "resume" }
+    | { readonly type: "startWave" }
+    | { readonly type: "completeDraft" }
+    | { readonly type: "rerollDraft" }
+    | { readonly type: "chooseDraftTower", readonly emitterId: EmitterId }
+    | { readonly type: "chooseDraftUpgrade", readonly upgradeId: UpgradeId }
+    | { readonly type: "setSpeed", readonly speed: 1 | 2 }
+    | { readonly type: "selectTower", readonly towerId: string | null }
+    | { readonly type: "placeSelectedTower", readonly slotId: string }
+    | { readonly type: "tapSlot", readonly slotId: string }
+    | { readonly type: "toggleDebug" }
+    | { readonly type: "tap", readonly point: StagePoint }
+    | { readonly type: "restart", readonly seed?: number };
+
+export interface BalanceConfig {
+  readonly schemaVersion: number
+  readonly pathCellCount: number
+  readonly coreHp: number
+  readonly leakDamage: number
+  readonly tickRate: number
+  readonly rerollsPerDraft: number
+}
+
+export interface EmitterDefinition {
+  readonly id: EmitterId
+  readonly displayName: string
+  readonly towerDisplayName: string
+  readonly family: "substance" | "energy"
+}
+
+export interface ReactionDefinition {
+  readonly id: ReactionId
+  readonly displayName: string
+  readonly tier: 1 | 2 | 3
+  readonly layer: "ground" | "air"
+  readonly dps: number
+  readonly inputs: readonly string[]
+}
+
+export interface EnemyDefinition {
+  readonly id: EnemyId
+  readonly displayName: string
+  readonly hp: number
+  readonly speedCellsPerSecond: number
+  readonly leakDamage: number
+}
+
+export interface WaveDefinition {
+  readonly id: string
+  readonly enemyId: EnemyId
+  readonly count: number
+}
+
+export interface BossDefinition {
+  readonly id: string
+  readonly displayName: string
+  readonly laps: number
+  readonly lapCoreDamage: number
+}
+
+export interface UpgradeDefinition {
+  readonly id: UpgradeId
+  readonly displayName: string
+  readonly maxStacks: number
+  readonly emitterId?: EmitterId
+}
+
+export interface GameConfig {
+  readonly balance: BalanceConfig
+  readonly board: BoardState
+  readonly emitters: readonly EmitterDefinition[]
+  readonly reactions: readonly ReactionDefinition[]
+  readonly enemies: readonly EnemyDefinition[]
+  readonly waves: readonly WaveDefinition[]
+  readonly boss: BossDefinition
+  readonly upgrades: readonly UpgradeDefinition[]
 }

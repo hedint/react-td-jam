@@ -3,7 +3,11 @@
     <div class="stage-shell">
       <div class="stage">
         <PhaserCanvas class="stage__canvas" />
-        <DebugHud class="stage__hud" />
+        <RunHud class="stage__hud" />
+        <DebugHud
+          v-if="debugEnabled"
+          class="stage__debug"
+        />
       </div>
     </div>
   </main>
@@ -12,6 +16,9 @@
 <script setup lang="ts">
 import PhaserCanvas from "@app/phaser/ui/PhaserCanvas.vue";
 import DebugHud from "@widgets/debug-hud/ui/DebugHud.vue";
+import RunHud from "@widgets/run-hud/ui/RunHud.vue";
+
+const debugEnabled = new URLSearchParams(window.location.search).get("debug") === "1";
 </script>
 
 <style scoped>
@@ -21,19 +28,23 @@ import DebugHud from "@widgets/debug-hud/ui/DebugHud.vue";
   height: 100dvh;
   min-height: 100vh;
   place-items: center;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  padding:
+    max(env(safe-area-inset-top), 14px)
+    max(env(safe-area-inset-right), 14px)
+    max(env(safe-area-inset-bottom), 14px)
+    max(env(safe-area-inset-left), 14px);
   background:
     linear-gradient(rgb(255 255 255 / 3%) 1px, transparent 1px),
     linear-gradient(90deg, rgb(255 255 255 / 3%) 1px, transparent 1px),
-    radial-gradient(circle at 50% 50%, #202536 0, var(--color-page) 68%);
+    radial-gradient(circle at 50% 48%, #25221d 0, var(--color-page) 70%);
   background-size: 32px 32px, 32px 32px, cover;
 }
 
 .stage-shell {
   display: grid;
-  width: min(100vw, calc(100dvh * 16 / 9));
+  width: min(100%, 540px, calc((100dvh - 28px) * 9 / 16));
   max-width: 100vw;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 9 / 16;
   place-items: stretch;
 }
 
@@ -44,7 +55,10 @@ import DebugHud from "@widgets/debug-hud/ui/DebugHud.vue";
   height: 100%;
   border: 1px solid rgb(255 255 255 / 12%);
   background: var(--color-stage-bg);
-  box-shadow: 0 18px 64px rgb(0 0 0 / 38%);
+  border-radius: 28px;
+  box-shadow:
+    0 18px 64px rgb(0 0 0 / 42%),
+    inset 0 0 0 10px rgb(0 0 0 / 22%);
   touch-action: manipulation;
 }
 
@@ -53,17 +67,23 @@ import DebugHud from "@widgets/debug-hud/ui/DebugHud.vue";
   inset: 0;
 }
 
-.stage__hud {
+.stage__hud,
+.stage__debug {
   position: absolute;
   inset: 0;
 }
 
 @media (orientation: portrait) {
+  .game-page {
+    padding-inline: 0;
+  }
+
   .stage-shell {
-    width: 100vw;
+    width: min(100vw, calc(100dvh * 9 / 16));
   }
 
   .stage {
+    border-radius: 0;
     border-inline: 0;
   }
 }

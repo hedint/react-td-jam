@@ -1,5 +1,5 @@
 import { BootScene } from "@app/phaser/scenes/BootScene";
-import { SmokeScene } from "@app/phaser/scenes/SmokeScene";
+import { RunScene } from "@app/phaser/scenes/RunScene";
 import Phaser from "phaser";
 
 export function createPhaserGame(parent: HTMLElement): Phaser.Game {
@@ -9,14 +9,14 @@ export function createPhaserGame(parent: HTMLElement): Phaser.Game {
     backgroundColor: "#151923",
     scale: {
       mode: Phaser.Scale.RESIZE,
-      width: 1280,
-      height: 720,
+      width: 540,
+      height: 960,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
     render: {
       antialias: true,
       pixelArt: false,
     },
-    scene: [BootScene, SmokeScene],
+    scene: [BootScene, RunScene],
   });
 }

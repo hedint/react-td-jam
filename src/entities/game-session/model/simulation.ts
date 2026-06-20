@@ -3,6 +3,7 @@ import type {
   CellReactionState,
   EmitterId,
   EnemyState,
+  GameAction,
   GameSessionState,
   GameSnapshot,
   ReactionId,
@@ -10,52 +11,39 @@ import type {
   RunState,
   TowerState,
 } from "./types";
+import { gameConfig } from "./config";
 
 const RNG_MODULUS = 0x100000000;
 const RNG_MULTIPLIER = 1664525;
 const RNG_INCREMENT = 1013904223;
 
-const ELECTRO_PUDDLE_DPS = 16;
-const GRUNT_MAX_HP = 20;
-const GRUNT_CELLS_PER_SECOND = 1;
-const CORE_HP = 5;
-const LEAK_DAMAGE = 1;
 const SPARK_CAPACITY = 2;
-
-const sliceBoard: BoardState = {
-  pathCells: [
-    { id: "cell-0", index: 0, x: 190, y: 330 },
-    { id: "cell-1", index: 1, x: 270, y: 330 },
-    { id: "cell-2", index: 2, x: 350, y: 330 },
-    { id: "cell-3", index: 3, x: 350, y: 430 },
-  ],
-  slots: [
-    { id: "slot-water-a", cellIndexes: [0], locked: false },
-    { id: "slot-water-b", cellIndexes: [1], locked: false },
-    { id: "slot-spark-a", cellIndexes: [0], locked: false },
-  ],
-};
 
 const startingTowers: readonly TowerState[] = [
   {
     id: "tower-water-a",
     emitterId: "water",
-    displayName: "Водомёт",
-    slotId: "slot-water-a",
+    displayName: getEmitterTowerDisplayName("water"),
+    slotId: null,
   },
   {
     id: "tower-water-b",
     emitterId: "water",
-    displayName: "Водомёт",
-    slotId: "slot-water-b",
+    displayName: getEmitterTowerDisplayName("water"),
+    slotId: null,
   },
   {
     id: "tower-spark-a",
     emitterId: "spark",
-    displayName: "Разрядник",
-    slotId: "slot-spark-a",
+    displayName: getEmitterTowerDisplayName("spark"),
+    slotId: null,
   },
 ];
+
+export interface SerializedRunPayload {
+  readonly schemaVersion: number
+  readonly state: RunState
+}
 
 export interface CreateRunOptions {
   readonly placedTowers?: readonly TowerState[]
@@ -82,21 +70,39 @@ export function nextRandom(rng: RngState): [RngState, number] {
 }
 
 export function createRun(seed = 1, options: CreateRunOptions = {}): RunState {
-  const placedTowers = options.placedTowers ?? startingTowers;
+  const placedTowers = options.placedTowers ?? [];
+  const placedTowerIds = new Set(placedTowers.map(tower => tower.id));
+  const bench = startingTowers
+    .filter(tower => !placedTowerIds.has(tower.id))
+    .map(tower => ({ ...tower, slotId: null }));
 
   return {
-    phase: "wave",
+    schemaVersion: gameConfig.balance.schemaVersion,
+    phase: options.enemies ? "wave" : "ready",
     seed,
     rng: createRng(seed),
     tick: 0,
     elapsedMs: 0,
+    waveIndex: 0,
+    countdownMs: 0,
     paused: false,
-    coreHp: CORE_HP,
-    board: sliceBoard,
-    bench: startingTowers.filter(tower => !placedTowers.some(placed => placed.id === tower.id)),
+    speed: 1,
+    coreHp: gameConfig.balance.coreHp,
+    board: gameConfig.board,
+    bench,
     placedTowers,
-    enemies: options.enemies ?? [createGrunt()],
-    reactions: resolveReactions(sliceBoard, placedTowers),
+    selectedTowerId: null,
+    enemies: options.enemies ?? [],
+    reactions: resolveReactions(gameConfig.board, placedTowers),
+    draft: null,
+    upgrades: [],
+    boss: null,
+    stats: {
+      leaks: 0,
+      totalDamage: 0,
+      damageByReaction: {},
+    },
+    debugVisible: false,
     lastTap: null,
   };
 }
@@ -110,31 +116,62 @@ export function stepRun(state: RunState, deltaMs: number): RunState {
     return state;
   }
 
+  const stepScale = state.speed;
+  const scaledDeltaMs = deltaMs * stepScale;
+
+  if (state.phase === "countdown") {
+    const countdownMs = Math.max(0, state.countdownMs - scaledDeltaMs);
+    const nextState = {
+      ...state,
+      tick: state.tick + 1,
+      elapsedMs: state.elapsedMs + scaledDeltaMs,
+      countdownMs,
+    };
+
+    return countdownMs <= 0 ? startWave(nextState) : nextState;
+  }
+
+  if (state.phase !== "wave") {
+    return state;
+  }
+
   const reactions = resolveReactions(state.board, state.placedTowers);
   const damageByCell = new Map<number, number>();
+  const electroPuddle = gameConfig.reactions.find(reaction => reaction.id === "electroPuddle");
 
   reactions.forEach((reaction) => {
     if (reaction.ground === "electroPuddle") {
-      damageByCell.set(reaction.cellIndex, ELECTRO_PUDDLE_DPS * deltaMs / 1000);
+      damageByCell.set(reaction.cellIndex, (electroPuddle?.dps ?? 0) * scaledDeltaMs / 1000);
     }
   });
 
   let coreHp = state.coreHp;
+  let leaks = state.stats.leaks;
+  let totalDamage = state.stats.totalDamage;
+  const damageByReaction = { ...state.stats.damageByReaction };
   const enemies = state.enemies.flatMap((enemy) => {
     if (enemy.hp <= 0 || enemy.leaked) {
       return [];
     }
 
-    const pathProgress = enemy.pathProgress + GRUNT_CELLS_PER_SECOND * deltaMs / 1000;
+    const enemyDefinition = gameConfig.enemies.find(definition => definition.id === enemy.enemyId);
+    const pathProgress = enemy.pathProgress + (enemyDefinition?.speedCellsPerSecond ?? 1) * scaledDeltaMs / 1000;
 
     if (pathProgress >= state.board.pathCells.length) {
-      coreHp = Math.max(0, coreHp - LEAK_DAMAGE);
+      coreHp = Math.max(0, coreHp - (enemyDefinition?.leakDamage ?? gameConfig.balance.leakDamage));
+      leaks += 1;
 
       return [];
     }
 
     const cellIndex = Math.floor(pathProgress) % state.board.pathCells.length;
-    const hp = Math.max(0, enemy.hp - (damageByCell.get(cellIndex) ?? 0));
+    const damage = damageByCell.get(cellIndex) ?? 0;
+    const hp = Math.max(0, enemy.hp - damage);
+
+    if (damage > 0) {
+      totalDamage += Math.min(enemy.hp, damage);
+      damageByReaction.electroPuddle = (damageByReaction.electroPuddle ?? 0) + Math.min(enemy.hp, damage);
+    }
 
     if (hp <= 0) {
       return [];
@@ -149,14 +186,27 @@ export function stepRun(state: RunState, deltaMs: number): RunState {
     ];
   });
 
+  const nextPhase = coreHp <= 0
+    ? "defeat"
+    : enemies.length === 0
+      ? "draft"
+      : state.phase;
+
   return {
     ...state,
-    phase: coreHp <= 0 ? "defeat" : state.phase,
+    phase: nextPhase,
     tick: state.tick + 1,
-    elapsedMs: state.elapsedMs + deltaMs,
+    elapsedMs: state.elapsedMs + scaledDeltaMs,
+    draft: nextPhase === "draft" ? createDraftState() : state.draft,
     coreHp,
     enemies,
     reactions,
+    stats: {
+      ...state.stats,
+      leaks,
+      totalDamage,
+      damageByReaction,
+    },
   };
 }
 
@@ -172,26 +222,299 @@ export function createSnapshot(state: RunState): GameSnapshot {
   };
 }
 
+export function applyAction(state: RunState, action: GameAction): RunState {
+  switch (action.type) {
+    case "pause":
+      return { ...state, paused: true };
+    case "resume":
+      return { ...state, paused: false };
+    case "startWave":
+      return state.phase === "ready" ? startWave(state) : state;
+    case "completeDraft":
+      return state.phase === "draft"
+        ? {
+            ...state,
+            phase: "countdown",
+            waveIndex: Math.min(state.waveIndex + 1, gameConfig.waves.length - 1),
+            countdownMs: 3000,
+            draft: null,
+          }
+        : state;
+    case "rerollDraft":
+      return rerollDraft(state);
+    case "chooseDraftTower":
+      return chooseDraftTower(state, action.emitterId);
+    case "chooseDraftUpgrade":
+      return chooseDraftUpgrade(state, action.upgradeId);
+    case "setSpeed":
+      return { ...state, speed: action.speed };
+    case "selectTower":
+      return selectTower(state, action.towerId);
+    case "placeSelectedTower":
+      return placeSelectedTower(state, action.slotId);
+    case "tapSlot":
+      return tapSlot(state, action.slotId);
+    case "toggleDebug":
+      return { ...state, debugVisible: !state.debugVisible };
+    case "tap":
+      return { ...state, lastTap: action.point };
+    case "restart":
+      return createRun(action.seed ?? state.seed);
+    default:
+      return action satisfies never;
+  }
+}
+
+export function serializeRun(state: RunState): string {
+  const payload: SerializedRunPayload = {
+    schemaVersion: gameConfig.balance.schemaVersion,
+    state,
+  };
+
+  return JSON.stringify(payload);
+}
+
+export function deserializeRun(payload: string | SerializedRunPayload): RunState {
+  const parsed = typeof payload === "string" ? JSON.parse(payload) as SerializedRunPayload : payload;
+
+  if (parsed.schemaVersion !== gameConfig.balance.schemaVersion) {
+    throw new Error(`Unsupported run schema version: ${parsed.schemaVersion}`);
+  }
+
+  return {
+    ...parsed.state,
+    reactions: resolveReactions(parsed.state.board, parsed.state.placedTowers),
+  };
+}
+
 export function createTower(id: string, emitterId: EmitterId, slotId: string | null): TowerState {
   return {
     id,
     emitterId,
-    displayName: emitterId === "water" ? "Водомёт" : "Разрядник",
+    displayName: getEmitterTowerDisplayName(emitterId),
     slotId,
   };
 }
 
 export function createGrunt(overrides: Partial<EnemyState> = {}): EnemyState {
+  return createEnemy("enemy-grunt-a", "grunt", overrides);
+}
+
+function createEnemy(id: string, enemyId: EnemyState["enemyId"], overrides: Partial<EnemyState> = {}): EnemyState {
+  const definition = gameConfig.enemies.find(enemy => enemy.id === enemyId);
+
   return {
-    id: "enemy-grunt-a",
-    enemyId: "grunt",
-    displayName: "Грунт",
-    hp: GRUNT_MAX_HP,
-    maxHp: GRUNT_MAX_HP,
+    id,
+    enemyId,
+    displayName: definition?.displayName ?? enemyId,
+    hp: definition?.hp ?? 30,
+    maxHp: definition?.hp ?? 30,
     pathProgress: 0,
     leaked: false,
     ...overrides,
   };
+}
+
+function startWave(state: RunState): RunState {
+  const wave = gameConfig.waves[state.waveIndex] ?? gameConfig.waves[0]!;
+
+  return {
+    ...state,
+    phase: "wave",
+    countdownMs: 0,
+    draft: null,
+    enemies: Array.from({ length: wave.count }, (_, index) => createEnemy(
+      `${wave.id}-enemy-${index}`,
+      wave.enemyId,
+      { pathProgress: 0 },
+    )),
+  };
+}
+
+function createDraftState(): RunState["draft"] {
+  return {
+    step: "tower",
+    rerollsRemaining: gameConfig.balance.rerollsPerDraft,
+    towerOffers: ["water", "spark", "heat"],
+    upgradeOffers: ["waterCapacity", "sparkCapacity", "heatReach"],
+  };
+}
+
+function rerollDraft(state: RunState): RunState {
+  if (!state.draft || state.draft.rerollsRemaining <= 0) {
+    return state;
+  }
+
+  const [rng, roll] = nextRandom(state.rng);
+  const emitters = gameConfig.emitters.map(emitter => emitter.id);
+  const offset = Math.floor(roll * emitters.length);
+  const towerOffers = [0, 1, 2].map(index => emitters[(offset + index) % emitters.length]!);
+
+  return {
+    ...state,
+    rng,
+    draft: {
+      ...state.draft,
+      rerollsRemaining: state.draft.rerollsRemaining - 1,
+      towerOffers,
+    },
+  };
+}
+
+function chooseDraftTower(state: RunState, emitterId: EmitterId): RunState {
+  if (!state.draft?.towerOffers.includes(emitterId)) {
+    return state;
+  }
+
+  const tower = createTower(`tower-${emitterId}-${state.tick}`, emitterId, null);
+
+  return {
+    ...state,
+    bench: [...state.bench, tower],
+    draft: {
+      ...state.draft,
+      step: "upgrade",
+    },
+  };
+}
+
+function chooseDraftUpgrade(state: RunState, upgradeId: RunState["upgrades"][number]["upgradeId"]): RunState {
+  if (!state.draft?.upgradeOffers.includes(upgradeId)) {
+    return state;
+  }
+
+  const current = state.upgrades.find(upgrade => upgrade.upgradeId === upgradeId);
+  const definition = gameConfig.upgrades.find(upgrade => upgrade.id === upgradeId);
+  const nextStacks = Math.min((current?.stacks ?? 0) + 1, definition?.maxStacks ?? 1);
+  const upgrades = current
+    ? state.upgrades.map(upgrade => upgrade.upgradeId === upgradeId ? { ...upgrade, stacks: nextStacks } : upgrade)
+    : [...state.upgrades, { upgradeId, stacks: nextStacks }];
+
+  return {
+    ...state,
+    upgrades,
+  };
+}
+
+function placeSelectedTower(state: RunState, slotId: string): RunState {
+  const slot = state.board.slots.find(candidate => candidate.id === slotId);
+  const selectedTower = findSelectedTower(state);
+
+  if (!selectedTower || !slot || slot.locked) {
+    return state;
+  }
+
+  if (state.bench.some(tower => tower.id === selectedTower.id)) {
+    return placeBenchTower(state, selectedTower, slotId);
+  }
+
+  if (!state.paused) {
+    return state;
+  }
+
+  return movePlacedTower(state, selectedTower, slotId);
+}
+
+function selectTower(state: RunState, towerId: string | null): RunState {
+  if (towerId === null) {
+    return { ...state, selectedTowerId: null };
+  }
+
+  return [...state.bench, ...state.placedTowers].some(tower => tower.id === towerId)
+    ? { ...state, selectedTowerId: towerId }
+    : state;
+}
+
+function tapSlot(state: RunState, slotId: string): RunState {
+  const slot = state.board.slots.find(candidate => candidate.id === slotId);
+
+  if (!slot || slot.locked) {
+    return state;
+  }
+
+  const occupiedTower = state.placedTowers.find(tower => tower.slotId === slotId);
+
+  if (!state.selectedTowerId) {
+    return occupiedTower && state.paused
+      ? { ...state, selectedTowerId: occupiedTower.id }
+      : state;
+  }
+
+  return placeSelectedTower(state, slotId);
+}
+
+function placeBenchTower(state: RunState, selectedTower: TowerState, slotId: string): RunState {
+  const occupiedTower = state.placedTowers.find(tower => tower.slotId === slotId);
+
+  if (occupiedTower && !state.paused) {
+    return state;
+  }
+
+  const placedTower = {
+    ...selectedTower,
+    slotId,
+  };
+  const placedTowers = occupiedTower
+    ? [
+        ...state.placedTowers
+          .filter(tower => tower.id !== occupiedTower.id)
+          .map(tower => tower.id === selectedTower.id ? placedTower : tower),
+        placedTower,
+      ]
+    : [...state.placedTowers, placedTower];
+  const bench = occupiedTower
+    ? [
+        ...state.bench.filter(tower => tower.id !== selectedTower.id),
+        { ...occupiedTower, slotId: null },
+      ]
+    : state.bench.filter(tower => tower.id !== selectedTower.id);
+
+  return {
+    ...state,
+    bench,
+    placedTowers,
+    selectedTowerId: null,
+    reactions: resolveReactions(state.board, placedTowers),
+  };
+}
+
+function movePlacedTower(state: RunState, selectedTower: TowerState, slotId: string): RunState {
+  const occupiedTower = state.placedTowers.find(tower => tower.slotId === slotId);
+
+  if (occupiedTower?.id === selectedTower.id) {
+    const placedTowers = state.placedTowers.filter(tower => tower.id !== selectedTower.id);
+
+    return {
+      ...state,
+      bench: [...state.bench, { ...selectedTower, slotId: null }],
+      placedTowers,
+      selectedTowerId: null,
+      reactions: resolveReactions(state.board, placedTowers),
+    };
+  }
+
+  const placedTowers = state.placedTowers.map((tower) => {
+    if (tower.id === selectedTower.id) {
+      return { ...tower, slotId };
+    }
+
+    if (tower.id === occupiedTower?.id) {
+      return { ...tower, slotId: selectedTower.slotId };
+    }
+
+    return tower;
+  });
+
+  return {
+    ...state,
+    placedTowers,
+    selectedTowerId: null,
+    reactions: resolveReactions(state.board, placedTowers),
+  };
+}
+
+function findSelectedTower(state: RunState): TowerState | undefined {
+  return [...state.bench, ...state.placedTowers].find(tower => tower.id === state.selectedTowerId);
 }
 
 function resolveReactions(board: BoardState, placedTowers: readonly TowerState[]): readonly CellReactionState[] {
@@ -267,4 +590,8 @@ function ringDistance(pathCellCount: number, from: number, to: number): number {
   const direct = Math.abs(from - to);
 
   return Math.min(direct, pathCellCount - direct);
+}
+
+function getEmitterTowerDisplayName(emitterId: EmitterId): string {
+  return gameConfig.emitters.find(emitter => emitter.id === emitterId)?.towerDisplayName ?? emitterId;
 }
