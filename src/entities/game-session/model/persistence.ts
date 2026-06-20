@@ -20,11 +20,15 @@ export function loadSavedRun(storage = getBrowserStorage()): RunState | null {
     return null;
   }
 
-  return deserializeRun(payload);
+  try {
+    return deserializeRun(payload);
+  } catch {
+    return null;
+  }
 }
 
 export function hasSavedRun(storage = getBrowserStorage()): boolean {
-  return storage?.getItem(RUN_SAVE_KEY) !== null;
+  return loadSavedRun(storage) !== null;
 }
 
 export function clearSavedRun(storage = getBrowserStorage()): void {

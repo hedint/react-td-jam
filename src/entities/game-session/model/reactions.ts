@@ -3,6 +3,7 @@ import type {
   CellEnergyClaim,
   CellReactionState,
   CellReagentProjection,
+  DamageFamily,
   EmitterId,
   ReactionId,
   TowerState,
@@ -30,6 +31,8 @@ interface MutableProjection {
 
 interface DamageEntry {
   readonly reactionId: ReactionId
+  readonly layer: "ground" | "air"
+  readonly damageFamily: DamageFamily
   readonly amount: number
 }
 
@@ -59,12 +62,21 @@ export function projectReagents(board: BoardState, placedTowers: readonly TowerS
 }
 
 export function getReactionDamageEntries(reaction: CellReactionState, deltaMs: number): readonly DamageEntry[] {
-  return [reaction.ground, reaction.air]
-    .filter((reactionId): reactionId is ReactionId => reactionId !== null)
-    .map(reactionId => ({
-      reactionId,
-      amount: getReactionDps(reactionId) * deltaMs / 1000,
-    }))
+  return [
+    { reactionId: reaction.ground, layer: "ground" as const },
+    { reactionId: reaction.air, layer: "air" as const },
+  ]
+    .filter((entry): entry is { readonly reactionId: ReactionId, readonly layer: "ground" | "air" } => entry.reactionId !== null)
+    .map((entry) => {
+      const definition = getReactionDefinition(entry.reactionId);
+
+      return {
+        reactionId: entry.reactionId,
+        layer: entry.layer,
+        damageFamily: definition.damageFamily,
+        amount: definition.dps * deltaMs / 1000,
+      };
+    })
     .filter(entry => entry.amount > 0);
 }
 
@@ -300,8 +312,14 @@ function resolveTier3(
   });
 }
 
-function getReactionDps(reactionId: ReactionId): number {
-  return gameConfig.reactions.find(reaction => reaction.id === reactionId)?.dps ?? 0;
+function getReactionDefinition(reactionId: ReactionId) {
+  const definition = gameConfig.reactions.find(reaction => reaction.id === reactionId);
+
+  if (!definition) {
+    throw new Error(`Unknown reaction ${reactionId}`);
+  }
+
+  return definition;
 }
 
 function getEnergyCapacity(emitterId: EnergyId): number {

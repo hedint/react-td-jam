@@ -1,12 +1,17 @@
 import type {
+  DamageFamily,
   EmitterId,
+  EnemyDefinition,
+  EnemyId,
   EnemyState,
   GameAction,
   GameSessionState,
   GameSnapshot,
+  ReactionId,
   RngState,
   RunState,
   TowerState,
+  WaveRuntimeState,
 } from "./types";
 import { gameConfig } from "./config";
 import { getCellSpeedMultiplier, getReactionDamageEntries, projectReagents, resolveReactions } from "./reactions";
@@ -84,6 +89,7 @@ export function createRun(seed = 1, options: CreateRunOptions = {}): RunState {
     paused: false,
     speed: 1,
     coreHp: gameConfig.balance.coreHp,
+    waveRuntime: null,
     board: gameConfig.board,
     bench,
     placedTowers,
@@ -95,8 +101,10 @@ export function createRun(seed = 1, options: CreateRunOptions = {}): RunState {
     boss: null,
     stats: {
       leaks: 0,
+      kills: 0,
       totalDamage: 0,
       damageByReaction: {},
+      waveStats: [],
     },
     debugVisible: false,
     lastTap: null,
@@ -133,29 +141,34 @@ export function stepRun(state: RunState, deltaMs: number): RunState {
 
   const reactions = resolveReactions(state.board, state.placedTowers);
   const reagentProjection = projectReagents(state.board, state.placedTowers);
+  const spawned = spawnWaveEnemies(state.waveRuntime, scaledDeltaMs);
+  const activeEnemies = [...state.enemies, ...spawned.enemies];
 
   let coreHp = state.coreHp;
   let leaks = state.stats.leaks;
+  let kills = state.stats.kills;
   let totalDamage = state.stats.totalDamage;
   const damageByReaction = { ...state.stats.damageByReaction };
-  const enemies = state.enemies.flatMap((enemy) => {
+  let waveStats: RunState["stats"]["waveStats"] = [...state.stats.waveStats];
+  const enemies = activeEnemies.flatMap((enemy) => {
     if (enemy.hp <= 0 || enemy.leaked) {
       return [];
     }
 
-    const enemyDefinition = gameConfig.enemies.find(definition => definition.id === enemy.enemyId);
-    const currentCellIndex = Math.floor(enemy.pathProgress) % state.board.pathCells.length;
+    const enemyDefinition = getEnemyDefinition(enemy.enemyId);
+    const currentCellIndex = getCurrentPathCellIndex(enemy.pathProgress, state.board.pathCells.length);
     const speedMultiplier = getCellSpeedMultiplier(reagentProjection[currentCellIndex]);
     const pathProgress = enemy.pathProgress + (enemyDefinition?.speedCellsPerSecond ?? 1) * speedMultiplier * scaledDeltaMs / 1000;
 
     if (pathProgress >= state.board.pathCells.length) {
       coreHp = Math.max(0, coreHp - (enemyDefinition?.leakDamage ?? gameConfig.balance.leakDamage));
       leaks += 1;
+      waveStats = updateWaveStats(waveStats, spawned.waveId, { leaks: 1 });
 
       return [];
     }
 
-    const cellIndex = Math.floor(pathProgress) % state.board.pathCells.length;
+    const cellIndex = getCurrentPathCellIndex(pathProgress, state.board.pathCells.length);
     const damageEntries = getReactionDamageEntries(reactions[cellIndex]!, scaledDeltaMs);
     let hp = enemy.hp;
 
@@ -164,13 +177,30 @@ export function stepRun(state: RunState, deltaMs: number): RunState {
         return;
       }
 
-      const appliedDamage = Math.min(hp, entry.amount);
+      const rawDamage = isEnemyAffectedByReaction(enemyDefinition, entry.layer)
+        ? entry.amount * getEnemyResistanceMultiplier(enemyDefinition, entry.damageFamily)
+        : 0;
+      const appliedDamage = Math.min(hp, rawDamage);
+
+      if (appliedDamage <= 0) {
+        return;
+      }
+
       hp = Math.max(0, hp - appliedDamage);
       totalDamage += appliedDamage;
       damageByReaction[entry.reactionId] = (damageByReaction[entry.reactionId] ?? 0) + appliedDamage;
+      waveStats = updateWaveStats(waveStats, spawned.waveId, {
+        damage: appliedDamage,
+        damageByReaction: {
+          [entry.reactionId]: appliedDamage,
+        },
+      });
     });
 
     if (hp <= 0) {
+      kills += 1;
+      waveStats = updateWaveStats(waveStats, spawned.waveId, { kills: 1 });
+
       return [];
     }
 
@@ -179,13 +209,15 @@ export function stepRun(state: RunState, deltaMs: number): RunState {
         ...enemy,
         hp,
         pathProgress,
+        currentCellIndex: cellIndex,
       },
     ];
   });
 
+  const waveComplete = isWaveComplete(spawned.waveRuntime, enemies.length);
   const nextPhase = coreHp <= 0
     ? "defeat"
-    : enemies.length === 0
+    : waveComplete
       ? "draft"
       : state.phase;
 
@@ -195,14 +227,17 @@ export function stepRun(state: RunState, deltaMs: number): RunState {
     tick: state.tick + 1,
     elapsedMs: state.elapsedMs + scaledDeltaMs,
     draft: nextPhase === "draft" ? createDraftState() : state.draft,
+    waveRuntime: nextPhase === "draft" || nextPhase === "defeat" ? null : spawned.waveRuntime,
     coreHp,
     enemies,
     reactions,
     stats: {
       ...state.stats,
       leaks,
+      kills,
       totalDamage,
       damageByReaction,
+      waveStats,
     },
   };
 }
@@ -235,6 +270,7 @@ export function applyAction(state: RunState, action: GameAction): RunState {
             waveIndex: Math.min(state.waveIndex + 1, gameConfig.waves.length - 1),
             countdownMs: 3000,
             draft: null,
+            waveRuntime: null,
           }
         : state;
     case "rerollDraft":
@@ -297,16 +333,18 @@ export function createGrunt(overrides: Partial<EnemyState> = {}): EnemyState {
   return createEnemy("enemy-grunt-a", "grunt", overrides);
 }
 
-function createEnemy(id: string, enemyId: EnemyState["enemyId"], overrides: Partial<EnemyState> = {}): EnemyState {
-  const definition = gameConfig.enemies.find(enemy => enemy.id === enemyId);
+export function createEnemy(id: string, enemyId: EnemyId, overrides: Partial<EnemyState> = {}): EnemyState {
+  const definition = getEnemyDefinition(enemyId);
+  const pathProgress = overrides.pathProgress ?? 0;
 
   return {
     id,
     enemyId,
-    displayName: definition?.displayName ?? enemyId,
-    hp: definition?.hp ?? 30,
-    maxHp: definition?.hp ?? 30,
-    pathProgress: 0,
+    displayName: definition.displayName,
+    hp: definition.hp,
+    maxHp: definition.hp,
+    pathProgress,
+    currentCellIndex: getCurrentPathCellIndex(pathProgress, gameConfig.balance.pathCellCount),
     leaked: false,
     ...overrides,
   };
@@ -314,18 +352,163 @@ function createEnemy(id: string, enemyId: EnemyState["enemyId"], overrides: Part
 
 function startWave(state: RunState): RunState {
   const wave = gameConfig.waves[state.waveIndex] ?? gameConfig.waves[0]!;
+  const waveRuntime: WaveRuntimeState = {
+    waveId: wave.id,
+    spawnedCount: Math.min(1, wave.count),
+    elapsedMs: 0,
+    nextSpawnMs: wave.spawnIntervalMs,
+  };
 
   return {
     ...state,
     phase: "wave",
     countdownMs: 0,
     draft: null,
-    enemies: Array.from({ length: wave.count }, (_, index) => createEnemy(
-      `${wave.id}-enemy-${index}`,
-      wave.enemyId,
-      { pathProgress: 0 },
-    )),
+    waveRuntime,
+    enemies: wave.count > 0
+      ? [createEnemy(`${wave.id}-enemy-0`, wave.enemyId, { pathProgress: 0 })]
+      : [],
+    stats: ensureWaveStats(state.stats, wave.id),
   };
+}
+
+function spawnWaveEnemies(waveRuntime: WaveRuntimeState | null, deltaMs: number): {
+  readonly waveId: string | null
+  readonly waveRuntime: WaveRuntimeState | null
+  readonly enemies: readonly EnemyState[]
+} {
+  if (!waveRuntime) {
+    return {
+      waveId: null,
+      waveRuntime: null,
+      enemies: [],
+    };
+  }
+
+  const wave = gameConfig.waves.find(candidate => candidate.id === waveRuntime.waveId);
+  if (!wave) {
+    return {
+      waveId: waveRuntime.waveId,
+      waveRuntime,
+      enemies: [],
+    };
+  }
+
+  let spawnedCount = waveRuntime.spawnedCount;
+  let nextSpawnMs = waveRuntime.nextSpawnMs;
+  const elapsedMs = waveRuntime.elapsedMs + deltaMs;
+  const enemies: EnemyState[] = [];
+
+  while (spawnedCount < wave.count && elapsedMs >= nextSpawnMs) {
+    enemies.push(createEnemy(`${wave.id}-enemy-${spawnedCount}`, wave.enemyId, { pathProgress: 0 }));
+    spawnedCount += 1;
+    nextSpawnMs += wave.spawnIntervalMs;
+  }
+
+  return {
+    waveId: wave.id,
+    waveRuntime: {
+      ...waveRuntime,
+      spawnedCount,
+      elapsedMs,
+      nextSpawnMs,
+    },
+    enemies,
+  };
+}
+
+function isWaveComplete(waveRuntime: WaveRuntimeState | null, livingEnemyCount: number): boolean {
+  if (!waveRuntime) {
+    return livingEnemyCount === 0;
+  }
+
+  const wave = gameConfig.waves.find(candidate => candidate.id === waveRuntime.waveId);
+
+  return livingEnemyCount === 0 && waveRuntime.spawnedCount >= (wave?.count ?? 0);
+}
+
+export function getCurrentPathCellIndex(pathProgress: number, pathCellCount: number): number {
+  return Math.max(0, Math.min(pathCellCount - 1, Math.floor(pathProgress)));
+}
+
+function getEnemyDefinition(enemyId: EnemyId): EnemyDefinition {
+  const definition = gameConfig.enemies.find(enemy => enemy.id === enemyId);
+
+  if (!definition) {
+    throw new Error(`Unknown enemy ${enemyId}`);
+  }
+
+  return definition;
+}
+
+function isEnemyAffectedByReaction(enemy: EnemyDefinition, layer: "ground" | "air"): boolean {
+  return !enemy.traits?.includes("flying") || layer === "air";
+}
+
+function getEnemyResistanceMultiplier(enemy: EnemyDefinition, damageFamily: DamageFamily): number {
+  return enemy.resistances?.[damageFamily] ?? 1;
+}
+
+function ensureWaveStats(stats: RunState["stats"], waveId: string): RunState["stats"] {
+  if (stats.waveStats.some(wave => wave.waveId === waveId)) {
+    return stats;
+  }
+
+  return {
+    ...stats,
+    waveStats: [
+      ...stats.waveStats,
+      {
+        waveId,
+        damage: 0,
+        leaks: 0,
+        kills: 0,
+        damageByReaction: {},
+      },
+    ],
+  };
+}
+
+function updateWaveStats(
+  waveStats: RunState["stats"]["waveStats"],
+  waveId: string | null,
+  delta: Partial<Pick<RunState["stats"]["waveStats"][number], "damage" | "leaks" | "kills">> & {
+    readonly damageByReaction?: Partial<Record<ReactionId, number>>
+  },
+): RunState["stats"]["waveStats"] {
+  if (!waveId) {
+    return waveStats;
+  }
+
+  const stats = waveStats.some(wave => wave.waveId === waveId)
+    ? waveStats
+    : ensureWaveStats({
+      leaks: 0,
+      kills: 0,
+      totalDamage: 0,
+      damageByReaction: {},
+      waveStats,
+    }, waveId).waveStats;
+
+  return stats.map((wave) => {
+    if (wave.waveId !== waveId) {
+      return wave;
+    }
+
+    const damageByReaction = { ...wave.damageByReaction };
+
+    Object.entries(delta.damageByReaction ?? {}).forEach(([reactionId, amount]) => {
+      damageByReaction[reactionId as ReactionId] = (damageByReaction[reactionId as ReactionId] ?? 0) + (amount ?? 0);
+    });
+
+    return {
+      ...wave,
+      damage: wave.damage + (delta.damage ?? 0),
+      leaks: wave.leaks + (delta.leaks ?? 0),
+      kills: wave.kills + (delta.kills ?? 0),
+      damageByReaction,
+    };
+  });
 }
 
 function createDraftState(): RunState["draft"] {

@@ -280,11 +280,34 @@ export class RunScene extends Phaser.Scene {
       const position = getEnemyPosition(snapshot.board.pathCells, enemy);
       const hpRatio = enemy.hp / enemy.maxHp;
       const label = this.enemyLabels[index];
+      const visual = getEnemyVisual(enemy.enemyId);
 
-      graphics.fillStyle(0x715640, 1);
-      graphics.fillCircle(position.x, position.y, 18);
-      graphics.lineStyle(3, 0xE6D3A5, 0.9);
-      graphics.strokeCircle(position.x, position.y, 18);
+      graphics.fillStyle(visual.fill, 1);
+      graphics.lineStyle(3, visual.stroke, 0.9);
+      if (visual.shape === "wing") {
+        graphics.beginPath();
+        graphics.moveTo(position.x, position.y - 18);
+        graphics.lineTo(position.x - 25, position.y + 10);
+        graphics.lineTo(position.x - 5, position.y + 4);
+        graphics.lineTo(position.x, position.y + 20);
+        graphics.lineTo(position.x + 5, position.y + 4);
+        graphics.lineTo(position.x + 25, position.y + 10);
+        graphics.closePath();
+        graphics.fillPath();
+        graphics.strokePath();
+      } else if (visual.shape === "diamond") {
+        graphics.beginPath();
+        graphics.moveTo(position.x, position.y - 20);
+        graphics.lineTo(position.x + 20, position.y);
+        graphics.lineTo(position.x, position.y + 20);
+        graphics.lineTo(position.x - 20, position.y);
+        graphics.closePath();
+        graphics.fillPath();
+        graphics.strokePath();
+      } else {
+        graphics.fillCircle(position.x, position.y, visual.radius);
+        graphics.strokeCircle(position.x, position.y, visual.radius);
+      }
       graphics.fillStyle(0x101217, 0.95);
       graphics.fillRoundedRect(position.x - 22, position.y - 34, 44, 7, 3);
       graphics.fillStyle(0xCDE6A7, 1);
@@ -378,6 +401,32 @@ function getTowerPosition(tower: TowerState, slots: readonly BoardSlot[]): Phase
 
 function findSlotAtPoint(slots: readonly BoardSlot[], x: number, y: number): BoardSlot | undefined {
   return slots.find(slot => Phaser.Math.Distance.Between(slot.x, slot.y, x, y) <= 24);
+}
+
+function getEnemyVisual(enemyId: EnemyState["enemyId"]): {
+  readonly fill: number
+  readonly stroke: number
+  readonly radius: number
+  readonly shape: "circle" | "diamond" | "wing"
+} {
+  switch (enemyId) {
+    case "grunt":
+      return { fill: 0x715640, stroke: 0xE6D3A5, radius: 18, shape: "circle" };
+    case "swarm":
+      return { fill: 0x5A6B3A, stroke: 0xD6E88D, radius: 13, shape: "circle" };
+    case "tank":
+      return { fill: 0x5B5148, stroke: 0xF0D7A0, radius: 24, shape: "diamond" };
+    case "flyer":
+      return { fill: 0x475D85, stroke: 0xB9D5FF, radius: 18, shape: "wing" };
+    case "runner":
+      return { fill: 0x7E6432, stroke: 0xFFD06E, radius: 15, shape: "circle" };
+    case "insulated":
+      return { fill: 0x6C6755, stroke: 0xE0D7B6, radius: 20, shape: "diamond" };
+    case "flameproof":
+      return { fill: 0x743325, stroke: 0xFFB178, radius: 20, shape: "diamond" };
+    default:
+      return enemyId satisfies never;
+  }
 }
 
 function getTowerColors(emitterId: TowerState["emitterId"]): { readonly fill: number, readonly stroke: number } {

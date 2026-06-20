@@ -14,6 +14,8 @@ export type ReactionId = "electroPuddle" | "steam" | "fire" | "stormCloud" | "fi
 export type EnemyId = "grunt" | "swarm" | "tank" | "flyer" | "runner" | "insulated" | "flameproof";
 export type UpgradeId = "waterCapacity" | "sparkCapacity" | "heatReach";
 export type DraftStep = "tower" | "upgrade";
+export type EnemyTrait = "flying";
+export type DamageFamily = "electric" | "fire" | "steam" | "storm";
 
 export interface RngState {
   readonly seed: number
@@ -57,6 +59,7 @@ export interface EnemyState {
   readonly hp: number
   readonly maxHp: number
   readonly pathProgress: number
+  readonly currentCellIndex: number
   readonly leaked: boolean
 }
 
@@ -99,10 +102,27 @@ export interface BossState {
   readonly reactionBreakIds: readonly ReactionId[]
 }
 
+export interface WaveRuntimeState {
+  readonly waveId: string
+  readonly spawnedCount: number
+  readonly elapsedMs: number
+  readonly nextSpawnMs: number
+}
+
+export interface WaveStats {
+  readonly waveId: string
+  readonly damage: number
+  readonly leaks: number
+  readonly kills: number
+  readonly damageByReaction: Partial<Record<ReactionId, number>>
+}
+
 export interface RunStats {
   readonly leaks: number
+  readonly kills: number
   readonly totalDamage: number
   readonly damageByReaction: Partial<Record<ReactionId, number>>
+  readonly waveStats: readonly WaveStats[]
 }
 
 export interface RunState {
@@ -117,6 +137,7 @@ export interface RunState {
   readonly paused: boolean
   readonly speed: 1 | 2
   readonly coreHp: number
+  readonly waveRuntime: WaveRuntimeState | null
   readonly board: BoardState
   readonly bench: readonly TowerState[]
   readonly placedTowers: readonly TowerState[]
@@ -182,6 +203,7 @@ export interface ReactionDefinition {
   readonly displayName: string
   readonly tier: 1 | 2 | 3
   readonly layer: "ground" | "air"
+  readonly damageFamily: DamageFamily
   readonly dps: number
   readonly inputs: readonly string[]
 }
@@ -192,12 +214,16 @@ export interface EnemyDefinition {
   readonly hp: number
   readonly speedCellsPerSecond: number
   readonly leakDamage: number
+  readonly traits?: readonly EnemyTrait[]
+  readonly resistances?: Partial<Record<DamageFamily, number>>
 }
 
 export interface WaveDefinition {
   readonly id: string
   readonly enemyId: EnemyId
   readonly count: number
+  readonly spawnIntervalMs: number
+  readonly telegraphEnemyId?: EnemyId
 }
 
 export interface BossDefinition {

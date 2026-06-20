@@ -9,8 +9,12 @@
         <span>{{ session.phaseLabel }}</span>
         <strong>{{ session.waveLabel }}</strong>
       </div>
+      <div class="run-hud__stat run-hud__stat--threat">
+        <span>Враг</span>
+        <strong>{{ session.waveThreatLabel }}</strong>
+      </div>
       <div class="run-hud__stat">
-        <span>Скорость</span>
+        <span>Т</span>
         <strong>x{{ session.speed }}</strong>
       </div>
       <button
@@ -238,8 +242,21 @@ function startNewRun(): void {
 }
 
 .run-hud__stat {
-  flex: 1 1 0;
+  box-sizing: border-box;
+  flex: 0 0 58px;
   justify-content: space-between;
+}
+
+.run-hud__top .run-hud__stat:nth-child(2) {
+  flex-basis: 64px;
+}
+
+.run-hud__stat--threat {
+  flex-basis: 92px;
+}
+
+.run-hud__top .run-hud__stat:nth-child(4) {
+  flex-basis: 52px;
 }
 
 .run-hud__bench {
@@ -251,18 +268,26 @@ function startNewRun(): void {
 .run-hud__stat span,
 .run-hud__tower span,
 dt {
+  min-width: 0;
+  overflow: hidden;
   color: var(--color-text-muted);
   font-size: 11px;
   line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .run-hud__stat strong,
 .run-hud__tower strong,
 dd {
+  min-width: 0;
+  overflow: hidden;
   margin: 0;
   color: var(--color-text);
   font-size: 14px;
   line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .run-hud__tower {
@@ -351,6 +376,27 @@ dd {
   .run-hud__bottom {
     left: 10px;
     right: 10px;
+  }
+
+  .run-hud__top {
+    gap: 6px;
+  }
+
+  .run-hud__stat {
+    flex-basis: 54px;
+    padding-inline: 7px;
+  }
+
+  .run-hud__top .run-hud__stat:nth-child(2) {
+    flex-basis: 58px;
+  }
+
+  .run-hud__stat--threat {
+    flex-basis: 82px;
+  }
+
+  .run-hud__top .run-hud__stat:nth-child(4) {
+    flex-basis: 46px;
   }
 
   .run-hud__stat span,

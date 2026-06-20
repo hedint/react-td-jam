@@ -2,15 +2,18 @@ import type { GameConfig } from "@entities/game-session/model/types";
 import { createStadiumLoopBoard, defaultBoardGeometryConfig } from "@entities/game-session/model/boardGeometry";
 import { gameConfig, validateGameConfig } from "@entities/game-session/model/config";
 import { createFixedStepDriver } from "@entities/game-session/model/fixedStepDriver";
+import { runHeadlessRun } from "@entities/game-session/model/headlessRun";
 import { clearSavedRun, hasSavedRun, loadSavedRun, saveRun } from "@entities/game-session/model/persistence";
 import { collectConnectedPools, projectReagents, resolveReactions } from "@entities/game-session/model/reactions";
 import {
   applyAction,
+  createEnemy,
   createGrunt,
   createRun,
   createSnapshot,
   createTower,
   deserializeRun,
+  getCurrentPathCellIndex,
   nextRandom,
   serializeRun,
   stepRun,
@@ -299,6 +302,89 @@ describe("run simulation", () => {
     expect(next.stats.leaks).toBe(1);
   });
 
+  it("derives current path cell from continuous path progress", () => {
+    const state = createRun(1, {
+      placedTowers: [],
+      enemies: [
+        createGrunt({ pathProgress: 1.9 }),
+      ],
+    });
+    const next = stepRun(state, 100);
+
+    expect(getCurrentPathCellIndex(0, 16)).toBe(0);
+    expect(getCurrentPathCellIndex(15.99, 16)).toBe(15);
+    expect(next.enemies[0]?.pathProgress).toBeGreaterThan(1.9);
+    expect(next.enemies[0]?.currentCellIndex).toBe(2);
+  });
+
+  it("damages flying enemies only with air reactions", () => {
+    const groundReaction = createRun(1, {
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-spark-a", "spark", "slot-0-inner"),
+      ],
+      enemies: [
+        createEnemy("enemy-flyer-a", "flyer"),
+      ],
+    });
+    const airReaction = createRun(1, {
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-heat-a", "heat", "slot-0-inner"),
+      ],
+      enemies: [
+        createEnemy("enemy-flyer-a", "flyer"),
+      ],
+    });
+
+    expect(stepRun(groundReaction, 100).enemies[0]?.hp).toBe(24);
+    expect(stepRun(airReaction, 100).enemies[0]?.hp).toBeLessThan(24);
+  });
+
+  it("applies strong resistance without making enemies immune", () => {
+    const towers = [
+      createTower("tower-water-a", "water", "slot-0-outer"),
+      createTower("tower-spark-a", "spark", "slot-0-inner"),
+    ];
+    const grunt = stepRun(createRun(1, {
+      placedTowers: towers,
+      enemies: [
+        createEnemy("enemy-grunt-a", "grunt", { hp: 100, maxHp: 100 }),
+      ],
+    }), 100);
+    const insulated = stepRun(createRun(1, {
+      placedTowers: towers,
+      enemies: [
+        createEnemy("enemy-insulated-a", "insulated", { hp: 100, maxHp: 100 }),
+      ],
+    }), 100);
+
+    const gruntDamage = 100 - (grunt.enemies[0]?.hp ?? 100);
+    const insulatedDamage = 100 - (insulated.enemies[0]?.hp ?? 100);
+
+    expect(insulatedDamage).toBeGreaterThan(0);
+    expect(insulatedDamage).toBeLessThan(gruntDamage);
+  });
+
+  it("waits for spawned enemies before clearing a wave", () => {
+    const state = startFirstWave(createRun(1));
+
+    expect(state.enemies).toHaveLength(1);
+    expect(state.waveRuntime).toMatchObject({
+      waveId: "wave-1",
+      spawnedCount: 1,
+    });
+
+    const cleared = stepMany(state, 520);
+
+    expect(cleared.phase).toBe("draft");
+    expect(cleared.waveRuntime).toBeNull();
+    expect(cleared.stats.waveStats.find(wave => wave.waveId === "wave-1")).toMatchObject({
+      kills: 0,
+      leaks: 1,
+    });
+  });
+
   it("applies run-control actions without touching renderer state", () => {
     const state = createRun(1);
 
@@ -355,7 +441,33 @@ describe("run simulation", () => {
     const wave = stepMany(countdown, 90);
 
     expect(wave.phase).toBe("wave");
-    expect(wave.enemies).toHaveLength(gameConfig.waves[1]!.count);
+    expect(wave.waveRuntime).toMatchObject({
+      waveId: "wave-2",
+      spawnedCount: 1,
+    });
+    expect(wave.enemies).toHaveLength(1);
+
+    const withMoreSpawns = stepMany(wave, 18);
+
+    expect(withMoreSpawns.waveRuntime?.spawnedCount).toBeGreaterThan(1);
+  });
+
+  it("drives a minimal headless smoke-run through wave 10", () => {
+    const result = runHeadlessRun(createRun(1, {
+      placedTowers: createSteamRingTowers(),
+    }), {
+      maxSteps: 20000,
+      autoStartWaves: true,
+      autoCompleteDrafts: true,
+      stopWhen: state =>
+        state.phase === "draft"
+        && state.waveIndex === 9
+        && state.stats.waveStats.some(wave => wave.waveId === "wave-10" && wave.kills + wave.leaks >= gameConfig.waves[9]!.count),
+    });
+
+    expect(result.stoppedByPredicate).toBe(true);
+    expect(result.state.coreHp).toBeGreaterThan(0);
+    expect(result.state.stats.waveStats.map(wave => wave.waveId)).toContain("wave-10");
   });
 
   it("generates a parameterized stadium loop with corner slot influence", () => {
@@ -578,6 +690,13 @@ function createPlacedStartingRun(seed: number): ReturnType<typeof createRun> {
       createTower("tower-spark-a", "spark", "slot-0-inner"),
     ],
   });
+}
+
+function createSteamRingTowers() {
+  return Array.from({ length: gameConfig.balance.pathCellCount }, (_, index) => [
+    createTower(`tower-water-ring-${index}`, "water", `slot-${index}-outer`),
+    createTower(`tower-heat-ring-${index}`, "heat", `slot-${index}-inner`),
+  ]).flat();
 }
 
 function placeBenchTower(state: ReturnType<typeof createRun>, towerId: string, slotId: string): ReturnType<typeof createRun> {

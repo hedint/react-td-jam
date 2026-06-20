@@ -469,40 +469,40 @@ Purpose: turn the reaction board into a playable tower defense run with enemy mo
 
 ### Tasks
 
-- [ ] Implement continuous waypoint movement around the ring; derive current path cell from path progress; avoid A* and physics-dependent collision rules.
-- [ ] Implement core HP and leak handling; remove normal enemies on leak and apply configured core damage.
-- [ ] Implement P0 enemy archetypes: Грунт, Сварм, Танк, Летун, Бегун, Insulated, Flameproof.
-- [ ] Implement flying rule: летуны are damaged only by air reactions; ground enemies can be damaged by ground and air reactions.
-- [ ] Implement strong resistance for Insulated and Flameproof, not full immunity.
-- [ ] Add 10 typed wave configs based on the design doc pressure curve; keep full wave preview out of P0 UI.
+- [x] Implement continuous waypoint movement around the ring; derive current path cell from path progress; avoid A* and physics-dependent collision rules.
+- [x] Implement core HP and leak handling; remove normal enemies on leak and apply configured core damage.
+- [x] Implement P0 enemy archetypes: Грунт, Сварм, Танк, Летун, Бегун, Insulated, Flameproof.
+- [x] Implement flying rule: летуны are damaged only by air reactions; ground enemies can be damaged by ground and air reactions.
+- [x] Implement strong resistance for Insulated and Flameproof, not full immunity.
+- [x] Add 10 typed wave configs based on the design doc pressure curve; keep full wave preview out of P0 UI.
 - [ ] Flyer/Жар safeguard (design §6.1 invariant): ensure Пар is reachable before the first flying wave — re-offer Жар until taken (ties to Phase 6) and add a light enemy-type icon telegraph at wave start. Do not gate the wave if the player still refuses.
-- [ ] Track per-wave and per-run damage/leak stats; add wave clear detection and transition into draft.
-- [ ] Keep core baseline tunable: HP 15, regular leak -1; boss lap damage handled in boss phase.
-- [ ] Bring up a minimal headless run harness here (drive `stepRun` with scripted actions) so waves are tuned as they are added, not all in Phase 8.
+- [x] Track per-wave and per-run damage/leak stats; add wave clear detection and transition into draft.
+- [x] Keep core baseline tunable: HP 15, regular leak -1; boss lap damage handled in boss phase.
+- [x] Bring up a minimal headless run harness here (drive `stepRun` with scripted actions) so waves are tuned as they are added, not all in Phase 8.
 
 ### Acceptance Criteria
 
-- [ ] Enemies spawn, move around the loop, take reaction damage, die, or leak; flying enemies ignore ground reactions and respond to air reactions.
-- [ ] Resist enemies are clearly tougher against their resisted family without becoming impossible by immunity.
-- [ ] Wave progression reaches draft after clearing each wave; the run can reach wave 10 without manual debug intervention.
-- [ ] Core HP loss and defeat state are deterministic and testable.
+- [x] Enemies spawn, move around the loop, take reaction damage, die, or leak; flying enemies ignore ground reactions and respond to air reactions.
+- [x] Resist enemies are clearly tougher against their resisted family without becoming impossible by immunity.
+- [x] Wave progression reaches draft after clearing each wave; the run can reach wave 10 without manual debug intervention.
+- [x] Core HP loss and defeat state are deterministic and testable.
 - [ ] Wow #2 reads: a Вода -> Пар -> Грозовое облако chain mows down Сварм and Летун (design §12).
 
 ### Tests
 
-- [ ] Movement/path progress tests.
-- [ ] Current-cell derivation tests.
-- [ ] Damage application tests.
-- [ ] Flying targeting tests.
-- [ ] Resist math tests.
-- [ ] Leak/core HP tests.
-- [ ] Wave spawn and wave clear tests.
-- [ ] Minimal headless smoke-run test.
+- [x] Movement/path progress tests.
+- [x] Current-cell derivation tests.
+- [x] Damage application tests.
+- [x] Flying targeting tests.
+- [x] Resist math tests.
+- [x] Leak/core HP tests.
+- [x] Wave spawn and wave clear tests.
+- [x] Minimal headless smoke-run test.
 
 ### Verification
 
-- [ ] `npm run typecheck`
-- [ ] `npm test`
+- [x] `npm run typecheck`
+- [x] `npm test`
 - [ ] Manual browser check: waves 1-3 playable with visible enemy movement and leaks/deaths, plus the wow #2 chain.
 
 ### Exit gate
@@ -512,7 +512,12 @@ Purpose: turn the reaction board into a playable tower defense run with enemy mo
 ### Phase notes
 
 - Decisions/contradictions:
-  - TBD
+  - Added serializable `waveRuntime`, `currentCellIndex`, per-wave stats, enemy traits/resistances, reaction damage families, and spawn cadence to support Phase 5 without moving rules into Phaser.
+  - Wave configs are still single-archetype waves, matching the design doc's pressure curve for waves 1-7 and keeping waves 8-10 as tuned repeats for now; true mixed waves can be added by extending the wave schema later if needed.
+  - Added the light enemy-type telegraph in the HUD (`Враг`) and enemy-specific Phaser silhouettes/colors. The Жар re-offer guarantee remains open because it belongs to the Phase 6 draft/unlock system.
+  - Added `src/entities/game-session/model/headlessRun.ts` as the minimal scripted runner. The current smoke-run fixture uses a full steam ring to verify wave runtime through wave 10; it is not a final balance strategy.
+  - Bumped save schema version from 1 to 2 and made incompatible local saves load as absent instead of crashing the resume prompt.
+  - Browser smoke verified wave 1 load/start and HUD/canvas readability only. Full waves 1-3 and wow #2 visual verification remain open.
 
 ### Phase completion summary
 
@@ -678,8 +683,8 @@ Use this as the minimum regression checklist while implementing P0.
 - [x] Removing a tower (in pause) removes its projected state on the next tick after resume.
 - [x] T1, T2, and T3 reactions are reachable, with T1 < T2 < T3 per-tick damage.
 - [x] Ground and air reaction layers coexist correctly.
-- [ ] Flying enemies are only damaged by air reactions.
-- [ ] Insulated and Flameproof use strong resistance, not immunity.
+- [x] Flying enemies are only damaged by air reactions.
+- [x] Insulated and Flameproof use strong resistance, not immunity.
 - [ ] Every draft offers at least one option that synergizes with the current board.
 - [ ] Draft key offers appear at correct wave milestones and re-offer until taken.
 - [ ] Upgrade stacks are capped.

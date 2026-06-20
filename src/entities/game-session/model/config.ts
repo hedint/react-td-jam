@@ -8,7 +8,7 @@ const board = createStadiumLoopBoard(defaultBoardGeometryConfig);
 
 export const gameConfig: GameConfig = {
   balance: {
-    schemaVersion: 1,
+    schemaVersion: 2,
     pathCellCount: 16,
     coreHp: 15,
     leakDamage: 1,
@@ -23,33 +23,33 @@ export const gameConfig: GameConfig = {
     { id: "heat", displayName: "Жар", towerDisplayName: "Магмовый кран", family: "energy", energyCapacity: 2 },
   ],
   reactions: [
-    { id: "electroPuddle", displayName: "Электролужа", tier: 1, layer: "ground", dps: 16, inputs: ["water", "spark"] },
-    { id: "steam", displayName: "Пар", tier: 1, layer: "air", dps: 6, inputs: ["water", "heat"] },
-    { id: "fire", displayName: "Пожар", tier: 1, layer: "ground", dps: 18, inputs: ["oil", "heat"] },
-    { id: "stormCloud", displayName: "Грозовое облако", tier: 2, layer: "air", dps: 30, inputs: ["steam", "spark"] },
-    { id: "fireVortex", displayName: "Огненный вихрь", tier: 2, layer: "air", dps: 34, inputs: ["fire", "steam"] },
-    { id: "fireStorm", displayName: "Огненный Шторм", tier: 3, layer: "air", dps: 60, inputs: ["stormCloud", "fireVortex"] },
+    { id: "electroPuddle", displayName: "Электролужа", tier: 1, layer: "ground", damageFamily: "electric", dps: 16, inputs: ["water", "spark"] },
+    { id: "steam", displayName: "Пар", tier: 1, layer: "air", damageFamily: "steam", dps: 6, inputs: ["water", "heat"] },
+    { id: "fire", displayName: "Пожар", tier: 1, layer: "ground", damageFamily: "fire", dps: 18, inputs: ["oil", "heat"] },
+    { id: "stormCloud", displayName: "Грозовое облако", tier: 2, layer: "air", damageFamily: "electric", dps: 30, inputs: ["steam", "spark"] },
+    { id: "fireVortex", displayName: "Огненный вихрь", tier: 2, layer: "air", damageFamily: "fire", dps: 34, inputs: ["fire", "steam"] },
+    { id: "fireStorm", displayName: "Огненный Шторм", tier: 3, layer: "air", damageFamily: "storm", dps: 60, inputs: ["stormCloud", "fireVortex"] },
   ],
   enemies: [
     { id: "grunt", displayName: "Грунт", hp: 30, speedCellsPerSecond: 1, leakDamage: 1 },
     { id: "swarm", displayName: "Сварм", hp: 12, speedCellsPerSecond: 1.2, leakDamage: 1 },
     { id: "tank", displayName: "Танк", hp: 90, speedCellsPerSecond: 0.62, leakDamage: 1 },
-    { id: "flyer", displayName: "Летун", hp: 24, speedCellsPerSecond: 1.05, leakDamage: 1 },
+    { id: "flyer", displayName: "Летун", hp: 24, speedCellsPerSecond: 1.05, leakDamage: 1, traits: ["flying"] },
     { id: "runner", displayName: "Бегун", hp: 22, speedCellsPerSecond: 1.65, leakDamage: 1 },
-    { id: "insulated", displayName: "Грязевик", hp: 55, speedCellsPerSecond: 0.9, leakDamage: 1 },
-    { id: "flameproof", displayName: "Магма-выползень", hp: 60, speedCellsPerSecond: 0.86, leakDamage: 1 },
+    { id: "insulated", displayName: "Грязевик", hp: 55, speedCellsPerSecond: 0.9, leakDamage: 1, resistances: { electric: 0.35 } },
+    { id: "flameproof", displayName: "Магма-выползень", hp: 60, speedCellsPerSecond: 0.86, leakDamage: 1, resistances: { fire: 0.35 } },
   ],
   waves: [
-    { id: "wave-1", enemyId: "grunt", count: 1 },
-    { id: "wave-2", enemyId: "swarm", count: 8 },
-    { id: "wave-3", enemyId: "flyer", count: 5 },
-    { id: "wave-4", enemyId: "tank", count: 3 },
-    { id: "wave-5", enemyId: "runner", count: 6 },
-    { id: "wave-6", enemyId: "insulated", count: 5 },
-    { id: "wave-7", enemyId: "flameproof", count: 5 },
-    { id: "wave-8", enemyId: "swarm", count: 12 },
-    { id: "wave-9", enemyId: "tank", count: 5 },
-    { id: "wave-10", enemyId: "runner", count: 10 },
+    { id: "wave-1", enemyId: "grunt", count: 1, spawnIntervalMs: 900, telegraphEnemyId: "grunt" },
+    { id: "wave-2", enemyId: "swarm", count: 8, spawnIntervalMs: 280, telegraphEnemyId: "swarm" },
+    { id: "wave-3", enemyId: "flyer", count: 5, spawnIntervalMs: 520, telegraphEnemyId: "flyer" },
+    { id: "wave-4", enemyId: "tank", count: 3, spawnIntervalMs: 900, telegraphEnemyId: "tank" },
+    { id: "wave-5", enemyId: "runner", count: 6, spawnIntervalMs: 420, telegraphEnemyId: "runner" },
+    { id: "wave-6", enemyId: "insulated", count: 5, spawnIntervalMs: 560, telegraphEnemyId: "insulated" },
+    { id: "wave-7", enemyId: "flameproof", count: 5, spawnIntervalMs: 560, telegraphEnemyId: "flameproof" },
+    { id: "wave-8", enemyId: "swarm", count: 12, spawnIntervalMs: 220, telegraphEnemyId: "swarm" },
+    { id: "wave-9", enemyId: "tank", count: 5, spawnIntervalMs: 720, telegraphEnemyId: "tank" },
+    { id: "wave-10", enemyId: "runner", count: 10, spawnIntervalMs: 320, telegraphEnemyId: "runner" },
   ],
   boss: {
     id: "barrel-eater",
@@ -94,6 +94,10 @@ export function validateGameConfig(config: GameConfig): readonly string[] {
       errors.push(`reaction ${reaction.id} is missing displayName`);
     }
 
+    if (reaction.dps <= 0) {
+      errors.push(`reaction ${reaction.id} must have positive dps`);
+    }
+
     reaction.inputs.forEach((input) => {
       if (!emitterIds.has(input as EmitterId) && !reactionIds.has(input as never)) {
         errors.push(`reaction ${reaction.id} references unknown input ${input}`);
@@ -104,6 +108,14 @@ export function validateGameConfig(config: GameConfig): readonly string[] {
   config.waves.forEach((wave) => {
     if (!enemyIds.has(wave.enemyId)) {
       errors.push(`wave ${wave.id} references unknown enemy ${wave.enemyId}`);
+    }
+
+    if (wave.telegraphEnemyId && !enemyIds.has(wave.telegraphEnemyId)) {
+      errors.push(`wave ${wave.id} references unknown telegraph enemy ${wave.telegraphEnemyId}`);
+    }
+
+    if (wave.count <= 0 || wave.spawnIntervalMs <= 0) {
+      errors.push(`wave ${wave.id} must have positive count and spawnIntervalMs`);
     }
   });
 
