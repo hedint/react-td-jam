@@ -12,8 +12,9 @@ export type RunPhase = "ready" | "countdown" | "wave" | "draft" | "boss" | "vict
 export type EmitterId = "water" | "oil" | "spark" | "heat";
 export type ReactionId = "electroPuddle" | "steam" | "fire" | "stormCloud" | "fireVortex" | "fireStorm";
 export type EnemyId = "grunt" | "swarm" | "tank" | "flyer" | "runner" | "insulated" | "flameproof";
-export type UpgradeId = "waterCapacity" | "sparkCapacity" | "heatReach";
+export type UpgradeId = "waterCapacity" | "oilControl" | "sparkCapacity" | "heatReach" | "fireCatalyst";
 export type DraftStep = "tower" | "upgrade";
+export type DraftRole = "support" | "generic" | "pivot";
 export type EnemyTrait = "flying";
 export type DamageFamily = "electric" | "fire" | "steam" | "storm";
 
@@ -83,10 +84,15 @@ export interface CellReagentProjection {
   readonly energyClaims: readonly CellEnergyClaim[]
 }
 
+export interface DraftTowerOffer {
+  readonly emitterId: EmitterId
+  readonly role: DraftRole
+}
+
 export interface DraftState {
   readonly step: DraftStep
   readonly rerollsRemaining: number
-  readonly towerOffers: readonly EmitterId[]
+  readonly towerOffers: readonly DraftTowerOffer[]
   readonly upgradeOffers: readonly UpgradeId[]
 }
 
@@ -238,6 +244,11 @@ export interface UpgradeDefinition {
   readonly displayName: string
   readonly maxStacks: number
   readonly emitterId?: EmitterId
+  readonly effect:
+    | { readonly type: "energyCapacity", readonly amount: number }
+    | { readonly type: "substanceCoverage", readonly amount: number }
+    | { readonly type: "substanceSlow", readonly amount: number }
+    | { readonly type: "reactionDps", readonly reactionId: ReactionId, readonly amount: number }
 }
 
 export interface GameConfig {

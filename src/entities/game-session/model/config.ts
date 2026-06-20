@@ -8,7 +8,7 @@ const board = createStadiumLoopBoard(defaultBoardGeometryConfig);
 
 export const gameConfig: GameConfig = {
   balance: {
-    schemaVersion: 2,
+    schemaVersion: 3,
     pathCellCount: 16,
     coreHp: 15,
     leakDamage: 1,
@@ -58,9 +58,11 @@ export const gameConfig: GameConfig = {
     lapCoreDamage: 2,
   },
   upgrades: [
-    { id: "waterCapacity", displayName: "Напор водомёта", maxStacks: 3, emitterId: "water" },
-    { id: "sparkCapacity", displayName: "Емкость разрядника", maxStacks: 3, emitterId: "spark" },
-    { id: "heatReach", displayName: "Жаровая тяга", maxStacks: 2, emitterId: "heat" },
+    { id: "waterCapacity", displayName: "Напор водомёта", maxStacks: 2, emitterId: "water", effect: { type: "substanceCoverage", amount: 1 } },
+    { id: "oilControl", displayName: "Вязкая смола", maxStacks: 2, emitterId: "oil", effect: { type: "substanceSlow", amount: 0.08 } },
+    { id: "sparkCapacity", displayName: "Емкость разрядника", maxStacks: 3, emitterId: "spark", effect: { type: "energyCapacity", amount: 1 } },
+    { id: "heatReach", displayName: "Жаровая тяга", maxStacks: 2, emitterId: "heat", effect: { type: "energyCapacity", amount: 1 } },
+    { id: "fireCatalyst", displayName: "Пламенная присадка", maxStacks: 2, emitterId: "oil", effect: { type: "reactionDps", reactionId: "fire", amount: 4 } },
   ],
 };
 
@@ -130,6 +132,18 @@ export function validateGameConfig(config: GameConfig): readonly string[] {
 
     if (upgrade.emitterId && !emitterIds.has(upgrade.emitterId)) {
       errors.push(`upgrade ${upgrade.id} references unknown emitter ${upgrade.emitterId}`);
+    }
+
+    if (upgrade.maxStacks <= 0) {
+      errors.push(`upgrade ${upgrade.id} must have positive maxStacks`);
+    }
+
+    if (upgrade.effect.amount <= 0) {
+      errors.push(`upgrade ${upgrade.id} must have positive effect amount`);
+    }
+
+    if (upgrade.effect.type === "reactionDps" && !reactionIds.has(upgrade.effect.reactionId)) {
+      errors.push(`upgrade ${upgrade.id} references unknown reaction ${upgrade.effect.reactionId}`);
     }
   });
 

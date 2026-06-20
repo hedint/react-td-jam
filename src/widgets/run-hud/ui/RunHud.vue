@@ -34,15 +34,7 @@
         Старт
       </button>
       <button
-        v-else-if="session.canCompleteDraft"
-        class="run-hud__button"
-        type="button"
-        @click="completeDraft"
-      >
-        Готово
-      </button>
-      <button
-        v-else
+        v-else-if="!session.draftStep"
         class="run-hud__button"
         type="button"
         @click="togglePause"
@@ -99,6 +91,60 @@
     </div>
 
     <div
+      v-else-if="session.draftStep"
+      class="run-hud__scrim run-hud__scrim--blocking run-hud__scrim--draft"
+    >
+      <section class="run-hud__draft">
+        <header class="run-hud__draft-header">
+          <div>
+            <span>{{ session.draftStep === "tower" ? "Башня" : "Усиление" }}</span>
+            <h2>{{ session.draftStep === "tower" ? "Пополнение мастерской" : "Настройка контрапций" }}</h2>
+          </div>
+          <button
+            class="run-hud__button"
+            type="button"
+            :disabled="!session.canRerollDraft"
+            @click="rerollDraft"
+          >
+            Реролл {{ session.rerollsRemaining }}
+          </button>
+        </header>
+
+        <div
+          v-if="session.draftStep === 'tower'"
+          class="run-hud__draft-grid"
+        >
+          <button
+            v-for="offer in session.draftTowerOffers"
+            :key="offer.emitterId"
+            class="run-hud__draft-card"
+            type="button"
+            @click="chooseDraftTower(offer.emitterId)"
+          >
+            <span>{{ offer.roleLabel }}</span>
+            <strong>{{ offer.label }}</strong>
+          </button>
+        </div>
+
+        <div
+          v-else
+          class="run-hud__draft-grid"
+        >
+          <button
+            v-for="offer in session.draftUpgradeOffers"
+            :key="offer.upgradeId"
+            class="run-hud__draft-card"
+            type="button"
+            @click="chooseDraftUpgrade(offer.upgradeId)"
+          >
+            <span>{{ offer.stacks }}/{{ offer.maxStacks }}</span>
+            <strong>{{ offer.label }}</strong>
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <div
       v-else-if="session.paused"
       class="run-hud__scrim"
     >
@@ -143,6 +189,7 @@
 </template>
 
 <script setup lang="ts">
+import type { EmitterId, UpgradeId } from "@entities/game-session/model/types";
 import { clearSavedRun, hasSavedRun, loadSavedRun } from "@entities/game-session/model/persistence";
 import { useGameSessionStore } from "@entities/game-session/model/store";
 import { useGameSessionBridge } from "@entities/game-session/model/useGameSessionBridge";
@@ -171,12 +218,20 @@ function startWave(): void {
   gameEvents.emit("run:action", { type: "startWave" });
 }
 
-function completeDraft(): void {
-  gameEvents.emit("run:action", { type: "completeDraft" });
-}
-
 function selectTower(towerId: string): void {
   gameEvents.emit("run:action", { type: "selectTower", towerId: session.selectedTowerId === towerId ? null : towerId });
+}
+
+function rerollDraft(): void {
+  gameEvents.emit("run:action", { type: "rerollDraft" });
+}
+
+function chooseDraftTower(emitterId: EmitterId): void {
+  gameEvents.emit("run:action", { type: "chooseDraftTower", emitterId });
+}
+
+function chooseDraftUpgrade(upgradeId: UpgradeId): void {
+  gameEvents.emit("run:action", { type: "chooseDraftUpgrade", upgradeId });
 }
 
 function resumeRun(): void {
@@ -384,6 +439,11 @@ dd {
   border-radius: 8px;
 }
 
+.run-hud__button:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
 .run-hud__button--primary {
   color: #102022;
   background: var(--color-accent-strong);
@@ -406,6 +466,12 @@ dd {
 
 .run-hud__scrim--blocking {
   pointer-events: auto;
+}
+
+.run-hud__scrim--draft {
+  place-items: stretch;
+  padding: 78px 18px 86px;
+  background: rgb(7 8 10 / 78%);
 }
 
 .run-hud__modal {
@@ -436,6 +502,67 @@ dd {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.run-hud__draft {
+  display: grid;
+  align-content: center;
+  width: min(430px, 100%);
+  margin: 0 auto;
+  color: var(--color-text);
+}
+
+.run-hud__draft-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.run-hud__draft-header span,
+.run-hud__draft-card span {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.run-hud__draft-header h2 {
+  margin: 3px 0 0;
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.run-hud__draft-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.run-hud__draft-card {
+  display: grid;
+  min-height: 128px;
+  align-content: space-between;
+  padding: 13px;
+  color: var(--color-text);
+  text-align: left;
+  pointer-events: auto;
+  cursor: pointer;
+  background: rgb(23 26 31 / 96%);
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 8px;
+  box-shadow: 0 14px 34px rgb(0 0 0 / 32%);
+}
+
+.run-hud__draft-card:focus-visible,
+.run-hud__draft-card:hover {
+  border-color: var(--color-accent-strong);
+}
+
+.run-hud__draft-card strong {
+  overflow-wrap: anywhere;
+  font-size: 18px;
+  line-height: 1.12;
 }
 
 @media (max-width: 420px) {
@@ -473,6 +600,18 @@ dd {
 
   .run-hud__stat strong {
     font-size: 13px;
+  }
+
+  .run-hud__scrim--draft {
+    padding: 68px 12px 78px;
+  }
+
+  .run-hud__draft-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .run-hud__draft-card {
+    min-height: 76px;
   }
 }
 </style>

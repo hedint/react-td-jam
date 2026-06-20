@@ -531,49 +531,67 @@ Purpose: add the between-wave roguelite growth loop and make runs branch without
 
 ### Tasks
 
-- [ ] Add full-screen draft overlay; implement two-step draft: tower choice first, upgrade choice second.
-- [ ] Add `rerollsPerDraft` config; default 1 per draft.
-- [ ] Implement draft roles: support, generic, pivot.
-- [ ] Enforce the synergy guarantee invariant: at least one offered option synergizes with the current board (design §8.2 critical idle risk).
-- [ ] Guarantee Жар appears as an offer after wave 2 and Нефть after wave 4, and re-offer each key unlock every subsequent draft until taken; do not force the player to pick key unlocks.
-- [ ] Add the selected tower pick to the bench as one physical placeable instance; apply upgrade picks immediately.
-- [ ] Scope upgrades globally by emitter type; add capped upgrade stacks; implement a mixed upgrade pool: capacity, radius, control/coverage, and limited emitter-linked reaction buffs.
-- [ ] Exclude relic/joker-style P1 multiplier upgrades.
-- [ ] Ensure drafts and rerolls use seeded RNG; persist draft state and upgrade stacks in full save.
+- [x] Add full-screen draft overlay; implement two-step draft: tower choice first, upgrade choice second.
+- [x] Add `rerollsPerDraft` config; default 1 per draft.
+- [x] Implement draft roles: support, generic, pivot.
+- [x] Enforce the synergy guarantee invariant: at least one offered option synergizes with the current board (design §8.2 critical idle risk).
+- [x] Guarantee Жар appears as an offer after wave 2 and Нефть after wave 4, and re-offer each key unlock every subsequent draft until taken; do not force the player to pick key unlocks.
+- [x] Add the selected tower pick to the bench as one physical placeable instance; apply upgrade picks immediately.
+- [x] Scope upgrades globally by emitter type; add capped upgrade stacks; implement a mixed upgrade pool: capacity, radius, control/coverage, and limited emitter-linked reaction buffs.
+- [x] Exclude relic/joker-style P1 multiplier upgrades.
+- [x] Ensure drafts and rerolls use seeded RNG; persist draft state and upgrade stacks in full save.
 
 ### Acceptance Criteria
 
-- [ ] After each cleared wave, the player gets a tower draft and an upgrade draft.
-- [ ] Reroll is available per `rerollsPerDraft` and updates offers deterministically.
-- [ ] At least one offered option always synergizes with the current board.
-- [ ] Key unlock offers appear at the required wave milestones and re-appear until taken; refusing a key unlock is allowed and does not crash or block progression.
-- [ ] Upgrade stack limits are enforced; draft choices alter future board/combat outcomes.
+- [x] After each cleared wave, the player gets a tower draft and an upgrade draft.
+- [x] Reroll is available per `rerollsPerDraft` and updates offers deterministically.
+- [x] At least one offered option always synergizes with the current board.
+- [x] Key unlock offers appear at the required wave milestones and re-appear until taken; refusing a key unlock is allowed and does not crash or block progression.
+- [x] Upgrade stack limits are enforced; draft choices alter future board/combat outcomes.
 
 ### Tests
 
-- [ ] Draft role generation tests.
-- [ ] Synergy guarantee invariant tests.
-- [ ] Guaranteed and re-offer milestone tests.
-- [ ] Reroll budget tests.
-- [ ] Tower pick bench insertion tests.
-- [ ] Upgrade application tests.
-- [ ] Upgrade max stack tests.
-- [ ] Save/resume draft-state tests.
+- [x] Draft role generation tests.
+- [x] Synergy guarantee invariant tests.
+- [x] Guaranteed and re-offer milestone tests.
+- [x] Reroll budget tests.
+- [x] Tower pick bench insertion tests.
+- [x] Upgrade application tests.
+- [x] Upgrade max stack tests.
+- [x] Save/resume draft-state tests.
 
 ### Verification
 
-- [ ] `npm run typecheck`
-- [ ] `npm test`
-- [ ] Manual browser check: post-wave full-screen two-step draft.
+- [x] `npm run typecheck`
+- [x] `npm test`
+- [x] Manual browser check: post-wave full-screen two-step draft.
 
 ### Phase notes
 
 - Decisions/contradictions:
-  - TBD
+  - Draft tower offers now carry explicit roles (`support`, `generic`, `pivot`) instead of raw emitter ids. The renderer/UI still chooses by emitter id, but the read model can show the offer role.
+  - Choosing an upgrade now completes the draft and starts the 3-second countdown; the old `completeDraft` action remains as a compatibility no-op unless the run is already on the upgrade step.
+  - Upgrade effects are implemented in the pure reaction/projection layer: water coverage, oil slow, spark/heat capacity, and a limited fire reaction DPS buff. This keeps Phaser out of combat rules and makes draft picks affect later outcomes immediately.
+  - Save schema was bumped from 2 to 3 because draft offer shape and upgrade definitions changed.
 
 ### Phase completion summary
 
-TBD
+- Implemented:
+  - Full-screen DOM draft overlay with two-step tower then upgrade selection, current-step reroll, mobile and desktop layouts, and no old one-click draft completion button.
+  - Seeded draft generation with support/generic/pivot roles, a board-synergy guarantee, guaranteed Жар after wave 2, guaranteed Нефть after wave 4, and re-offer until each key tower is owned.
+  - Tower draft picks add one physical tower instance to the bench; upgrade draft picks apply immediately, cap stacks, persist in save data, and advance to countdown.
+  - Mixed global upgrade pool: water coverage, oil control, spark capacity, heat reach, and fire catalyst reaction buff.
+- Intentionally deferred:
+  - Boss/end-state growth hooks remain Phase 7; Phase 6 only advances normal wave drafts.
+- Accepted deviations/tradeoffs:
+  - The draft overlay darkens but does not fully hide the playfield, preserving context while still blocking input.
+- Tests/checks run:
+  - `npm run lint:fix`
+  - `npm run typecheck`
+  - `npm test` passed: 2 test files, 48 tests.
+  - `npm run build` passed with Vite's existing large chunk warning.
+  - Browser check on `http://127.0.0.1:5181`: desktop and mobile new-run wave 1 -> tower draft -> reroll -> upgrade draft -> wave 2 countdown.
+  - Screenshots saved to `output/playwright/phase6-desktop-tower-draft.png`, `output/playwright/phase6-desktop-upgrade-draft.png`, `output/playwright/phase6-desktop-countdown.png`, `output/playwright/phase6-mobile-tower-draft.png`, `output/playwright/phase6-mobile-upgrade-draft.png`, and `output/playwright/phase6-mobile-countdown.png`.
 
 ## Phase 7 - Boss, End States, and Stats
 
@@ -676,8 +694,8 @@ TBD
 
 Use this as the minimum regression checklist while implementing P0.
 
-- [ ] Seeded RNG produces reproducible drafts and headless runs.
-- [ ] Config validation catches invalid ids and missing references.
+- [x] Seeded RNG produces reproducible drafts and headless runs.
+- [x] Config validation catches invalid ids and missing references.
 - [x] The stadium geometry generator yields a valid loop with correct corner and slot-to-cell mapping.
 - [ ] Full save round-trips current phase, board, bench, enemies, draft, upgrades, boss, and stats.
 - [x] Live bench placement during waves updates reactions without pausing; pick-up/move/swap requires pause.
@@ -687,9 +705,9 @@ Use this as the minimum regression checklist while implementing P0.
 - [x] Ground and air reaction layers coexist correctly.
 - [x] Flying enemies are only damaged by air reactions.
 - [x] Insulated and Flameproof use strong resistance, not immunity.
-- [ ] Every draft offers at least one option that synergizes with the current board.
-- [ ] Draft key offers appear at correct wave milestones and re-offer until taken.
-- [ ] Upgrade stacks are capped.
+- [x] Every draft offers at least one option that synergizes with the current board.
+- [x] Draft key offers appear at correct wave milestones and re-offer until taken.
+- [x] Upgrade stacks are capped.
 - [ ] Boss Reaction Break uses distinct reaction ids per lap.
 - [ ] Victory, defeat, restart, new run, save, and resume all work.
 

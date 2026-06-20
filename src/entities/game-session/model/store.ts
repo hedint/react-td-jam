@@ -1,4 +1,4 @@
-import type { EnemyId, RuntimeSnapshot, StagePoint, ViewportSize } from "./types";
+import type { DraftRole, DraftStep, EmitterId, EnemyId, RuntimeSnapshot, StagePoint, UpgradeId, ViewportSize } from "./types";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { gameConfig } from "./config";
@@ -26,6 +26,10 @@ export const useGameSessionStore = defineStore("game-session", () => {
   const totalDamage = ref(0);
   const selectedTowerId = ref<string | null>(null);
   const towerItems = ref<Array<{ readonly id: string, readonly label: string, readonly placed: boolean }>>([]);
+  const draftStep = ref<DraftStep | null>(null);
+  const draftTowerOffers = ref<Array<{ readonly emitterId: EmitterId, readonly label: string, readonly role: DraftRole, readonly roleLabel: string }>>([]);
+  const draftUpgradeOffers = ref<Array<{ readonly upgradeId: UpgradeId, readonly label: string, readonly stacks: number, readonly maxStacks: number }>>([]);
+  const rerollsRemaining = ref(0);
   const paused = ref(false);
   const lastTap = ref<StagePoint | null>(null);
   const viewport = ref<ViewportSize>(initialViewport);
@@ -47,7 +51,8 @@ export const useGameSessionStore = defineStore("game-session", () => {
     }
   });
   const canStartWave = computed(() => phase.value === "ready");
-  const canCompleteDraft = computed(() => phase.value === "draft");
+  const canCompleteDraft = computed(() => false);
+  const canRerollDraft = computed(() => phase.value === "draft" && rerollsRemaining.value > 0);
   const damageLabel = computed(() => Math.round(totalDamage.value).toString());
   const lastTapLabel = computed(() => {
     if (!lastTap.value) {
@@ -86,6 +91,24 @@ export const useGameSessionStore = defineStore("game-session", () => {
         placed: false,
       })),
     ];
+    draftStep.value = snapshot.draft?.step ?? null;
+    draftTowerOffers.value = snapshot.draft?.towerOffers.map(offer => ({
+      emitterId: offer.emitterId,
+      label: getEmitterTowerLabel(offer.emitterId),
+      role: offer.role,
+      roleLabel: getDraftRoleLabel(offer.role),
+    })) ?? [];
+    draftUpgradeOffers.value = snapshot.draft?.upgradeOffers.map((upgradeId) => {
+      const definition = gameConfig.upgrades.find(upgrade => upgrade.id === upgradeId);
+
+      return {
+        upgradeId,
+        label: definition?.displayName ?? upgradeId,
+        stacks: snapshot.upgrades.find(upgrade => upgrade.upgradeId === upgradeId)?.stacks ?? 0,
+        maxStacks: definition?.maxStacks ?? 1,
+      };
+    }) ?? [];
+    rerollsRemaining.value = snapshot.draft?.rerollsRemaining ?? 0;
     paused.value = snapshot.paused;
     lastTap.value = snapshot.lastTap;
     viewport.value = snapshot.viewport;
@@ -108,6 +131,7 @@ export const useGameSessionStore = defineStore("game-session", () => {
     countdownMs,
     canStartWave,
     canCompleteDraft,
+    canRerollDraft,
     coreHp,
     speed,
     livingEnemyCount,
@@ -119,6 +143,10 @@ export const useGameSessionStore = defineStore("game-session", () => {
     damageLabel,
     selectedTowerId,
     towerItems,
+    draftStep,
+    draftTowerOffers,
+    draftUpgradeOffers,
+    rerollsRemaining,
     paused,
     lastTap,
     lastTapLabel,
@@ -136,4 +164,21 @@ function getWaveThreatEnemyId(waveIndex: number): EnemyId | null {
 
 function getWaveThreatLabel(enemyId: EnemyId | null): string {
   return gameConfig.enemies.find(enemy => enemy.id === enemyId)?.displayName ?? "";
+}
+
+function getEmitterTowerLabel(emitterId: EmitterId): string {
+  return gameConfig.emitters.find(emitter => emitter.id === emitterId)?.towerDisplayName ?? emitterId;
+}
+
+function getDraftRoleLabel(role: DraftRole): string {
+  switch (role) {
+    case "support":
+      return "связка";
+    case "generic":
+      return "запас";
+    case "pivot":
+      return "поворот";
+    default:
+      return role satisfies never;
+  }
 }

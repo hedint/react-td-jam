@@ -39,7 +39,21 @@ export function runHeadlessRun(initialState: RunState, options: HeadlessRunOptio
       });
 
       if (options.autoCompleteDrafts) {
-        state = applyAction(state, { type: "completeDraft" });
+        if (state.draft?.step === "tower") {
+          const offer = state.draft.towerOffers[0];
+
+          if (offer) {
+            state = applyAction(state, { type: "chooseDraftTower", emitterId: offer.emitterId });
+          }
+        }
+
+        if (state.draft?.step === "upgrade") {
+          const upgradeId = state.draft.upgradeOffers[0];
+
+          if (upgradeId) {
+            state = applyAction(state, { type: "chooseDraftUpgrade", upgradeId });
+          }
+        }
       }
     }
 

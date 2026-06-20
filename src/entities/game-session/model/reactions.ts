@@ -7,6 +7,7 @@ import type {
   EmitterId,
   ReactionId,
   TowerState,
+  UpgradeStackState,
 } from "./types";
 import { gameConfig } from "./config";
 
@@ -39,16 +40,24 @@ interface DamageEntry {
 const groundPriority: readonly ReactionId[] = ["fire", "electroPuddle"];
 const t2AirPriority: readonly ReactionId[] = ["fireVortex", "stormCloud"];
 
-export function resolveReactions(board: BoardState, placedTowers: readonly TowerState[]): readonly CellReactionState[] {
-  const projection = createMutableProjection(board, placedTowers);
+export function resolveReactions(
+  board: BoardState,
+  placedTowers: readonly TowerState[],
+  upgrades: readonly UpgradeStackState[] = [],
+): readonly CellReactionState[] {
+  const projection = createMutableProjection(board, placedTowers, upgrades);
   const t1 = resolveTier1(board, projection);
   const t2 = resolveTier2(board, projection, t1);
 
   return resolveTier3(board, t2);
 }
 
-export function projectReagents(board: BoardState, placedTowers: readonly TowerState[]): readonly CellReagentProjection[] {
-  return createMutableProjection(board, placedTowers).map(cell => ({
+export function projectReagents(
+  board: BoardState,
+  placedTowers: readonly TowerState[],
+  upgrades: readonly UpgradeStackState[] = [],
+): readonly CellReagentProjection[] {
+  return createMutableProjection(board, placedTowers, upgrades).map(cell => ({
     cellIndex: cell.cellIndex,
     substances: [...cell.substances].sort(),
     energy: [...cell.energy].sort(),
@@ -61,7 +70,11 @@ export function projectReagents(board: BoardState, placedTowers: readonly TowerS
   }));
 }
 
-export function getReactionDamageEntries(reaction: CellReactionState, deltaMs: number): readonly DamageEntry[] {
+export function getReactionDamageEntries(
+  reaction: CellReactionState,
+  deltaMs: number,
+  upgrades: readonly UpgradeStackState[] = [],
+): readonly DamageEntry[] {
   return [
     { reactionId: reaction.ground, layer: "ground" as const },
     { reactionId: reaction.air, layer: "air" as const },
@@ -74,21 +87,25 @@ export function getReactionDamageEntries(reaction: CellReactionState, deltaMs: n
         reactionId: entry.reactionId,
         layer: entry.layer,
         damageFamily: definition.damageFamily,
-        amount: definition.dps * deltaMs / 1000,
+        amount: (definition.dps + getReactionDpsBonus(entry.reactionId, upgrades)) * deltaMs / 1000,
       };
     })
     .filter(entry => entry.amount > 0);
 }
 
-export function getCellSpeedMultiplier(projection: CellReagentProjection | undefined): number {
+export function getCellSpeedMultiplier(
+  projection: CellReagentProjection | undefined,
+  upgrades: readonly UpgradeStackState[] = [],
+): number {
   if (!projection) {
     return 1;
   }
 
   return projection.substances.reduce((multiplier, substance) => {
     const definition = gameConfig.emitters.find(emitter => emitter.id === substance);
+    const slowBonus = getSubstanceSlowBonus(substance, upgrades);
 
-    return Math.min(multiplier, definition?.speedMultiplier ?? 1);
+    return Math.min(multiplier, Math.max(0.35, (definition?.speedMultiplier ?? 1) - slowBonus));
   }, 1);
 }
 
@@ -126,7 +143,11 @@ export function collectConnectedPools(pathCellCount: number, cells: ReadonlySet<
   return pools.sort((left, right) => left[0]! - right[0]!);
 }
 
-function createMutableProjection(board: BoardState, placedTowers: readonly TowerState[]): readonly MutableProjection[] {
+function createMutableProjection(
+  board: BoardState,
+  placedTowers: readonly TowerState[],
+  upgrades: readonly UpgradeStackState[],
+): readonly MutableProjection[] {
   const projection = board.pathCells.map<MutableProjection>(cell => ({
     cellIndex: cell.index,
     substances: new Set<SubstanceId>(),
@@ -148,8 +169,13 @@ function createMutableProjection(board: BoardState, placedTowers: readonly Tower
 
     if (isSubstance(tower.emitterId)) {
       const emitterId = tower.emitterId;
+      const cellIndexes = expandCellIndexes(
+        board.pathCells.length,
+        slot.cellIndexes,
+        getSubstanceCoverageBonus(emitterId, upgrades),
+      );
 
-      slot.cellIndexes.forEach((cellIndex) => {
+      cellIndexes.forEach((cellIndex) => {
         projection[cellIndex]?.substances.add(emitterId);
       });
       return;
@@ -169,7 +195,7 @@ function createMutableProjection(board: BoardState, placedTowers: readonly Tower
       towerId: tower.id,
       slotId: slot.id,
       cellIndexes: slot.cellIndexes,
-      capacity: getEnergyCapacity(emitterId),
+      capacity: getEnergyCapacity(emitterId, upgrades),
     });
   });
 
@@ -322,8 +348,9 @@ function getReactionDefinition(reactionId: ReactionId) {
   return definition;
 }
 
-function getEnergyCapacity(emitterId: EnergyId): number {
-  return gameConfig.emitters.find(emitter => emitter.id === emitterId)?.energyCapacity ?? 1;
+function getEnergyCapacity(emitterId: EnergyId, upgrades: readonly UpgradeStackState[]): number {
+  return (gameConfig.emitters.find(emitter => emitter.id === emitterId)?.energyCapacity ?? 1)
+    + getUpgradeEffectTotal(upgrades, emitterId, "energyCapacity");
 }
 
 function getContextIndexes(pathCellCount: number, cellIndex: number): readonly number[] {
@@ -342,6 +369,55 @@ function ringDistance(pathCellCount: number, from: number, to: number): number {
   const direct = Math.abs(from - to);
 
   return Math.min(direct, pathCellCount - direct);
+}
+
+function expandCellIndexes(pathCellCount: number, cellIndexes: readonly number[], radius: number): readonly number[] {
+  const expanded = new Set(cellIndexes);
+
+  cellIndexes.forEach((cellIndex) => {
+    for (let distance = 1; distance <= radius; distance += 1) {
+      expanded.add((cellIndex - distance + pathCellCount) % pathCellCount);
+      expanded.add((cellIndex + distance) % pathCellCount);
+    }
+  });
+
+  return [...expanded].sort((left, right) => left - right);
+}
+
+function getSubstanceCoverageBonus(emitterId: SubstanceId, upgrades: readonly UpgradeStackState[]): number {
+  return getUpgradeEffectTotal(upgrades, emitterId, "substanceCoverage");
+}
+
+function getSubstanceSlowBonus(emitterId: EmitterId, upgrades: readonly UpgradeStackState[]): number {
+  return getUpgradeEffectTotal(upgrades, emitterId, "substanceSlow");
+}
+
+function getReactionDpsBonus(reactionId: ReactionId, upgrades: readonly UpgradeStackState[]): number {
+  return upgrades.reduce((bonus, stack) => {
+    const definition = gameConfig.upgrades.find(upgrade => upgrade.id === stack.upgradeId);
+
+    if (definition?.effect.type !== "reactionDps" || definition.effect.reactionId !== reactionId) {
+      return bonus;
+    }
+
+    return bonus + definition.effect.amount * stack.stacks;
+  }, 0);
+}
+
+function getUpgradeEffectTotal(
+  upgrades: readonly UpgradeStackState[],
+  emitterId: EmitterId,
+  effectType: "energyCapacity" | "substanceCoverage" | "substanceSlow",
+): number {
+  return upgrades.reduce((total, stack) => {
+    const definition = gameConfig.upgrades.find(upgrade => upgrade.id === stack.upgradeId);
+
+    if (definition?.emitterId !== emitterId || definition.effect.type !== effectType) {
+      return total;
+    }
+
+    return total + definition.effect.amount * stack.stacks;
+  }, 0);
 }
 
 function chooseByPriority<T extends ReactionId>(candidates: readonly T[], priority: readonly ReactionId[]): T | null {

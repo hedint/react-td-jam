@@ -1,4 +1,4 @@
-import type { GameConfig } from "@entities/game-session/model/types";
+import type { EmitterId, GameAction, GameConfig, RunState } from "@entities/game-session/model/types";
 import { createStadiumLoopBoard, defaultBoardGeometryConfig } from "@entities/game-session/model/boardGeometry";
 import { gameConfig, validateGameConfig } from "@entities/game-session/model/config";
 import { createFixedStepDriver } from "@entities/game-session/model/fixedStepDriver";
@@ -68,15 +68,15 @@ describe("run simulation", () => {
       phase: "draft",
       waveIndex: 1,
     });
-    expect(draftBeforeFlyers.draft?.towerOffers).toContain("heat");
-    expect(rerolled.draft?.towerOffers).toContain("heat");
+    expect(getTowerOfferIds(draftBeforeFlyers)).toContain("heat");
+    expect(getTowerOfferIds(rerolled)).toContain("heat");
     expect(withHeat.bench.some(tower => tower.emitterId === "heat")).toBe(true);
   });
 
   it("does not gate the first flying wave when Жар is refused", () => {
     const draftBeforeFlyers = advanceToDraftAfterWave2(createRun(22));
     const refusedHeat = applyAction(draftBeforeFlyers, { type: "chooseDraftTower", emitterId: "water" });
-    const countdown = applyAction(refusedHeat, { type: "completeDraft" });
+    const countdown = applyAction(refusedHeat, { type: "chooseDraftUpgrade", upgradeId: refusedHeat.draft!.upgradeOffers[0]! });
     const wave = stepMany(countdown, 90);
 
     expect(wave.phase).toBe("wave");
@@ -438,15 +438,93 @@ describe("run simulation", () => {
 
   it("supports draft picks and selected bench placement as reducer contracts", () => {
     const draft = stepMany(startFirstWave(createPlacedStartingRun(5)), 90);
-    const withTower = applyAction(draft, { type: "chooseDraftTower", emitterId: draft.draft!.towerOffers[0]! });
+    const withTower = applyAction(draft, { type: "chooseDraftTower", emitterId: draft.draft!.towerOffers[0]!.emitterId });
     const selected = applyAction(withTower, { type: "selectTower", towerId: withTower.bench[0]!.id });
     const placed = applyAction(selected, { type: "placeSelectedTower", slotId: "slot-2-outer" });
-    const upgraded = applyAction(draft, { type: "chooseDraftUpgrade", upgradeId: draft.draft!.upgradeOffers[0]! });
+    const upgraded = applyAction(withTower, { type: "chooseDraftUpgrade", upgradeId: withTower.draft!.upgradeOffers[0]! });
 
     expect(withTower.draft?.step).toBe("upgrade");
     expect(placed.bench).toHaveLength(0);
     expect(placed.placedTowers.some(tower => tower.slotId === "slot-2-outer")).toBe(true);
-    expect(upgraded.upgrades).toEqual([{ upgradeId: draft.draft!.upgradeOffers[0]!, stacks: 1 }]);
+    expect(upgraded).toMatchObject({
+      phase: "countdown",
+      draft: null,
+      upgrades: [{ upgradeId: withTower.draft!.upgradeOffers[0]!, stacks: 1 }],
+    });
+  });
+
+  it("generates tower draft roles with a synergistic support offer", () => {
+    const draft = stepMany(startFirstWave(createRun(5, {
+      placedTowers: [
+        createTower("tower-water-only", "water", "slot-0-outer"),
+      ],
+    })), 520);
+
+    expect(draft.phase).toBe("draft");
+    expect(draft.draft?.towerOffers).toHaveLength(3);
+    expect(draft.draft?.towerOffers.map(offer => offer.role)).toContain("support");
+    expect(getTowerOfferIds(draft).some(emitterId => emitterId === "spark" || emitterId === "heat")).toBe(true);
+  });
+
+  it("keeps Нефть offered after wave 4 until taken", () => {
+    const result = runHeadlessRun(createRun(4, {
+      placedTowers: createSteamRingTowers(),
+    }), {
+      maxSteps: 12000,
+      autoStartWaves: true,
+      draftActions: state => getDraftCompletionActionsAvoiding(state, "oil"),
+      stopWhen: state => state.phase === "draft" && state.waveIndex === 3,
+    });
+
+    expect(result.stoppedByPredicate).toBe(true);
+    expect(getTowerOfferIds(result.state)).toContain("oil");
+  });
+
+  it("spends the single reroll budget on the current draft step", () => {
+    const draft = stepMany(startFirstWave(createPlacedStartingRun(6)), 90);
+    const rerolled = applyAction(draft, { type: "rerollDraft" });
+    const exhausted = applyAction(rerolled, { type: "rerollDraft" });
+
+    expect(rerolled.draft?.rerollsRemaining).toBe(0);
+    expect(exhausted.draft).toEqual(rerolled.draft);
+    expect(exhausted.rng).toEqual(rerolled.rng);
+  });
+
+  it("caps upgrade stacks and lets upgrade effects alter reactions", () => {
+    const maxedDraft = {
+      ...createRun(1),
+      phase: "draft" as const,
+      draft: {
+        step: "upgrade" as const,
+        rerollsRemaining: 0,
+        towerOffers: [
+          { emitterId: "water", role: "support" },
+          { emitterId: "spark", role: "generic" },
+          { emitterId: "heat", role: "pivot" },
+        ] as const,
+        upgradeOffers: ["waterCapacity"] as const,
+      },
+      upgrades: [{ upgradeId: "waterCapacity" as const, stacks: 2 }],
+    };
+    const capped = applyAction(maxedDraft, { type: "chooseDraftUpgrade", upgradeId: "waterCapacity" });
+    const towers = [
+      createTower("tower-water-a", "water", "slot-0-outer"),
+      createTower("tower-spark-a", "spark", "slot-1-inner"),
+    ];
+
+    expect(capped.upgrades).toEqual([{ upgradeId: "waterCapacity", stacks: 2 }]);
+    expect(resolveReactions(gameConfig.board, towers)[1]?.ground).toBeNull();
+    expect(resolveReactions(gameConfig.board, towers, [{ upgradeId: "waterCapacity", stacks: 1 }])[1]?.ground).toBe("electroPuddle");
+  });
+
+  it("round-trips draft state and upgrade stacks through save serialization", () => {
+    const draft = stepMany(startFirstWave(createPlacedStartingRun(8)), 90);
+    const withTower = applyAction(draft, { type: "chooseDraftTower", emitterId: draft.draft!.towerOffers[0]!.emitterId });
+    const restored = deserializeRun(serializeRun(withTower));
+
+    expect(restored.draft).toEqual(withTower.draft);
+    expect(restored.bench).toEqual(withTower.bench);
+    expect(restored.rng).toEqual(withTower.rng);
   });
 
   it("keeps paused runs frozen and applies speed through simulation stepping", () => {
@@ -464,11 +542,16 @@ describe("run simulation", () => {
       draft: {
         step: "tower" as const,
         rerollsRemaining: 1,
-        towerOffers: ["water", "spark", "heat"] as const,
+        towerOffers: [
+          { emitterId: "water", role: "support" },
+          { emitterId: "spark", role: "generic" },
+          { emitterId: "heat", role: "pivot" },
+        ] as const,
         upgradeOffers: ["waterCapacity", "sparkCapacity", "heatReach"] as const,
       },
     };
-    const countdown = applyAction(draft, { type: "completeDraft" });
+    const withTower = applyAction(draft, { type: "chooseDraftTower", emitterId: "water" });
+    const countdown = applyAction(withTower, { type: "chooseDraftUpgrade", upgradeId: "waterCapacity" });
 
     expect(countdown).toMatchObject({
       phase: "countdown",
@@ -724,10 +807,42 @@ function startFirstWave(state: ReturnType<typeof createRun>): ReturnType<typeof 
 
 function advanceToDraftAfterWave2(state: ReturnType<typeof createRun>): ReturnType<typeof createRun> {
   const afterWave1 = stepMany(startFirstWave(state), 520);
-  const wave2Countdown = applyAction(afterWave1, { type: "completeDraft" });
+  const wave2Countdown = completeDraftByFirstChoices(afterWave1);
   const wave2 = stepMany(wave2Countdown, 90);
 
   return stepMany(wave2, 600);
+}
+
+function completeDraftByFirstChoices(state: ReturnType<typeof createRun>): ReturnType<typeof createRun> {
+  const towerOffer = state.draft?.towerOffers[0];
+  const withTower = towerOffer
+    ? applyAction(state, { type: "chooseDraftTower", emitterId: towerOffer.emitterId })
+    : state;
+  const upgradeOffer = withTower.draft?.upgradeOffers[0];
+
+  return upgradeOffer
+    ? applyAction(withTower, { type: "chooseDraftUpgrade", upgradeId: upgradeOffer })
+    : withTower;
+}
+
+function getTowerOfferIds(state: ReturnType<typeof createRun>) {
+  return state.draft?.towerOffers.map(offer => offer.emitterId) ?? [];
+}
+
+function getDraftCompletionActionsAvoiding(state: RunState, avoidedEmitterId: EmitterId): readonly GameAction[] {
+  const towerOffer = state.draft?.towerOffers.find(offer => offer.emitterId !== avoidedEmitterId) ?? state.draft?.towerOffers[0];
+  const upgradeOffer = state.draft?.upgradeOffers[0];
+  const actions: GameAction[] = [];
+
+  if (towerOffer) {
+    actions.push({ type: "chooseDraftTower", emitterId: towerOffer.emitterId });
+  }
+
+  if (upgradeOffer) {
+    actions.push({ type: "chooseDraftUpgrade", upgradeId: upgradeOffer });
+  }
+
+  return actions;
 }
 
 function createPlacedStartingRun(seed: number): ReturnType<typeof createRun> {
