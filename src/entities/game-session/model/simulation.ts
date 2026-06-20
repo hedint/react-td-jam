@@ -226,7 +226,7 @@ export function stepRun(state: RunState, deltaMs: number): RunState {
     phase: nextPhase,
     tick: state.tick + 1,
     elapsedMs: state.elapsedMs + scaledDeltaMs,
-    draft: nextPhase === "draft" ? createDraftState() : state.draft,
+    draft: nextPhase === "draft" ? createDraftState(state) : state.draft,
     waveRuntime: nextPhase === "draft" || nextPhase === "defeat" ? null : spawned.waveRuntime,
     coreHp,
     enemies,
@@ -511,11 +511,11 @@ function updateWaveStats(
   });
 }
 
-function createDraftState(): RunState["draft"] {
+function createDraftState(state: RunState): RunState["draft"] {
   return {
     step: "tower",
     rerollsRemaining: gameConfig.balance.rerollsPerDraft,
-    towerOffers: ["water", "spark", "heat"],
+    towerOffers: ensureRequiredTowerOffers(state, ["water", "spark", "heat"]),
     upgradeOffers: ["waterCapacity", "sparkCapacity", "heatReach"],
   };
 }
@@ -528,7 +528,10 @@ function rerollDraft(state: RunState): RunState {
   const [rng, roll] = nextRandom(state.rng);
   const emitters = gameConfig.emitters.map(emitter => emitter.id);
   const offset = Math.floor(roll * emitters.length);
-  const towerOffers = [0, 1, 2].map(index => emitters[(offset + index) % emitters.length]!);
+  const towerOffers = ensureRequiredTowerOffers(
+    state,
+    [0, 1, 2].map(index => emitters[(offset + index) % emitters.length]!),
+  );
 
   return {
     ...state,
@@ -539,6 +542,30 @@ function rerollDraft(state: RunState): RunState {
       towerOffers,
     },
   };
+}
+
+function ensureRequiredTowerOffers(state: RunState, offers: readonly EmitterId[]): readonly EmitterId[] {
+  const requiredOffer = getRequiredTowerOffer(state);
+
+  if (!requiredOffer || offers.includes(requiredOffer)) {
+    return offers;
+  }
+
+  return [...offers.slice(0, Math.max(0, 2)), requiredOffer];
+}
+
+function getRequiredTowerOffer(state: RunState): EmitterId | null {
+  const clearedWaveNumber = state.waveIndex + 1;
+
+  if (clearedWaveNumber >= 2 && !hasEmitterTower(state, "heat")) {
+    return "heat";
+  }
+
+  return null;
+}
+
+function hasEmitterTower(state: RunState, emitterId: EmitterId): boolean {
+  return [...state.bench, ...state.placedTowers].some(tower => tower.emitterId === emitterId);
 }
 
 function chooseDraftTower(state: RunState, emitterId: EmitterId): RunState {

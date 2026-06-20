@@ -1,4 +1,4 @@
-import type { RuntimeSnapshot, StagePoint, ViewportSize } from "./types";
+import type { EnemyId, RuntimeSnapshot, StagePoint, ViewportSize } from "./types";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { gameConfig } from "./config";
@@ -20,6 +20,7 @@ export const useGameSessionStore = defineStore("game-session", () => {
   const speed = ref<1 | 2>(1);
   const livingEnemyCount = ref(0);
   const activeReactionCount = ref(0);
+  const waveThreatEnemyId = ref<EnemyId | null>(null);
   const waveThreatLabel = ref("");
   const leaks = ref(0);
   const totalDamage = ref(0);
@@ -68,7 +69,8 @@ export const useGameSessionStore = defineStore("game-session", () => {
     speed.value = snapshot.speed;
     livingEnemyCount.value = snapshot.livingEnemies.length;
     activeReactionCount.value = snapshot.activeReactions.length;
-    waveThreatLabel.value = getWaveThreatLabel(snapshot.waveIndex);
+    waveThreatEnemyId.value = getWaveThreatEnemyId(snapshot.waveIndex);
+    waveThreatLabel.value = getWaveThreatLabel(waveThreatEnemyId.value);
     leaks.value = snapshot.stats.leaks;
     totalDamage.value = snapshot.stats.totalDamage;
     selectedTowerId.value = snapshot.selectedTowerId;
@@ -110,6 +112,7 @@ export const useGameSessionStore = defineStore("game-session", () => {
     speed,
     livingEnemyCount,
     activeReactionCount,
+    waveThreatEnemyId,
     waveThreatLabel,
     leaks,
     totalDamage,
@@ -125,9 +128,12 @@ export const useGameSessionStore = defineStore("game-session", () => {
   };
 });
 
-function getWaveThreatLabel(waveIndex: number): string {
+function getWaveThreatEnemyId(waveIndex: number): EnemyId | null {
   const wave = gameConfig.waves[waveIndex];
-  const enemyId = wave?.telegraphEnemyId ?? wave?.enemyId;
 
+  return wave?.telegraphEnemyId ?? wave?.enemyId ?? null;
+}
+
+function getWaveThreatLabel(enemyId: EnemyId | null): string {
   return gameConfig.enemies.find(enemy => enemy.id === enemyId)?.displayName ?? "";
 }

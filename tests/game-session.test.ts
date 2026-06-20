@@ -59,6 +59,31 @@ describe("run simulation", () => {
     expect(applyAction(draftA, { type: "rerollDraft" }).draft).toEqual(applyAction(draftB, { type: "rerollDraft" }).draft);
   });
 
+  it("keeps Жар offered before the first flying wave until the player takes it", () => {
+    const draftBeforeFlyers = advanceToDraftAfterWave2(createRun(22));
+    const rerolled = applyAction(draftBeforeFlyers, { type: "rerollDraft" });
+    const withHeat = applyAction(draftBeforeFlyers, { type: "chooseDraftTower", emitterId: "heat" });
+
+    expect(draftBeforeFlyers).toMatchObject({
+      phase: "draft",
+      waveIndex: 1,
+    });
+    expect(draftBeforeFlyers.draft?.towerOffers).toContain("heat");
+    expect(rerolled.draft?.towerOffers).toContain("heat");
+    expect(withHeat.bench.some(tower => tower.emitterId === "heat")).toBe(true);
+  });
+
+  it("does not gate the first flying wave when Жар is refused", () => {
+    const draftBeforeFlyers = advanceToDraftAfterWave2(createRun(22));
+    const refusedHeat = applyAction(draftBeforeFlyers, { type: "chooseDraftTower", emitterId: "water" });
+    const countdown = applyAction(refusedHeat, { type: "completeDraft" });
+    const wave = stepMany(countdown, 90);
+
+    expect(wave.phase).toBe("wave");
+    expect(wave.waveRuntime?.waveId).toBe("wave-3");
+    expect(wave.enemies[0]?.enemyId).toBe("flyer");
+  });
+
   it("steps deterministically for the slice scenario", () => {
     const runA = stepMany(startFirstWave(createPlacedStartingRun(11)), 90);
     const runB = stepMany(startFirstWave(createPlacedStartingRun(11)), 90);
@@ -339,6 +364,20 @@ describe("run simulation", () => {
 
     expect(stepRun(groundReaction, 100).enemies[0]?.hp).toBe(24);
     expect(stepRun(airReaction, 100).enemies[0]?.hp).toBeLessThan(24);
+  });
+
+  it("lets the Вода to Пар to Грозовое облако chain mow down Сварм and Летун", () => {
+    const state = stepMany(createRun(1, {
+      placedTowers: createStormCloudTowers(),
+      enemies: [
+        createEnemy("enemy-swarm-a", "swarm"),
+        createEnemy("enemy-flyer-a", "flyer"),
+      ],
+    }), 45);
+
+    expect(state.enemies).toEqual([]);
+    expect(state.stats.kills).toBe(2);
+    expect(state.stats.damageByReaction.stormCloud).toBeGreaterThan(0);
   });
 
   it("applies strong resistance without making enemies immune", () => {
@@ -659,6 +698,7 @@ describe("game session store", () => {
     expect(store.phaseLabel).toBe("Ожидание");
     expect(store.canStartWave).toBe(true);
     expect(store.livingEnemyCount).toBe(0);
+    expect(store.waveThreatEnemyId).toBe("grunt");
     expect(store.towerItems).toEqual([
       { id: "tower-water-a", label: "Водомёт", placed: false },
       { id: "tower-water-b", label: "Водомёт", placed: false },
@@ -682,6 +722,14 @@ function startFirstWave(state: ReturnType<typeof createRun>): ReturnType<typeof 
   return applyAction(state, { type: "startWave" });
 }
 
+function advanceToDraftAfterWave2(state: ReturnType<typeof createRun>): ReturnType<typeof createRun> {
+  const afterWave1 = stepMany(startFirstWave(state), 520);
+  const wave2Countdown = applyAction(afterWave1, { type: "completeDraft" });
+  const wave2 = stepMany(wave2Countdown, 90);
+
+  return stepMany(wave2, 600);
+}
+
 function createPlacedStartingRun(seed: number): ReturnType<typeof createRun> {
   return createRun(seed, {
     placedTowers: [
@@ -697,6 +745,15 @@ function createSteamRingTowers() {
     createTower(`tower-water-ring-${index}`, "water", `slot-${index}-outer`),
     createTower(`tower-heat-ring-${index}`, "heat", `slot-${index}-inner`),
   ]).flat();
+}
+
+function createStormCloudTowers() {
+  return [
+    createTower("tower-water-a", "water", "slot-0-outer"),
+    createTower("tower-water-b", "water", "slot-1-outer"),
+    createTower("tower-heat-a", "heat", "slot-0-inner"),
+    createTower("tower-spark-a", "spark", "slot-1-inner"),
+  ];
 }
 
 function placeBenchTower(state: ReturnType<typeof createRun>, towerId: string, slotId: string): ReturnType<typeof createRun> {

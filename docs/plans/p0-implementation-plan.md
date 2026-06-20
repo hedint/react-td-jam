@@ -475,7 +475,7 @@ Purpose: turn the reaction board into a playable tower defense run with enemy mo
 - [x] Implement flying rule: летуны are damaged only by air reactions; ground enemies can be damaged by ground and air reactions.
 - [x] Implement strong resistance for Insulated and Flameproof, not full immunity.
 - [x] Add 10 typed wave configs based on the design doc pressure curve; keep full wave preview out of P0 UI.
-- [ ] Flyer/Жар safeguard (design §6.1 invariant): ensure Пар is reachable before the first flying wave — re-offer Жар until taken (ties to Phase 6) and add a light enemy-type icon telegraph at wave start. Do not gate the wave if the player still refuses.
+- [x] Flyer/Жар safeguard (design §6.1 invariant): ensure Пар is reachable before the first flying wave — re-offer Жар until taken (ties to Phase 6) and add a light enemy-type icon telegraph at wave start. Do not gate the wave if the player still refuses.
 - [x] Track per-wave and per-run damage/leak stats; add wave clear detection and transition into draft.
 - [x] Keep core baseline tunable: HP 15, regular leak -1; boss lap damage handled in boss phase.
 - [x] Bring up a minimal headless run harness here (drive `stepRun` with scripted actions) so waves are tuned as they are added, not all in Phase 8.
@@ -486,7 +486,7 @@ Purpose: turn the reaction board into a playable tower defense run with enemy mo
 - [x] Resist enemies are clearly tougher against their resisted family without becoming impossible by immunity.
 - [x] Wave progression reaches draft after clearing each wave; the run can reach wave 10 without manual debug intervention.
 - [x] Core HP loss and defeat state are deterministic and testable.
-- [ ] Wow #2 reads: a Вода -> Пар -> Грозовое облако chain mows down Сварм and Летун (design §12).
+- [x] Wow #2 reads: a Вода -> Пар -> Грозовое облако chain mows down Сварм and Летун (design §12).
 
 ### Tests
 
@@ -507,7 +507,7 @@ Purpose: turn the reaction board into a playable tower defense run with enemy mo
 
 ### Exit gate
 
-- [ ] **Wow #2 verified.**
+- [x] **Wow #2 verified.**
 
 ### Phase notes
 
@@ -517,7 +517,9 @@ Purpose: turn the reaction board into a playable tower defense run with enemy mo
   - Added the light enemy-type telegraph in the HUD (`Враг`) and enemy-specific Phaser silhouettes/colors. The Жар re-offer guarantee remains open because it belongs to the Phase 6 draft/unlock system.
   - Added `src/entities/game-session/model/headlessRun.ts` as the minimal scripted runner. The current smoke-run fixture uses a full steam ring to verify wave runtime through wave 10; it is not a final balance strategy.
   - Bumped save schema version from 1 to 2 and made incompatible local saves load as absent instead of crashing the resume prompt.
-  - Browser smoke verified wave 1 load/start and HUD/canvas readability only. Full waves 1-3 and wow #2 visual verification remain open.
+  - Browser smoke verified wave 1 load/start and HUD/canvas readability only. A full public-UI waves 1-3 playthrough remains open until the Phase 6 draft overlay exposes tower choices.
+  - Added the Phase 5 flyer/Жар safeguard in draft generation and rerolls: after wave 2, Жар stays in tower offers until the player owns a Жар tower; refusing it still allows wave 3 to start.
+  - Added a lightweight enemy-type icon to the existing HUD telegraph. Wow #2 was verified with a headless mixed Сварм/Летун chain test and a Playwright saved-run browser fixture because the public two-step draft UI remains Phase 6 work.
 
 ### Phase completion summary
 

@@ -11,7 +11,15 @@
       </div>
       <div class="run-hud__stat run-hud__stat--threat">
         <span>Враг</span>
-        <strong>{{ session.waveThreatLabel }}</strong>
+        <strong class="run-hud__threat-value">
+          <span
+            v-if="session.waveThreatEnemyId"
+            class="run-hud__enemy-icon"
+            :class="`run-hud__enemy-icon--${session.waveThreatEnemyId}`"
+            aria-hidden="true"
+          />
+          <span>{{ session.waveThreatLabel }}</span>
+        </strong>
       </div>
       <div class="run-hud__stat">
         <span>Т</span>
@@ -252,7 +260,7 @@ function startNewRun(): void {
 }
 
 .run-hud__stat--threat {
-  flex-basis: 92px;
+  flex-basis: 116px;
 }
 
 .run-hud__top .run-hud__stat:nth-child(4) {
@@ -288,6 +296,65 @@ dd {
   line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.run-hud__threat-value {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.run-hud__threat-value span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.run-hud__enemy-icon {
+  flex: 0 0 13px;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgb(255 255 255 / 72%);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 30%);
+}
+
+.run-hud__enemy-icon--grunt {
+  background: #9f7b4f;
+  border-radius: 3px;
+}
+
+.run-hud__enemy-icon--swarm {
+  background:
+    radial-gradient(circle at 30% 35%, #f2d27a 0 18%, transparent 20%),
+    radial-gradient(circle at 70% 65%, #f2d27a 0 18%, transparent 20%),
+    #46392c;
+  border-radius: 50%;
+}
+
+.run-hud__enemy-icon--tank {
+  background: #8f9096;
+  border-radius: 2px;
+  transform: scaleX(1.16);
+}
+
+.run-hud__enemy-icon--flyer {
+  background: #9ed8ff;
+  clip-path: polygon(50% 0, 100% 82%, 50% 60%, 0 82%);
+}
+
+.run-hud__enemy-icon--runner {
+  background: #f0c45f;
+  clip-path: polygon(0 18%, 100% 50%, 0 82%);
+}
+
+.run-hud__enemy-icon--insulated {
+  background: repeating-linear-gradient(45deg, #6e6f74 0 3px, #b9bec5 3px 6px);
+  border-radius: 4px;
+}
+
+.run-hud__enemy-icon--flameproof {
+  background: linear-gradient(135deg, #4e221a 0 48%, #f06433 50% 100%);
+  border-radius: 50% 50% 4px 4px;
 }
 
 .run-hud__tower {
@@ -392,7 +459,7 @@ dd {
   }
 
   .run-hud__stat--threat {
-    flex-basis: 82px;
+    flex-basis: 104px;
   }
 
   .run-hud__top .run-hud__stat:nth-child(4) {
