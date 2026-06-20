@@ -395,54 +395,73 @@ Purpose: implement the core mechanic with per-phase VFX. Towers create reactions
 
 ### Tasks
 
-- [ ] Model reagents as live projection from currently placed towers.
-- [ ] Add P0 emitters: Вода / Водомёт, Нефть / Маслонасос, Искра / Разрядник, Жар / Магмовый кран.
-- [ ] Exclude Холод from P0 configs and drafts.
-- [ ] Implement connected water/oil pools along the ring.
-- [ ] Implement per-source energy capacity over connected pools, using nearest-cell claim, with stable slot id as tie-break for equal-distance conflicts.
-- [ ] Resolve reactions with deterministic tier passes T1, then T2, then T3; avoid fixpoint/order-dependent resolution.
-- [ ] Support one ground reaction and one air reaction per cell.
-- [ ] Implement T1 reactions: Электролужа, Пар, Пожар.
-- [ ] Implement T2 reactions: Грозовое облако, Огненный вихрь.
-- [ ] Implement T3 reaction: Огненный Шторм.
-- [ ] Implement water/oil slow as control/setup with zero direct damage.
-- [ ] Apply reaction damage at 30Hz fixed-step using DPS constants; keep visual pulse timing separate from damage math.
-- [ ] Enforce tier-damage ordering: per-tick damage T1 < T2 < T3 in config (design §10 — the core 2+2=5).
-- [ ] Ship renderer-facing VFX for every reaction in this phase: ground effects on the floor, air effects above cells; duplicate color meaning with shape/pattern where practical.
+- [x] Model reagents as live projection from currently placed towers.
+- [x] Add P0 emitters: Вода / Водомёт, Нефть / Маслонасос, Искра / Разрядник, Жар / Магмовый кран.
+- [x] Exclude Холод from P0 configs and drafts.
+- [x] Implement connected water/oil pools along the ring.
+- [x] Implement per-source energy capacity over connected pools, using nearest-cell claim, with stable slot id as tie-break for equal-distance conflicts.
+- [x] Resolve reactions with deterministic tier passes T1, then T2, then T3; avoid fixpoint/order-dependent resolution.
+- [x] Support one ground reaction and one air reaction per cell.
+- [x] Implement T1 reactions: Электролужа, Пар, Пожар.
+- [x] Implement T2 reactions: Грозовое облако, Огненный вихрь.
+- [x] Implement T3 reaction: Огненный Шторм.
+- [x] Implement water/oil slow as control/setup with zero direct damage.
+- [x] Apply reaction damage at 30Hz fixed-step using DPS constants; keep visual pulse timing separate from damage math.
+- [x] Enforce tier-damage ordering: per-tick damage T1 < T2 < T3 in config (design §10 — the core 2+2=5).
+- [x] Ship renderer-facing VFX for every reaction in this phase: ground effects on the floor, air effects above cells; duplicate color meaning with shape/pattern where practical.
 
 ### Acceptance Criteria
 
-- [ ] Single towers do not deal damage by themselves; reactions appear only from valid combinations and adjacency.
-- [ ] Tower removal removes reaction effects on the next simulation tick (on resume).
-- [ ] Reaction results are independent of cell iteration order; air and ground reactions can coexist on a cell.
-- [ ] The P0 reaction graph can produce T1, T2, and T3 effects, with T1 < T2 < T3 per-tick damage.
-- [ ] Reaction VFX is readable in portrait layout.
+- [x] Single towers do not deal damage by themselves; reactions appear only from valid combinations and adjacency.
+- [x] Tower removal removes reaction effects on the next simulation tick (on resume).
+- [x] Reaction results are independent of cell iteration order; air and ground reactions can coexist on a cell.
+- [x] The P0 reaction graph can produce T1, T2, and T3 effects, with T1 < T2 < T3 per-tick damage.
+- [x] Reaction VFX is readable in portrait layout.
 
 ### Tests
 
-- [ ] Live projection tests.
-- [ ] Pool connectivity tests.
-- [ ] Capacity and conflict tie-break tests.
-- [ ] T1/T2/T3 recipe tests.
-- [ ] Order-independence tests.
-- [ ] Tier-damage ordering tests (T1 < T2 < T3).
-- [ ] Ground/air coexistence tests.
-- [ ] Tower removal clearing tests.
+- [x] Live projection tests.
+- [x] Pool connectivity tests.
+- [x] Capacity and conflict tie-break tests.
+- [x] T1/T2/T3 recipe tests.
+- [x] Order-independence tests.
+- [x] Tier-damage ordering tests (T1 < T2 < T3).
+- [x] Ground/air coexistence tests.
+- [x] Tower removal clearing tests.
 
 ### Verification
 
-- [ ] `npm run typecheck`
-- [ ] `npm test`
-- [ ] Manual browser check: visible P0 reaction VFX.
+- [x] `npm run typecheck`
+- [x] `npm test`
+- [x] Manual browser check: visible P0 reaction VFX.
 
 ### Phase notes
 
 - Decisions/contradictions:
-  - TBD
+  - Added a pure `reactions.ts` resolver module so reagent projection, pool capacity, tier passes, damage entries, and speed control remain testable outside Phaser.
+  - `CellReactionState` now carries both `ground` and `air`; snapshots treat either layer as active.
+  - Water and oil are projected setup/control only: they slow movement through typed emitter config and do not contribute direct damage.
+  - T2/T3 reactions are resolved from stable snapshots of the previous tier pass. Higher air tiers replace lower air reactions on that cell, while ground and air may coexist.
+  - The browser VFX check used a saved-run fixture to display all P0 reaction VFX before Phase 6 unlock/draft UI exists.
 
 ### Phase completion summary
 
-TBD
+- Implemented:
+  - Full P0 reaction graph for Вода, Нефть, Искра, and Жар: Электролужа, Пар, Пожар, Грозовое облако, Огненный вихрь, and Огненный Шторм.
+  - Live reagent projection from placed towers, connected water/oil pools, source capacity over pools, deterministic tier resolution, ground/air coexistence, config-backed DPS, and raw substance slow.
+  - Phaser VFX for each Phase 4 reaction: floor effects for ground reactions and elevated cloud/vortex/storm effects for air reactions.
+- Intentionally deferred:
+  - Flying-only damage, enemy resist math, wave tuning, and full combat progression remain Phase 5.
+  - Normal gameplay access to Жар/Нефть still depends on Phase 6 draft/unlock work; Phase 4 browser fixture was only for VFX verification.
+- Accepted deviations/tradeoffs:
+  - Energy capacity currently applies per connected substance pool. This keeps the rule deterministic and readable for 16 cells; future upgrade tuning may revisit cross-pool capacity if needed.
+- Tests/checks run:
+  - `npm run lint:fix`
+  - `npm run typecheck`
+  - `npm test` passed: 2 test files, 35 tests.
+  - `npm run build` passed with Vite's existing large chunk warning.
+  - Browser check on `http://127.0.0.1:5180`: placement -> Электролужа -> wave clear to draft, plus saved-run VFX fixture for the P0 reaction graph.
+  - Screenshots saved to `output/playwright/phase4-wave-electropuddle.png` and `output/playwright/phase4-p0-reaction-vfx.png`.
 
 ## Phase 5 - Enemies, Waves, and Combat
 
@@ -655,10 +674,10 @@ Use this as the minimum regression checklist while implementing P0.
 - [x] The stadium geometry generator yields a valid loop with correct corner and slot-to-cell mapping.
 - [ ] Full save round-trips current phase, board, bench, enemies, draft, upgrades, boss, and stats.
 - [x] Live bench placement during waves updates reactions without pausing; pick-up/move/swap requires pause.
-- [ ] Single towers never deal direct damage.
+- [x] Single towers never deal direct damage.
 - [x] Removing a tower (in pause) removes its projected state on the next tick after resume.
-- [ ] T1, T2, and T3 reactions are reachable, with T1 < T2 < T3 per-tick damage.
-- [ ] Ground and air reaction layers coexist correctly.
+- [x] T1, T2, and T3 reactions are reachable, with T1 < T2 < T3 per-tick damage.
+- [x] Ground and air reaction layers coexist correctly.
 - [ ] Flying enemies are only damaged by air reactions.
 - [ ] Insulated and Flameproof use strong resistance, not immunity.
 - [ ] Every draft offers at least one option that synergizes with the current board.

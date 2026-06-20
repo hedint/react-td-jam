@@ -1,5 +1,6 @@
-import type { BoardSlot, EnemyState, GameSnapshot, PathCell, TowerState } from "@entities/game-session/model/types";
+import type { BoardSlot, CellReactionState, EnemyState, GameSnapshot, PathCell, ReactionId, TowerState } from "@entities/game-session/model/types";
 import type { Unsubscribe } from "@shared/lib/event-bus/createTypedEventBus";
+import { gameConfig } from "@entities/game-session/model/config";
 import { createFixedStepDriver } from "@entities/game-session/model/fixedStepDriver";
 import { hasSavedRun, saveRun } from "@entities/game-session/model/persistence";
 import { applyAction, createGameSession, createSnapshot, stepGameSession } from "@entities/game-session/model/simulation";
@@ -144,7 +145,7 @@ export class RunScene extends Phaser.Scene {
     }
 
     if (this.reactionText) {
-      this.reactionText.setText(snapshot.activeReactions.length > 0 ? "Электролужа" : "");
+      this.reactionText.setText(getActiveReactionLabel(snapshot.activeReactions));
       this.reactionText.setAlpha(0.82 + Math.sin(snapshot.elapsedMs / 120) * 0.18);
     }
   }
@@ -241,23 +242,19 @@ export class RunScene extends Phaser.Scene {
 
     snapshot.activeReactions.forEach((reaction) => {
       const cell = snapshot.board.pathCells[reaction.cellIndex];
-      if (!cell || reaction.ground !== "electroPuddle") {
+      if (!cell) {
         return;
       }
 
       const pulse = 2 + Math.sin(snapshot.elapsedMs / 80 + reaction.cellIndex) * 2;
 
-      graphics.fillStyle(0x1B9BD0, 0.58);
-      graphics.fillEllipse(cell.x, cell.y + 6, 78 + pulse, 38 + pulse);
-      graphics.lineStyle(3, 0x9FF7FF, 0.9);
-      graphics.strokeEllipse(cell.x, cell.y + 6, 78 + pulse, 38 + pulse);
-      graphics.lineStyle(2, 0xE9FFFF, 0.9);
-      graphics.beginPath();
-      graphics.moveTo(cell.x - 22, cell.y + 2);
-      graphics.lineTo(cell.x - 6, cell.y - 8);
-      graphics.lineTo(cell.x + 2, cell.y + 4);
-      graphics.lineTo(cell.x + 20, cell.y - 6);
-      graphics.strokePath();
+      if (reaction.ground) {
+        renderGroundReaction(graphics, cell, reaction.ground, pulse);
+      }
+
+      if (reaction.air) {
+        renderAirReaction(graphics, cell, reaction.air, pulse, snapshot.elapsedMs);
+      }
     });
   }
 
@@ -396,4 +393,124 @@ function getTowerColors(emitterId: TowerState["emitterId"]): { readonly fill: nu
     default:
       return emitterId satisfies never;
   }
+}
+
+function renderGroundReaction(
+  graphics: Phaser.GameObjects.Graphics,
+  cell: PathCell,
+  reactionId: ReactionId,
+  pulse: number,
+): void {
+  switch (reactionId) {
+    case "electroPuddle":
+      graphics.fillStyle(0x1B9BD0, 0.58);
+      graphics.fillEllipse(cell.x, cell.y + 6, 78 + pulse, 38 + pulse);
+      graphics.lineStyle(3, 0x9FF7FF, 0.9);
+      graphics.strokeEllipse(cell.x, cell.y + 6, 78 + pulse, 38 + pulse);
+      graphics.lineStyle(2, 0xE9FFFF, 0.9);
+      graphics.beginPath();
+      graphics.moveTo(cell.x - 22, cell.y + 2);
+      graphics.lineTo(cell.x - 6, cell.y - 8);
+      graphics.lineTo(cell.x + 2, cell.y + 4);
+      graphics.lineTo(cell.x + 20, cell.y - 6);
+      graphics.strokePath();
+      break;
+    case "fire":
+      graphics.fillStyle(0xA53716, 0.62);
+      graphics.fillEllipse(cell.x, cell.y + 7, 82 + pulse, 42 + pulse);
+      graphics.lineStyle(3, 0xFFB15E, 0.92);
+      graphics.strokeEllipse(cell.x, cell.y + 7, 82 + pulse, 42 + pulse);
+      graphics.fillStyle(0xFFDB77, 0.86);
+      graphics.beginPath();
+      graphics.moveTo(cell.x - 16, cell.y + 16);
+      graphics.lineTo(cell.x - 3, cell.y - 16 - pulse);
+      graphics.lineTo(cell.x + 9, cell.y + 14);
+      graphics.lineTo(cell.x + 20, cell.y - 5);
+      graphics.lineTo(cell.x + 24, cell.y + 18);
+      graphics.closePath();
+      graphics.fillPath();
+      break;
+    default:
+      break;
+  }
+}
+
+function renderAirReaction(
+  graphics: Phaser.GameObjects.Graphics,
+  cell: PathCell,
+  reactionId: ReactionId,
+  pulse: number,
+  elapsedMs: number,
+): void {
+  const y = cell.y - 42;
+
+  switch (reactionId) {
+    case "steam":
+      graphics.fillStyle(0xD7EFF0, 0.44);
+      graphics.fillCircle(cell.x - 18, y + 2, 18 + pulse);
+      graphics.fillCircle(cell.x + 2, y - 8, 22 + pulse);
+      graphics.fillCircle(cell.x + 23, y + 4, 16 + pulse);
+      graphics.lineStyle(2, 0xFFFFFF, 0.62);
+      graphics.strokeEllipse(cell.x, y + 4, 76 + pulse, 34 + pulse);
+      break;
+    case "stormCloud":
+      graphics.fillStyle(0x284E64, 0.74);
+      graphics.fillCircle(cell.x - 20, y, 21 + pulse);
+      graphics.fillCircle(cell.x + 4, y - 9, 25 + pulse);
+      graphics.fillCircle(cell.x + 28, y + 2, 18 + pulse);
+      graphics.lineStyle(3, 0x9FF7FF, 0.92);
+      graphics.beginPath();
+      graphics.moveTo(cell.x - 4, y + 12);
+      graphics.lineTo(cell.x - 15, y + 34);
+      graphics.lineTo(cell.x + 1, y + 29);
+      graphics.lineTo(cell.x - 8, y + 50);
+      graphics.strokePath();
+      break;
+    case "fireVortex": {
+      const spin = elapsedMs / 130 + cell.index;
+
+      graphics.lineStyle(5, 0xFF813D, 0.88);
+      graphics.strokeCircle(cell.x, y + 8, 24 + pulse);
+      graphics.lineStyle(3, 0xFFE0A0, 0.84);
+      graphics.beginPath();
+      graphics.moveTo(cell.x + Math.cos(spin) * 32, y + 8 + Math.sin(spin) * 12);
+      graphics.lineTo(cell.x + Math.cos(spin + 2.1) * 20, y + 8 + Math.sin(spin + 2.1) * 24);
+      graphics.lineTo(cell.x + Math.cos(spin + 4.2) * 8, y + 8 + Math.sin(spin + 4.2) * 10);
+      graphics.strokePath();
+      break;
+    }
+    case "fireStorm":
+      graphics.fillStyle(0x4B183F, 0.5);
+      graphics.fillCircle(cell.x, y + 8, 42 + pulse);
+      graphics.lineStyle(5, 0xFFCD62, 0.95);
+      graphics.strokeCircle(cell.x, y + 8, 42 + pulse);
+      graphics.lineStyle(3, 0x9FF7FF, 0.92);
+      graphics.strokeCircle(cell.x, y + 8, 24 + pulse);
+      graphics.fillStyle(0xFFFFFF, 0.9);
+      graphics.fillCircle(cell.x, y + 8, 5 + pulse / 2);
+      break;
+    default:
+      break;
+  }
+}
+
+function getActiveReactionLabel(reactions: readonly CellReactionState[]): string {
+  const reactionIds = new Set<ReactionId>();
+
+  reactions.forEach((reaction) => {
+    if (reaction.ground) {
+      reactionIds.add(reaction.ground);
+    }
+
+    if (reaction.air) {
+      reactionIds.add(reaction.air);
+    }
+  });
+
+  return [...reactionIds]
+    .map(reactionId => gameConfig.reactions.find(reaction => reaction.id === reactionId))
+    .filter(reaction => reaction !== undefined)
+    .sort((left, right) => right.tier - left.tier || right.dps - left.dps)
+    .map(reaction => reaction.displayName)
+    .map((displayName, index, names) => index === 0 && names.length > 1 ? `${displayName} +${names.length - 1}` : displayName)[0] ?? "";
 }

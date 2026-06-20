@@ -63,6 +63,21 @@ export interface EnemyState {
 export interface CellReactionState {
   readonly cellIndex: number
   readonly ground: ReactionId | null
+  readonly air: ReactionId | null
+}
+
+export interface CellEnergyClaim {
+  readonly emitterId: EmitterId
+  readonly towerId: string
+  readonly slotId: string
+}
+
+export interface CellReagentProjection {
+  readonly cellIndex: number
+  readonly substances: readonly EmitterId[]
+  readonly energy: readonly EmitterId[]
+  readonly directEnergy: readonly EmitterId[]
+  readonly energyClaims: readonly CellEnergyClaim[]
 }
 
 export interface DraftState {
@@ -158,6 +173,8 @@ export interface EmitterDefinition {
   readonly displayName: string
   readonly towerDisplayName: string
   readonly family: "substance" | "energy"
+  readonly energyCapacity?: number
+  readonly speedMultiplier?: number
 }
 
 export interface ReactionDefinition {

@@ -3,6 +3,7 @@ import { createStadiumLoopBoard, defaultBoardGeometryConfig } from "@entities/ga
 import { gameConfig, validateGameConfig } from "@entities/game-session/model/config";
 import { createFixedStepDriver } from "@entities/game-session/model/fixedStepDriver";
 import { clearSavedRun, hasSavedRun, loadSavedRun, saveRun } from "@entities/game-session/model/persistence";
+import { collectConnectedPools, projectReagents, resolveReactions } from "@entities/game-session/model/reactions";
 import {
   applyAction,
   createGrunt,
@@ -84,22 +85,22 @@ describe("run simulation", () => {
     const state = createPlacedStartingRun(1);
 
     expect(state.reactions).toEqual([
-      { cellIndex: 0, ground: "electroPuddle" },
-      { cellIndex: 1, ground: "electroPuddle" },
-      { cellIndex: 2, ground: null },
-      { cellIndex: 3, ground: null },
-      { cellIndex: 4, ground: null },
-      { cellIndex: 5, ground: null },
-      { cellIndex: 6, ground: null },
-      { cellIndex: 7, ground: null },
-      { cellIndex: 8, ground: null },
-      { cellIndex: 9, ground: null },
-      { cellIndex: 10, ground: null },
-      { cellIndex: 11, ground: null },
-      { cellIndex: 12, ground: null },
-      { cellIndex: 13, ground: null },
-      { cellIndex: 14, ground: null },
-      { cellIndex: 15, ground: null },
+      { cellIndex: 0, ground: "electroPuddle", air: null },
+      { cellIndex: 1, ground: "electroPuddle", air: null },
+      { cellIndex: 2, ground: null, air: null },
+      { cellIndex: 3, ground: null, air: null },
+      { cellIndex: 4, ground: null, air: null },
+      { cellIndex: 5, ground: null, air: null },
+      { cellIndex: 6, ground: null, air: null },
+      { cellIndex: 7, ground: null, air: null },
+      { cellIndex: 8, ground: null, air: null },
+      { cellIndex: 9, ground: null, air: null },
+      { cellIndex: 10, ground: null, air: null },
+      { cellIndex: 11, ground: null, air: null },
+      { cellIndex: 12, ground: null, air: null },
+      { cellIndex: 13, ground: null, air: null },
+      { cellIndex: 14, ground: null, air: null },
+      { cellIndex: 15, ground: null, air: null },
     ]);
   });
 
@@ -109,8 +110,8 @@ describe("run simulation", () => {
 
     expect(snapshot.livingEnemies).toHaveLength(1);
     expect(snapshot.activeReactions).toEqual([
-      { cellIndex: 0, ground: "electroPuddle" },
-      { cellIndex: 1, ground: "electroPuddle" },
+      { cellIndex: 0, ground: "electroPuddle", air: null },
+      { cellIndex: 1, ground: "electroPuddle", air: null },
     ]);
     expect("fps" in snapshot).toBe(false);
   });
@@ -126,8 +127,154 @@ describe("run simulation", () => {
     });
     const next = stepRun(state, 1000 / 30);
 
-    expect(next.reactions.every(reaction => reaction.ground === null)).toBe(true);
+    expect(next.reactions.every(reaction => reaction.ground === null && reaction.air === null)).toBe(true);
     expect(next.enemies[0]?.hp).toBe(30);
+  });
+
+  it("projects live reagents from currently placed towers", () => {
+    const state = createRun(1, {
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-heat-a", "heat", "slot-0-inner"),
+      ],
+    });
+
+    expect(projectReagents(state.board, state.placedTowers)[0]).toEqual({
+      cellIndex: 0,
+      substances: ["water"],
+      energy: ["heat"],
+      directEnergy: ["heat"],
+      energyClaims: [
+        {
+          emitterId: "heat",
+          slotId: "slot-0-inner",
+          towerId: "tower-heat-a",
+        },
+      ],
+    });
+    expect(state.reactions[0]).toEqual({ cellIndex: 0, ground: null, air: "steam" });
+  });
+
+  it("keeps water and oil pools connected only along the ring", () => {
+    expect(collectConnectedPools(16, new Set([0, 1, 3, 15]))).toEqual([[0, 1, 15], [3]]);
+  });
+
+  it("applies source capacity over connected pools by nearest cells", () => {
+    const state = createRun(1, {
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-water-b", "water", "slot-1-outer"),
+        createTower("tower-water-c", "water", "slot-2-outer"),
+        createTower("tower-spark-a", "spark", "slot-0-inner"),
+        createTower("tower-spark-b", "spark", "slot-2-inner"),
+      ],
+    });
+    const projection = projectReagents(state.board, state.placedTowers);
+    const energizedCells = projection.filter(cell => cell.energy.includes("spark")).map(cell => cell.cellIndex);
+
+    expect(energizedCells).toEqual([0, 1, 2]);
+    expect(projection[1]?.energyClaims).toEqual([
+      {
+        emitterId: "spark",
+        slotId: "slot-0-inner",
+        towerId: "tower-spark-a",
+      },
+    ]);
+  });
+
+  it("resolves the P0 T1/T2/T3 reaction graph", () => {
+    const t1 = createRun(1, {
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-heat-a", "heat", "slot-0-inner"),
+        createTower("tower-oil-a", "oil", "slot-8-outer"),
+        createTower("tower-heat-b", "heat", "slot-8-inner"),
+      ],
+    });
+    const stormCloud = createRun(1, {
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-heat-a", "heat", "slot-0-inner"),
+        createTower("tower-spark-a", "spark", "slot-1-outer"),
+      ],
+    });
+    const fireVortex = createRun(1, {
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-heat-a", "heat", "slot-0-inner"),
+        createTower("tower-oil-a", "oil", "slot-1-outer"),
+        createTower("tower-heat-b", "heat", "slot-1-inner"),
+      ],
+    });
+    const fireStorm = createRun(1, {
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-heat-a", "heat", "slot-0-inner"),
+        createTower("tower-spark-a", "spark", "slot-1-outer"),
+        createTower("tower-water-b", "water", "slot-2-outer"),
+        createTower("tower-oil-b", "oil", "slot-2-inner"),
+        createTower("tower-heat-b", "heat", "slot-2-outer"),
+      ],
+    });
+
+    expect(t1.reactions.some(reaction => reaction.air === "steam")).toBe(true);
+    expect(t1.reactions.some(reaction => reaction.ground === "fire")).toBe(true);
+    expect(stormCloud.reactions.some(reaction => reaction.air === "stormCloud")).toBe(true);
+    expect(fireVortex.reactions.some(reaction => reaction.air === "fireVortex")).toBe(true);
+    expect(fireStorm.reactions.some(reaction => reaction.air === "fireStorm")).toBe(true);
+  });
+
+  it("resolves reactions independently from placed tower iteration order", () => {
+    const towers = [
+      createTower("tower-water-a", "water", "slot-0-outer"),
+      createTower("tower-heat-a", "heat", "slot-0-inner"),
+      createTower("tower-spark-a", "spark", "slot-1-outer"),
+      createTower("tower-oil-a", "oil", "slot-1-inner"),
+    ];
+    const state = createRun(1);
+
+    expect(resolveReactions(state.board, towers)).toEqual(resolveReactions(state.board, [...towers].reverse()));
+  });
+
+  it("enforces tier damage ordering in config", () => {
+    const maxT1 = Math.max(...gameConfig.reactions.filter(reaction => reaction.tier === 1).map(reaction => reaction.dps));
+    const minT2 = Math.min(...gameConfig.reactions.filter(reaction => reaction.tier === 2).map(reaction => reaction.dps));
+    const maxT2 = Math.max(...gameConfig.reactions.filter(reaction => reaction.tier === 2).map(reaction => reaction.dps));
+    const minT3 = Math.min(...gameConfig.reactions.filter(reaction => reaction.tier === 3).map(reaction => reaction.dps));
+
+    expect(maxT1).toBeLessThan(minT2);
+    expect(maxT2).toBeLessThan(minT3);
+  });
+
+  it("allows one ground and one air reaction to coexist on a cell", () => {
+    const state = createRun(1, {
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-oil-a", "oil", "slot-15-outer"),
+        createTower("tower-heat-a", "heat", "slot-0-inner"),
+        createTower("tower-spark-a", "spark", "slot-15-inner"),
+      ],
+    });
+
+    expect(state.reactions[0]?.ground).not.toBeNull();
+    expect(state.reactions[0]?.air).not.toBeNull();
+  });
+
+  it("keeps raw water and oil as zero-damage control/setup", () => {
+    const state = createRun(1, {
+      placedTowers: [
+        createTower("tower-water-only", "water", "slot-0-outer"),
+        createTower("tower-oil-only", "oil", "slot-1-outer"),
+      ],
+      enemies: [
+        createGrunt(),
+      ],
+    });
+    const next = stepRun(state, 1000 / 30);
+
+    expect(next.stats.totalDamage).toBe(0);
+    expect(next.enemies[0]?.hp).toBe(30);
+    expect(next.enemies[0]?.pathProgress).toBeLessThan(1 / 30);
   });
 
   it("damages and kills a Грунт that crosses the Электролужа", () => {
@@ -302,9 +449,9 @@ describe("run simulation", () => {
       { type: "tapSlot", slotId: "slot-0-inner" },
     );
 
-    expect(withFirstWater.reactions.every(reaction => reaction.ground === null)).toBe(true);
+    expect(withFirstWater.reactions.every(reaction => reaction.ground === null && reaction.air === null)).toBe(true);
     expect(withSpark.reactions.filter(reaction => reaction.ground === "electroPuddle").map(reaction => reaction.cellIndex)).toEqual([0, 1]);
-    expect(removedSpark.reactions.every(reaction => reaction.ground === null)).toBe(true);
+    expect(removedSpark.reactions.every(reaction => reaction.ground === null && reaction.air === null)).toBe(true);
   });
 
   it("serializes, deserializes, and continues the same run state", () => {

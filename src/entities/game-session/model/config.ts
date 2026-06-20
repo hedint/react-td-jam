@@ -17,10 +17,10 @@ export const gameConfig: GameConfig = {
   },
   board,
   emitters: [
-    { id: "water", displayName: "Вода", towerDisplayName: "Водомёт", family: "substance" },
-    { id: "oil", displayName: "Нефть", towerDisplayName: "Маслонасос", family: "substance" },
-    { id: "spark", displayName: "Искра", towerDisplayName: "Разрядник", family: "energy" },
-    { id: "heat", displayName: "Жар", towerDisplayName: "Магмовый кран", family: "energy" },
+    { id: "water", displayName: "Вода", towerDisplayName: "Водомёт", family: "substance", speedMultiplier: 0.86 },
+    { id: "oil", displayName: "Нефть", towerDisplayName: "Маслонасос", family: "substance", speedMultiplier: 0.74 },
+    { id: "spark", displayName: "Искра", towerDisplayName: "Разрядник", family: "energy", energyCapacity: 2 },
+    { id: "heat", displayName: "Жар", towerDisplayName: "Магмовый кран", family: "energy", energyCapacity: 2 },
   ],
   reactions: [
     { id: "electroPuddle", displayName: "Электролужа", tier: 1, layer: "ground", dps: 16, inputs: ["water", "spark"] },
@@ -78,6 +78,14 @@ export function validateGameConfig(config: GameConfig): readonly string[] {
   config.emitters.forEach((emitter) => {
     if (!emitter.displayName || !emitter.towerDisplayName) {
       errors.push(`emitter ${emitter.id} is missing display names`);
+    }
+
+    if (emitter.family === "energy" && (emitter.energyCapacity ?? 0) <= 0) {
+      errors.push(`emitter ${emitter.id} must have positive energyCapacity`);
+    }
+
+    if (emitter.family === "substance" && (emitter.speedMultiplier ?? 1) > 1) {
+      errors.push(`emitter ${emitter.id} speedMultiplier cannot exceed 1`);
     }
   });
 

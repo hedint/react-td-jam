@@ -1,23 +1,19 @@
 import type {
-  BoardState,
-  CellReactionState,
   EmitterId,
   EnemyState,
   GameAction,
   GameSessionState,
   GameSnapshot,
-  ReactionId,
   RngState,
   RunState,
   TowerState,
 } from "./types";
 import { gameConfig } from "./config";
+import { getCellSpeedMultiplier, getReactionDamageEntries, projectReagents, resolveReactions } from "./reactions";
 
 const RNG_MODULUS = 0x100000000;
 const RNG_MULTIPLIER = 1664525;
 const RNG_INCREMENT = 1013904223;
-
-const SPARK_CAPACITY = 2;
 
 const startingTowers: readonly TowerState[] = [
   {
@@ -136,14 +132,7 @@ export function stepRun(state: RunState, deltaMs: number): RunState {
   }
 
   const reactions = resolveReactions(state.board, state.placedTowers);
-  const damageByCell = new Map<number, number>();
-  const electroPuddle = gameConfig.reactions.find(reaction => reaction.id === "electroPuddle");
-
-  reactions.forEach((reaction) => {
-    if (reaction.ground === "electroPuddle") {
-      damageByCell.set(reaction.cellIndex, (electroPuddle?.dps ?? 0) * scaledDeltaMs / 1000);
-    }
-  });
+  const reagentProjection = projectReagents(state.board, state.placedTowers);
 
   let coreHp = state.coreHp;
   let leaks = state.stats.leaks;
@@ -155,7 +144,9 @@ export function stepRun(state: RunState, deltaMs: number): RunState {
     }
 
     const enemyDefinition = gameConfig.enemies.find(definition => definition.id === enemy.enemyId);
-    const pathProgress = enemy.pathProgress + (enemyDefinition?.speedCellsPerSecond ?? 1) * scaledDeltaMs / 1000;
+    const currentCellIndex = Math.floor(enemy.pathProgress) % state.board.pathCells.length;
+    const speedMultiplier = getCellSpeedMultiplier(reagentProjection[currentCellIndex]);
+    const pathProgress = enemy.pathProgress + (enemyDefinition?.speedCellsPerSecond ?? 1) * speedMultiplier * scaledDeltaMs / 1000;
 
     if (pathProgress >= state.board.pathCells.length) {
       coreHp = Math.max(0, coreHp - (enemyDefinition?.leakDamage ?? gameConfig.balance.leakDamage));
@@ -165,13 +156,19 @@ export function stepRun(state: RunState, deltaMs: number): RunState {
     }
 
     const cellIndex = Math.floor(pathProgress) % state.board.pathCells.length;
-    const damage = damageByCell.get(cellIndex) ?? 0;
-    const hp = Math.max(0, enemy.hp - damage);
+    const damageEntries = getReactionDamageEntries(reactions[cellIndex]!, scaledDeltaMs);
+    let hp = enemy.hp;
 
-    if (damage > 0) {
-      totalDamage += Math.min(enemy.hp, damage);
-      damageByReaction.electroPuddle = (damageByReaction.electroPuddle ?? 0) + Math.min(enemy.hp, damage);
-    }
+    damageEntries.forEach((entry) => {
+      if (hp <= 0) {
+        return;
+      }
+
+      const appliedDamage = Math.min(hp, entry.amount);
+      hp = Math.max(0, hp - appliedDamage);
+      totalDamage += appliedDamage;
+      damageByReaction[entry.reactionId] = (damageByReaction[entry.reactionId] ?? 0) + appliedDamage;
+    });
 
     if (hp <= 0) {
       return [];
@@ -218,7 +215,7 @@ export function createSnapshot(state: RunState): GameSnapshot {
   return {
     ...state,
     livingEnemies: state.enemies.filter(enemy => enemy.hp > 0 && !enemy.leaked),
-    activeReactions: state.reactions.filter(reaction => reaction.ground !== null),
+    activeReactions: state.reactions.filter(reaction => reaction.ground !== null || reaction.air !== null),
   };
 }
 
@@ -515,81 +512,6 @@ function movePlacedTower(state: RunState, selectedTower: TowerState, slotId: str
 
 function findSelectedTower(state: RunState): TowerState | undefined {
   return [...state.bench, ...state.placedTowers].find(tower => tower.id === state.selectedTowerId);
-}
-
-function resolveReactions(board: BoardState, placedTowers: readonly TowerState[]): readonly CellReactionState[] {
-  const waterCells = collectEmitterCells(board, placedTowers, "water");
-  const sparkCells = collectEmitterCells(board, placedTowers, "spark");
-  const electroCells = new Set<number>();
-
-  sparkCells.forEach((sparkCell) => {
-    const pool = collectConnectedPool(board.pathCells.length, waterCells, sparkCell);
-
-    pool.slice(0, SPARK_CAPACITY).forEach((cellIndex) => {
-      electroCells.add(cellIndex);
-    });
-  });
-
-  return board.pathCells.map<CellReactionState>(cell => ({
-    cellIndex: cell.index,
-    ground: electroCells.has(cell.index) ? "electroPuddle" satisfies ReactionId : null,
-  }));
-}
-
-function collectEmitterCells(
-  board: BoardState,
-  placedTowers: readonly TowerState[],
-  emitterId: EmitterId,
-): Set<number> {
-  const cells = new Set<number>();
-
-  placedTowers
-    .filter(tower => tower.emitterId === emitterId && tower.slotId !== null)
-    .forEach((tower) => {
-      const slot = board.slots.find(candidate => candidate.id === tower.slotId);
-      slot?.cellIndexes.forEach(cellIndex => cells.add(cellIndex));
-    });
-
-  return cells;
-}
-
-function collectConnectedPool(pathCellCount: number, cells: Set<number>, sourceCell: number): number[] {
-  if (!cells.has(sourceCell)) {
-    return [];
-  }
-
-  const pool = new Set<number>([sourceCell]);
-  const queue = [sourceCell];
-
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    const neighbors = [
-      (current - 1 + pathCellCount) % pathCellCount,
-      (current + 1) % pathCellCount,
-    ];
-
-    neighbors.forEach((neighbor) => {
-      if (!cells.has(neighbor) || pool.has(neighbor)) {
-        return;
-      }
-
-      pool.add(neighbor);
-      queue.push(neighbor);
-    });
-  }
-
-  return [...pool].sort((left, right) => {
-    const leftDistance = ringDistance(pathCellCount, sourceCell, left);
-    const rightDistance = ringDistance(pathCellCount, sourceCell, right);
-
-    return leftDistance - rightDistance || left - right;
-  });
-}
-
-function ringDistance(pathCellCount: number, from: number, to: number): number {
-  const direct = Math.abs(from - to);
-
-  return Math.min(direct, pathCellCount - direct);
 }
 
 function getEmitterTowerDisplayName(emitterId: EmitterId): string {
