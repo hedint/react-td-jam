@@ -1,6 +1,7 @@
 import type {
   DraftTowerOffer,
   EmitterId,
+  GameConfig,
   RngState,
   RunState,
   UpgradeId,
@@ -9,29 +10,29 @@ import { gameConfig } from "./config";
 import { nextRandom } from "./rng";
 import { createTower } from "./towerFactory";
 
-export function createDraftState(state: RunState): { readonly draft: NonNullable<RunState["draft"]>, readonly rng: RngState } {
-  const towerOffers = generateTowerOffers(state, state.rng);
-  const upgradeOffers = generateUpgradeOffers(state, towerOffers.rng);
+export function createDraftState(state: RunState, config: GameConfig = gameConfig): { readonly draft: NonNullable<RunState["draft"]>, readonly rng: RngState } {
+  const towerOffers = generateTowerOffers(state, state.rng, config);
+  const upgradeOffers = generateUpgradeOffers(state, towerOffers.rng, config);
 
   return {
     rng: upgradeOffers.rng,
     draft: {
       step: "tower",
-      rerollsRemaining: gameConfig.balance.rerollsPerDraft,
+      rerollsRemaining: config.balance.rerollsPerDraft,
       towerOffers: towerOffers.offers,
       upgradeOffers: upgradeOffers.offers,
     },
   };
 }
 
-export function rerollDraft(state: RunState): RunState {
+export function rerollDraft(state: RunState, config: GameConfig = gameConfig): RunState {
   if (!state.draft || state.draft.rerollsRemaining <= 0) {
     return state;
   }
 
   const generated = state.draft.step === "tower"
-    ? generateTowerOffers(state, state.rng)
-    : generateUpgradeOffers(state, state.rng);
+    ? generateTowerOffers(state, state.rng, config)
+    : generateUpgradeOffers(state, state.rng, config);
 
   return {
     ...state,
@@ -45,12 +46,12 @@ export function rerollDraft(state: RunState): RunState {
   };
 }
 
-export function chooseDraftTower(state: RunState, emitterId: EmitterId): RunState {
+export function chooseDraftTower(state: RunState, emitterId: EmitterId, config: GameConfig = gameConfig): RunState {
   if (state.draft?.step !== "tower" || !state.draft.towerOffers.some(offer => offer.emitterId === emitterId)) {
     return state;
   }
 
-  const tower = createTower(`tower-${emitterId}-${state.waveIndex}-${state.tick}`, emitterId, null);
+  const tower = createTower(`tower-${emitterId}-${state.waveIndex}-${state.tick}`, emitterId, null, config);
 
   return {
     ...state,
@@ -62,13 +63,13 @@ export function chooseDraftTower(state: RunState, emitterId: EmitterId): RunStat
   };
 }
 
-export function chooseDraftUpgrade(state: RunState, upgradeId: UpgradeId): RunState {
+export function chooseDraftUpgrade(state: RunState, upgradeId: UpgradeId, config: GameConfig = gameConfig): RunState {
   if (state.draft?.step !== "upgrade" || !state.draft.upgradeOffers.includes(upgradeId)) {
     return state;
   }
 
   const current = state.upgrades.find(upgrade => upgrade.upgradeId === upgradeId);
-  const definition = gameConfig.upgrades.find(upgrade => upgrade.id === upgradeId);
+  const definition = config.upgrades.find(upgrade => upgrade.id === upgradeId);
   const nextStacks = Math.min((current?.stacks ?? 0) + 1, definition?.maxStacks ?? 1);
   const upgrades = current
     ? state.upgrades.map(upgrade => upgrade.upgradeId === upgradeId ? { ...upgrade, stacks: nextStacks } : upgrade)
@@ -77,15 +78,15 @@ export function chooseDraftUpgrade(state: RunState, upgradeId: UpgradeId): RunSt
   return advanceAfterDraft({
     ...state,
     upgrades,
-  });
+  }, config);
 }
 
-export function advanceAfterDraft(state: RunState): RunState {
+export function advanceAfterDraft(state: RunState, config: GameConfig = gameConfig): RunState {
   return {
     ...state,
     phase: "countdown",
-    waveIndex: Math.min(state.waveIndex + 1, gameConfig.waves.length - 1),
-    countdownMs: gameConfig.balance.postDraftCountdownMs,
+    waveIndex: Math.min(state.waveIndex + 1, config.waves.length - 1),
+    countdownMs: config.balance.postDraftCountdownMs,
     draft: null,
     waveRuntime: null,
   };
@@ -94,13 +95,14 @@ export function advanceAfterDraft(state: RunState): RunState {
 function generateTowerOffers(
   state: RunState,
   initialRng: RngState,
+  config: GameConfig,
 ): { readonly offers: readonly DraftTowerOffer[], readonly rng: RngState } {
   let rng = initialRng;
   const synergies = getSynergyEmitterIds(state);
   const requiredOffers = getRequiredTowerOffers(state);
-  const allEmitters = gameConfig.emitters.map(emitter => emitter.id);
+  const allEmitters = config.emitters.map(emitter => emitter.id);
   const offers: DraftTowerOffer[] = [];
-  const support = pickEmitter(rng, synergies.length > 0 ? synergies : allEmitters, offers);
+  const support = pickEmitter(rng, synergies.length > 0 ? synergies : allEmitters, offers, config);
 
   rng = support.rng;
   offers.push({ emitterId: support.emitterId, role: "support" });
@@ -111,7 +113,7 @@ function generateTowerOffers(
 
   while (offers.length < 3) {
     const role = offers.some(offer => offer.role === "generic") ? "pivot" : "generic";
-    const picked = pickEmitter(rng, role === "pivot" ? getPivotEmitterIds(state) : allEmitters, offers);
+    const picked = pickEmitter(rng, role === "pivot" ? getPivotEmitterIds(state, config) : allEmitters, offers, config);
 
     rng = picked.rng;
     offers.push({ emitterId: picked.emitterId, role });
@@ -122,6 +124,7 @@ function generateTowerOffers(
       rng,
       synergies.length > 0 ? synergies : allEmitters,
       offers.filter(offer => offer.role !== "support"),
+      config,
     );
 
     rng = picked.rng;
@@ -137,12 +140,13 @@ function generateTowerOffers(
 function generateUpgradeOffers(
   state: RunState,
   initialRng: RngState,
+  config: GameConfig,
 ): { readonly offers: readonly UpgradeId[], readonly rng: RngState } {
   let rng = initialRng;
-  const available = gameConfig.upgrades
+  const available = config.upgrades
     .filter(upgrade => getUpgradeStacks(state, upgrade.id) < upgrade.maxStacks)
     .map(upgrade => upgrade.id);
-  const fallback = gameConfig.upgrades.map(upgrade => upgrade.id);
+  const fallback = config.upgrades.map(upgrade => upgrade.id);
   const pool = available.length > 0 ? available : fallback;
   const offers: UpgradeId[] = [];
 
@@ -185,10 +189,11 @@ function pickEmitter(
   rng: RngState,
   candidates: readonly EmitterId[],
   existingOffers: readonly Pick<DraftTowerOffer, "emitterId">[],
+  config: GameConfig,
 ): { readonly emitterId: EmitterId, readonly rng: RngState } {
   const existing = new Set(existingOffers.map(offer => offer.emitterId));
   const available = candidates.filter(emitterId => !existing.has(emitterId));
-  const pool = available.length > 0 ? available : gameConfig.emitters.map(emitter => emitter.id);
+  const pool = available.length > 0 ? available : config.emitters.map(emitter => emitter.id);
   const [nextRng, roll] = nextRandom(rng);
 
   return {
@@ -258,11 +263,11 @@ function getSynergyEmitterIds(state: RunState): readonly EmitterId[] {
   return [...synergies].sort();
 }
 
-function getPivotEmitterIds(state: RunState): readonly EmitterId[] {
+function getPivotEmitterIds(state: RunState, config: GameConfig): readonly EmitterId[] {
   const owned = new Set([...state.bench, ...state.placedTowers].map(tower => tower.emitterId));
-  const unowned = gameConfig.emitters.map(emitter => emitter.id).filter(emitterId => !owned.has(emitterId));
+  const unowned = config.emitters.map(emitter => emitter.id).filter(emitterId => !owned.has(emitterId));
 
-  return unowned.length > 0 ? unowned : gameConfig.emitters.map(emitter => emitter.id);
+  return unowned.length > 0 ? unowned : config.emitters.map(emitter => emitter.id);
 }
 
 function hasEmitterTower(state: RunState, emitterId: EmitterId): boolean {

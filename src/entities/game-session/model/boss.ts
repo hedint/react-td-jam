@@ -1,9 +1,9 @@
-import type { BossDefinition, BossState, RunState } from "./types";
+import type { BossDefinition, BossState, GameConfig, RunState } from "./types";
 import { gameConfig } from "./config";
 import { getReactionDamageEntries, resolveReactions } from "./reactions";
 
-export function createBossState(overrides: Partial<BossState> = {}): BossState {
-  const definition = gameConfig.boss;
+export function createBossState(overrides: Partial<BossState> = {}, config: GameConfig = gameConfig): BossState {
+  const definition = config.boss;
   const pathProgress = overrides.pathProgress ?? 0;
 
   return {
@@ -12,20 +12,20 @@ export function createBossState(overrides: Partial<BossState> = {}): BossState {
     hp: definition.hp,
     maxHp: definition.hp,
     pathProgress,
-    currentCellIndex: getCurrentPathCellIndex(pathProgress, gameConfig.balance.pathCellCount),
+    currentCellIndex: getCurrentPathCellIndex(pathProgress, config.balance.pathCellCount),
     vulnerableMs: 0,
     reactionBreakIds: [],
     ...overrides,
   };
 }
 
-export function stepBoss(state: RunState, scaledDeltaMs: number): RunState {
-  const definition = getBossDefinition(state.boss!.bossId);
-  const reactions = resolveReactions(state.board, state.placedTowers, state.upgrades);
+export function stepBoss(state: RunState, scaledDeltaMs: number, config: GameConfig = gameConfig): RunState {
+  const definition = getBossDefinition(state.boss!.bossId, config);
+  const reactions = resolveReactions(state.board, state.placedTowers, state.upgrades, config);
   const bossSpeed = definition.speedCellsPerSecond + (state.boss!.lap - 1) * definition.speedIncreasePerLap;
   const pathProgress = state.boss!.pathProgress + bossSpeed * scaledDeltaMs / 1000;
   const currentCellIndex = getCurrentPathCellIndex(pathProgress % state.board.pathCells.length, state.board.pathCells.length);
-  const damageEntries = getReactionDamageEntries(reactions[currentCellIndex]!, scaledDeltaMs, state.upgrades);
+  const damageEntries = getReactionDamageEntries(reactions[currentCellIndex]!, scaledDeltaMs, state.upgrades, config);
   const reactionBreakIds = new Set(state.boss!.reactionBreakIds);
   const wasVulnerable = state.boss!.vulnerableMs > 0;
   const damageMultiplier = wasVulnerable ? definition.vulnerableDamageMultiplier : 1;
@@ -154,12 +154,12 @@ function finishBossStep(
   };
 }
 
-function getBossDefinition(bossId: string): BossDefinition {
-  if (gameConfig.boss.id !== bossId) {
+function getBossDefinition(bossId: string, config: GameConfig): BossDefinition {
+  if (config.boss.id !== bossId) {
     throw new Error(`Unknown boss ${bossId}`);
   }
 
-  return gameConfig.boss;
+  return config.boss;
 }
 
 function getCurrentPathCellIndex(pathProgress: number, pathCellCount: number): number {

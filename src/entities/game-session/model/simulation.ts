@@ -4,7 +4,7 @@ import type {
   EnemyId,
   EnemyState,
   GameAction,
-  GameSessionState,
+  GameConfig,
   GameSnapshot,
   ReactionId,
   RunState,
@@ -13,7 +13,7 @@ import type {
 } from "./types";
 import { createBossState, stepBoss } from "./boss";
 import { gameConfig } from "./config";
-import { advanceAfterDraft, chooseDraftTower, chooseDraftUpgrade, createDraftState, rerollDraft } from "./draft";
+import { chooseDraftTower, chooseDraftUpgrade, createDraftState, rerollDraft } from "./draft";
 import { getCellSpeedMultiplier, getReactionDamageEntries, projectReagents, resolveReactions } from "./reactions";
 import { createRng } from "./rng";
 import { createTower } from "./towerFactory";
@@ -21,12 +21,6 @@ import { placeSelectedTower, selectTower, tapSlot } from "./towerPlacement";
 
 export { createRng, nextRandom } from "./rng";
 export { createTower } from "./towerFactory";
-
-const startingTowers: readonly TowerState[] = [
-  createTower("tower-water-a", "water", null),
-  createTower("tower-water-b", "water", null),
-  createTower("tower-spark-a", "spark", null),
-];
 
 export interface SerializedRunPayload {
   readonly schemaVersion: number
@@ -36,17 +30,19 @@ export interface SerializedRunPayload {
 export interface CreateRunOptions {
   readonly placedTowers?: readonly TowerState[]
   readonly enemies?: readonly EnemyState[]
+  readonly config?: GameConfig
 }
 
 export function createRun(seed = 1, options: CreateRunOptions = {}): RunState {
+  const config = options.config ?? gameConfig;
   const placedTowers = options.placedTowers ?? [];
   const placedTowerIds = new Set(placedTowers.map(tower => tower.id));
-  const bench = startingTowers
+  const bench = createStartingTowers(config)
     .filter(tower => !placedTowerIds.has(tower.id))
     .map(tower => ({ ...tower, slotId: null }));
 
   return {
-    schemaVersion: gameConfig.balance.schemaVersion,
+    schemaVersion: config.balance.schemaVersion,
     phase: options.enemies ? "wave" : "ready",
     seed,
     rng: createRng(seed),
@@ -56,14 +52,14 @@ export function createRun(seed = 1, options: CreateRunOptions = {}): RunState {
     countdownMs: 0,
     paused: false,
     speed: 1,
-    coreHp: gameConfig.balance.coreHp,
+    coreHp: config.balance.coreHp,
     waveRuntime: null,
-    board: gameConfig.board,
+    board: config.board,
     bench,
     placedTowers,
     selectedTowerId: null,
     enemies: options.enemies ?? [],
-    reactions: resolveReactions(gameConfig.board, placedTowers),
+    reactions: resolveReactions(config.board, placedTowers, [], config),
     draft: null,
     upgrades: [],
     boss: null,
@@ -80,11 +76,7 @@ export function createRun(seed = 1, options: CreateRunOptions = {}): RunState {
   };
 }
 
-export function createGameSession(): GameSessionState {
-  return createRun();
-}
-
-export function stepRun(state: RunState, deltaMs: number): RunState {
+export function stepRun(state: RunState, deltaMs: number, config: GameConfig = gameConfig): RunState {
   if (state.paused) {
     return state;
   }
@@ -101,20 +93,20 @@ export function stepRun(state: RunState, deltaMs: number): RunState {
       countdownMs,
     };
 
-    return countdownMs <= 0 ? startWave(nextState) : nextState;
+    return countdownMs <= 0 ? startWave(nextState, config) : nextState;
   }
 
   if (state.phase === "boss" && state.boss) {
-    return stepBoss(state, scaledDeltaMs);
+    return stepBoss(state, scaledDeltaMs, config);
   }
 
   if (state.phase !== "wave") {
     return state;
   }
 
-  const reactions = resolveReactions(state.board, state.placedTowers, state.upgrades);
-  const reagentProjection = projectReagents(state.board, state.placedTowers, state.upgrades);
-  const spawned = spawnWaveEnemies(state.waveRuntime, scaledDeltaMs);
+  const reactions = resolveReactions(state.board, state.placedTowers, state.upgrades, config);
+  const reagentProjection = projectReagents(state.board, state.placedTowers, state.upgrades, config);
+  const spawned = spawnWaveEnemies(state.waveRuntime, scaledDeltaMs, config);
   const activeEnemies = [...state.enemies, ...spawned.enemies];
 
   let coreHp = state.coreHp;
@@ -128,13 +120,13 @@ export function stepRun(state: RunState, deltaMs: number): RunState {
       return [];
     }
 
-    const enemyDefinition = getEnemyDefinition(enemy.enemyId);
+    const enemyDefinition = getEnemyDefinition(enemy.enemyId, config);
     const currentCellIndex = getCurrentPathCellIndex(enemy.pathProgress, state.board.pathCells.length);
-    const speedMultiplier = getCellSpeedMultiplier(reagentProjection[currentCellIndex], state.upgrades);
+    const speedMultiplier = getCellSpeedMultiplier(reagentProjection[currentCellIndex], state.upgrades, config);
     const pathProgress = enemy.pathProgress + (enemyDefinition?.speedCellsPerSecond ?? 1) * speedMultiplier * scaledDeltaMs / 1000;
 
     if (pathProgress >= state.board.pathCells.length) {
-      coreHp = Math.max(0, coreHp - (enemyDefinition?.leakDamage ?? gameConfig.balance.leakDamage));
+      coreHp = Math.max(0, coreHp - (enemyDefinition?.leakDamage ?? config.balance.leakDamage));
       leaks += 1;
       waveStats = updateWaveStats(waveStats, spawned.waveId, { leaks: 1 });
 
@@ -142,7 +134,7 @@ export function stepRun(state: RunState, deltaMs: number): RunState {
     }
 
     const cellIndex = getCurrentPathCellIndex(pathProgress, state.board.pathCells.length);
-    const damageEntries = getReactionDamageEntries(reactions[cellIndex]!, scaledDeltaMs, state.upgrades);
+    const damageEntries = getReactionDamageEntries(reactions[cellIndex]!, scaledDeltaMs, state.upgrades, config);
     let hp = enemy.hp;
 
     damageEntries.forEach((entry) => {
@@ -187,19 +179,19 @@ export function stepRun(state: RunState, deltaMs: number): RunState {
     ];
   });
 
-  const waveComplete = isWaveComplete(spawned.waveRuntime, enemies.length);
+  const waveComplete = isWaveComplete(spawned.waveRuntime, enemies.length, config);
   const nextPhase = coreHp <= 0
     ? "defeat"
     : waveComplete
-      ? state.waveIndex >= gameConfig.waves.length - 1
+      ? state.waveIndex >= config.waves.length - 1
         ? "boss"
         : "draft"
       : state.phase;
   const generatedDraft = nextPhase === "draft"
-    ? createDraftState(state)
+    ? createDraftState(state, config)
     : null;
   const boss = nextPhase === "boss"
-    ? createBossState()
+    ? createBossState({}, config)
     : state.boss;
 
   return {
@@ -225,10 +217,6 @@ export function stepRun(state: RunState, deltaMs: number): RunState {
   };
 }
 
-export function stepGameSession(state: GameSessionState, deltaMs: number): GameSessionState {
-  return stepRun(state, deltaMs);
-}
-
 export function createSnapshot(state: RunState): GameSnapshot {
   return {
     ...state,
@@ -237,22 +225,20 @@ export function createSnapshot(state: RunState): GameSnapshot {
   };
 }
 
-export function applyAction(state: RunState, action: GameAction): RunState {
+export function applyAction(state: RunState, action: GameAction, config: GameConfig = gameConfig): RunState {
   switch (action.type) {
     case "pause":
       return { ...state, paused: true };
     case "resume":
       return { ...state, paused: false };
     case "startWave":
-      return state.phase === "ready" ? startWave(state) : state;
-    case "completeDraft":
-      return state.phase === "draft" && state.draft?.step === "upgrade" ? advanceAfterDraft(state) : state;
+      return state.phase === "ready" ? startWave(state, config) : state;
     case "rerollDraft":
-      return rerollDraft(state);
+      return rerollDraft(state, config);
     case "chooseDraftTower":
-      return chooseDraftTower(state, action.emitterId);
+      return chooseDraftTower(state, action.emitterId, config);
     case "chooseDraftUpgrade":
-      return chooseDraftUpgrade(state, action.upgradeId);
+      return chooseDraftUpgrade(state, action.upgradeId, config);
     case "setSpeed":
       return { ...state, speed: action.speed };
     case "selectTower":
@@ -266,40 +252,40 @@ export function applyAction(state: RunState, action: GameAction): RunState {
     case "tap":
       return { ...state, lastTap: action.point };
     case "restart":
-      return createRun(action.seed ?? state.seed);
+      return createRun(action.seed ?? state.seed, { config });
     default:
       return action satisfies never;
   }
 }
 
-export function serializeRun(state: RunState): string {
+export function serializeRun(state: RunState, config: GameConfig = gameConfig): string {
   const payload: SerializedRunPayload = {
-    schemaVersion: gameConfig.balance.schemaVersion,
+    schemaVersion: config.balance.schemaVersion,
     state,
   };
 
   return JSON.stringify(payload);
 }
 
-export function deserializeRun(payload: string | SerializedRunPayload): RunState {
+export function deserializeRun(payload: string | SerializedRunPayload, config: GameConfig = gameConfig): RunState {
   const parsed = typeof payload === "string" ? JSON.parse(payload) as SerializedRunPayload : payload;
 
-  if (parsed.schemaVersion !== gameConfig.balance.schemaVersion) {
+  if (parsed.schemaVersion !== config.balance.schemaVersion) {
     throw new Error(`Unsupported run schema version: ${parsed.schemaVersion}`);
   }
 
   return {
     ...parsed.state,
-    reactions: resolveReactions(parsed.state.board, parsed.state.placedTowers, parsed.state.upgrades),
+    reactions: resolveReactions(parsed.state.board, parsed.state.placedTowers, parsed.state.upgrades, config),
   };
 }
 
-export function createGrunt(overrides: Partial<EnemyState> = {}): EnemyState {
-  return createEnemy("enemy-grunt-a", "grunt", overrides);
+export function createGrunt(overrides: Partial<EnemyState> = {}, config: GameConfig = gameConfig): EnemyState {
+  return createEnemy("enemy-grunt-a", "grunt", overrides, config);
 }
 
-export function createEnemy(id: string, enemyId: EnemyId, overrides: Partial<EnemyState> = {}): EnemyState {
-  const definition = getEnemyDefinition(enemyId);
+export function createEnemy(id: string, enemyId: EnemyId, overrides: Partial<EnemyState> = {}, config: GameConfig = gameConfig): EnemyState {
+  const definition = getEnemyDefinition(enemyId, config);
   const pathProgress = overrides.pathProgress ?? 0;
 
   return {
@@ -309,14 +295,14 @@ export function createEnemy(id: string, enemyId: EnemyId, overrides: Partial<Ene
     hp: definition.hp,
     maxHp: definition.hp,
     pathProgress,
-    currentCellIndex: getCurrentPathCellIndex(pathProgress, gameConfig.balance.pathCellCount),
+    currentCellIndex: getCurrentPathCellIndex(pathProgress, config.balance.pathCellCount),
     leaked: false,
     ...overrides,
   };
 }
 
-function startWave(state: RunState): RunState {
-  const wave = gameConfig.waves[state.waveIndex] ?? gameConfig.waves[0]!;
+function startWave(state: RunState, config: GameConfig): RunState {
+  const wave = config.waves[state.waveIndex] ?? config.waves[0]!;
   const waveRuntime: WaveRuntimeState = {
     waveId: wave.id,
     spawnedCount: Math.min(1, wave.count),
@@ -331,13 +317,17 @@ function startWave(state: RunState): RunState {
     draft: null,
     waveRuntime,
     enemies: wave.count > 0
-      ? [createEnemy(`${wave.id}-enemy-0`, wave.enemyId, { pathProgress: 0 })]
+      ? [createEnemy(`${wave.id}-enemy-0`, wave.enemyId, { pathProgress: 0 }, config)]
       : [],
     stats: ensureWaveStats(state.stats, wave.id),
   };
 }
 
-function spawnWaveEnemies(waveRuntime: WaveRuntimeState | null, deltaMs: number): {
+function spawnWaveEnemies(
+  waveRuntime: WaveRuntimeState | null,
+  deltaMs: number,
+  config: GameConfig,
+): {
   readonly waveId: string | null
   readonly waveRuntime: WaveRuntimeState | null
   readonly enemies: readonly EnemyState[]
@@ -350,7 +340,7 @@ function spawnWaveEnemies(waveRuntime: WaveRuntimeState | null, deltaMs: number)
     };
   }
 
-  const wave = gameConfig.waves.find(candidate => candidate.id === waveRuntime.waveId);
+  const wave = config.waves.find(candidate => candidate.id === waveRuntime.waveId);
   if (!wave) {
     return {
       waveId: waveRuntime.waveId,
@@ -365,7 +355,7 @@ function spawnWaveEnemies(waveRuntime: WaveRuntimeState | null, deltaMs: number)
   const enemies: EnemyState[] = [];
 
   while (spawnedCount < wave.count && elapsedMs >= nextSpawnMs) {
-    enemies.push(createEnemy(`${wave.id}-enemy-${spawnedCount}`, wave.enemyId, { pathProgress: 0 }));
+    enemies.push(createEnemy(`${wave.id}-enemy-${spawnedCount}`, wave.enemyId, { pathProgress: 0 }, config));
     spawnedCount += 1;
     nextSpawnMs += wave.spawnIntervalMs;
   }
@@ -382,12 +372,12 @@ function spawnWaveEnemies(waveRuntime: WaveRuntimeState | null, deltaMs: number)
   };
 }
 
-function isWaveComplete(waveRuntime: WaveRuntimeState | null, livingEnemyCount: number): boolean {
+function isWaveComplete(waveRuntime: WaveRuntimeState | null, livingEnemyCount: number, config: GameConfig): boolean {
   if (!waveRuntime) {
     return livingEnemyCount === 0;
   }
 
-  const wave = gameConfig.waves.find(candidate => candidate.id === waveRuntime.waveId);
+  const wave = config.waves.find(candidate => candidate.id === waveRuntime.waveId);
 
   return livingEnemyCount === 0 && waveRuntime.spawnedCount >= (wave?.count ?? 0);
 }
@@ -396,8 +386,8 @@ export function getCurrentPathCellIndex(pathProgress: number, pathCellCount: num
   return Math.max(0, Math.min(pathCellCount - 1, Math.floor(pathProgress)));
 }
 
-function getEnemyDefinition(enemyId: EnemyId): EnemyDefinition {
-  const definition = gameConfig.enemies.find(enemy => enemy.id === enemyId);
+function getEnemyDefinition(enemyId: EnemyId, config: GameConfig): EnemyDefinition {
+  const definition = config.enemies.find(enemy => enemy.id === enemyId);
 
   if (!definition) {
     throw new Error(`Unknown enemy ${enemyId}`);
@@ -412,6 +402,14 @@ function isEnemyAffectedByReaction(enemy: EnemyDefinition, layer: "ground" | "ai
 
 function getEnemyResistanceMultiplier(enemy: EnemyDefinition, damageFamily: DamageFamily): number {
   return enemy.resistances?.[damageFamily] ?? 1;
+}
+
+function createStartingTowers(config: GameConfig): readonly TowerState[] {
+  return [
+    createTower("tower-water-a", "water", null, config),
+    createTower("tower-water-b", "water", null, config),
+    createTower("tower-spark-a", "spark", null, config),
+  ];
 }
 
 function ensureWaveStats(stats: RunState["stats"], waveId: string): RunState["stats"] {

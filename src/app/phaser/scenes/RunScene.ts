@@ -2,7 +2,7 @@ import type { BoardSlot, GameSnapshot, TowerState } from "@entities/game-session
 import type { Unsubscribe } from "@shared/lib/event-bus/createTypedEventBus";
 import { createFixedStepDriver } from "@entities/game-session/model/fixedStepDriver";
 import { hasSavedRun, saveRun } from "@entities/game-session/model/persistence";
-import { applyAction, createGameSession, createSnapshot, stepGameSession } from "@entities/game-session/model/simulation";
+import { applyAction, createRun, createSnapshot, stepRun } from "@entities/game-session/model/simulation";
 import { gameEvents } from "@shared/lib/event-bus/gameEvents";
 import Phaser from "phaser";
 import {
@@ -26,9 +26,9 @@ const TICK_STEP_MS = 1000 / 30;
 
 export class RunScene extends Phaser.Scene {
   private readonly driver = createFixedStepDriver({
-    initialState: createGameSession(),
+    initialState: createRun(),
     stepMs: TICK_STEP_MS,
-    step: stepGameSession,
+    step: stepRun,
   });
 
   private worldGraphics?: Phaser.GameObjects.Graphics;

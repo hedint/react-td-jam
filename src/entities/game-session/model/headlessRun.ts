@@ -1,4 +1,5 @@
-import type { EmitterId, GameAction, ReactionId, RunPhase, RunState, UpgradeId } from "./types";
+import type { EmitterId, GameAction, GameConfig, ReactionId, RunPhase, RunState, UpgradeId } from "./types";
+import { gameConfig } from "./config";
 import { applyAction, createRun, stepRun } from "./simulation";
 
 export interface HeadlessRunOptions {
@@ -9,6 +10,7 @@ export interface HeadlessRunOptions {
   readonly scriptedActions?: (state: RunState) => readonly GameAction[]
   readonly draftActions?: (state: RunState) => readonly GameAction[]
   readonly stopWhen?: (state: RunState) => boolean
+  readonly config?: GameConfig
 }
 
 export interface HeadlessRunResult {
@@ -50,6 +52,7 @@ export interface HeadlessStrategyResult extends HeadlessRunResult {
 
 export function runHeadlessRun(initialState: RunState, options: HeadlessRunOptions): HeadlessRunResult {
   const stepMs = options.stepMs ?? 1000 / 30;
+  const config = options.config ?? gameConfig;
   let state = initialState;
 
   for (let steps = 0; steps < options.maxSteps; steps += 1) {
@@ -62,11 +65,11 @@ export function runHeadlessRun(initialState: RunState, options: HeadlessRunOptio
     }
 
     options.scriptedActions?.(state).forEach((action) => {
-      state = applyAction(state, action);
+      state = applyAction(state, action, config);
     });
 
     if (options.autoStartWaves && state.phase === "ready") {
-      state = applyAction(state, { type: "startWave" });
+      state = applyAction(state, { type: "startWave" }, config);
     }
 
     if (state.phase === "draft") {
@@ -79,7 +82,7 @@ export function runHeadlessRun(initialState: RunState, options: HeadlessRunOptio
           const offer = state.draft.towerOffers[0];
 
           if (offer) {
-            state = applyAction(state, { type: "chooseDraftTower", emitterId: offer.emitterId });
+            state = applyAction(state, { type: "chooseDraftTower", emitterId: offer.emitterId }, config);
           }
         }
 
@@ -87,13 +90,13 @@ export function runHeadlessRun(initialState: RunState, options: HeadlessRunOptio
           const upgradeId = state.draft.upgradeOffers[0];
 
           if (upgradeId) {
-            state = applyAction(state, { type: "chooseDraftUpgrade", upgradeId });
+            state = applyAction(state, { type: "chooseDraftUpgrade", upgradeId }, config);
           }
         }
       }
     }
 
-    state = stepRun(state, stepMs);
+    state = stepRun(state, stepMs, config);
   }
 
   return {
@@ -107,8 +110,10 @@ export function runHeadlessStrategy(
   strategy: HeadlessScriptedStrategy,
   options: Omit<HeadlessRunOptions, "autoCompleteDrafts" | "draftActions" | "scriptedActions">,
 ): HeadlessStrategyResult {
-  const result = runHeadlessRun(createRun(strategy.seed), {
+  const config = options.config ?? gameConfig;
+  const result = runHeadlessRun(createRun(strategy.seed, { config }), {
     ...options,
+    config,
     autoStartWaves: options.autoStartWaves ?? true,
     scriptedActions: state => getPlacementActions(state, strategy.placementPlan),
     draftActions: state => getDraftActions(state, strategy.draftPlan),

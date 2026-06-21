@@ -17,6 +17,7 @@ export type DraftStep = "tower" | "upgrade";
 export type DraftRole = "support" | "generic" | "pivot";
 export type EnemyTrait = "flying";
 export type DamageFamily = "electric" | "fire" | "steam" | "storm";
+export type ReactionInputId = EmitterId | ReactionId;
 
 export interface RngState {
   readonly seed: number
@@ -163,8 +164,6 @@ export interface RunState {
   readonly lastTap: StagePoint | null
 }
 
-export type GameSessionState = RunState;
-
 export interface GameSnapshot extends RunState {
   readonly livingEnemies: readonly EnemyState[]
   readonly activeReactions: readonly CellReactionState[]
@@ -179,7 +178,6 @@ export type GameAction
   = | { readonly type: "pause" }
     | { readonly type: "resume" }
     | { readonly type: "startWave" }
-    | { readonly type: "completeDraft" }
     | { readonly type: "rerollDraft" }
     | { readonly type: "chooseDraftTower", readonly emitterId: EmitterId }
     | { readonly type: "chooseDraftUpgrade", readonly upgradeId: UpgradeId }
@@ -218,7 +216,7 @@ export interface ReactionDefinition {
   readonly layer: "ground" | "air"
   readonly damageFamily: DamageFamily
   readonly dps: number
-  readonly inputs: readonly string[]
+  readonly inputs: readonly ReactionInputId[]
 }
 
 export interface EnemyDefinition {

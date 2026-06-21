@@ -1,5 +1,4 @@
 import type {
-  EmitterId,
   GameConfig,
 } from "./types";
 import { createStadiumLoopBoard, defaultBoardGeometryConfig } from "./boardGeometry";
@@ -76,8 +75,8 @@ export const gameConfig: GameConfig = {
 
 export function validateGameConfig(config: GameConfig): readonly string[] {
   const errors: string[] = [];
-  const emitterIds = new Set(config.emitters.map(emitter => emitter.id));
-  const reactionIds = new Set(config.reactions.map(reaction => reaction.id));
+  const emitterIds = new Set<string>(config.emitters.map(emitter => emitter.id));
+  const reactionIds = new Set<string>(config.reactions.map(reaction => reaction.id));
   const enemyIds = new Set(config.enemies.map(enemy => enemy.id));
   const upgradeIds = new Set(config.upgrades.map(upgrade => upgrade.id));
 
@@ -121,7 +120,7 @@ export function validateGameConfig(config: GameConfig): readonly string[] {
     }
 
     reaction.inputs.forEach((input) => {
-      if (!emitterIds.has(input as EmitterId) && !reactionIds.has(input as never)) {
+      if (!emitterIds.has(input) && !reactionIds.has(input)) {
         errors.push(`reaction ${reaction.id} references unknown input ${input}`);
       }
     });

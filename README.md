@@ -53,9 +53,9 @@ Canvas отвечает за игровое поле и renderer-facing объе
 
 ## Gameplay systems
 
-- `createRun(seed)` создает детерминированный run с 16-клеточным board и стартовой скамейкой.
-- `stepRun(state, deltaMs)` двигает симуляцию fixed-step способом; тот же код используется Phaser scene и headless tests.
-- `applyAction(state, action)` обрабатывает run control, placement, draft, pause/speed, restart и debug toggles.
+- `createRun(seed, { config })` создает детерминированный run с board и стартовой скамейкой из переданного или дефолтного конфига.
+- `stepRun(state, deltaMs, config)` двигает симуляцию fixed-step способом; тот же код используется Phaser scene и headless tests.
+- `applyAction(state, action, config)` обрабатывает run control, placement, draft, pause/speed, restart и debug toggles.
 - `serializeRun` / `deserializeRun` сохраняют только simulation state, без Phaser/Vue объектов.
 - Баланс и контент хранятся в typed config: emitters, reactions, enemies, waves, boss, upgrades и runtime constants.
 

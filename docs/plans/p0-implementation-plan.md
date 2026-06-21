@@ -103,8 +103,7 @@ Explicitly out of P0:
 - Vue owns HUD, draft overlays, pause/resume overlays, boot resume prompt, stats screens, and debug HUD visibility.
 - The event bridge exposes typed actions from UI/Phaser to simulation and typed snapshots from simulation to UI/Phaser.
 - The fixed-step accumulator/driver lives outside Phaser: the Phaser scene's `update()` only calls
-  `stepRun`, and the headless runner drives the same `stepRun` at the same step. (Currently the loop
-  lives inside `SmokeScene.update()` and must be extracted in Phase 1.)
+  `stepRun`, and the headless runner drives the same `stepRun` at the same step.
 - Full save stores simulation data only. Never serialize Phaser objects, tweens, emitters, sprites, or DOM state.
 
 Core APIs to provide during P0:
@@ -207,7 +206,7 @@ Purpose: make the core fantasy visible end-to-end as early as possible, and exer
 
 - [x] `npm run typecheck`
 - [x] `npm test`
-- [x] Manual browser check: wow #1 reads on a portrait viewport; `SmokeScene` no longer primary.
+- [x] Manual browser check: wow #1 reads on a portrait viewport; `RunScene` is primary.
 
 ### Exit gate
 
@@ -218,7 +217,7 @@ Purpose: make the core fantasy visible end-to-end as early as possible, and exer
 - Decisions/contradictions:
   - Added Phase 1 simulation as a headless TypeScript slice first, then moved fixed-step accumulation into a shared driver used by `RunScene` and headless tests.
   - Full typed content configs are still deferred to Phase 2. Current slice constants live in `simulation.ts`.
-  - `SmokeScene` remains in the codebase as unused starter code, but `RunScene` is now the primary scene.
+  - `RunScene` is now the primary scene; the unused starter `SmokeScene` has been removed.
   - Debug HUD is hidden by default and available with `?debug=1`, so it no longer covers the portrait playfield during normal checks.
 
 ### Phase completion summary
@@ -231,7 +230,7 @@ Purpose: make the core fantasy visible end-to-end as early as possible, and exer
   - Portrait phone-frame layout; debug HUD hidden unless `?debug=1`.
 - Intentionally deferred:
   - Full 16-cell board generator, typed content configs, placement input, drafts, save/resume, and full reaction graph remain in later phases.
-  - `SmokeScene` removal/cleanup is deferred; it is no longer primary.
+  - Legacy scene cleanup has since been completed; `SmokeScene` has been removed.
 - Accepted deviations/tradeoffs:
   - Phase 1 constants remain local in `simulation.ts`; Phase 2 will move balance/content into typed configs.
 - Tests/checks run:
@@ -583,7 +582,7 @@ Purpose: add the between-wave roguelite growth loop and make runs branch without
 
 - Decisions/contradictions:
   - Draft tower offers now carry explicit roles (`support`, `generic`, `pivot`) instead of raw emitter ids. The renderer/UI still chooses by emitter id, but the read model can show the offer role.
-  - Choosing an upgrade now completes the draft and starts the 3-second countdown; the old `completeDraft` action remains as a compatibility no-op unless the run is already on the upgrade step.
+  - Choosing an upgrade now completes the draft and starts the 3-second countdown; the old `completeDraft` action has since been removed.
   - Upgrade effects are implemented in the pure reaction/projection layer: water coverage, oil slow, spark/heat capacity, and a limited fire reaction DPS buff. This keeps Phaser out of combat rules and makes draft picks affect later outcomes immediately.
   - Save schema was bumped from 2 to 3 because draft offer shape and upgrade definitions changed.
 

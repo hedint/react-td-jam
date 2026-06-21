@@ -1,15 +1,15 @@
-import type { EmitterId, TowerState } from "./types";
+import type { EmitterId, GameConfig, TowerState } from "./types";
 import { gameConfig } from "./config";
 
-export function createTower(id: string, emitterId: EmitterId, slotId: string | null): TowerState {
+export function createTower(id: string, emitterId: EmitterId, slotId: string | null, config: GameConfig = gameConfig): TowerState {
   return {
     id,
     emitterId,
-    displayName: getEmitterTowerDisplayName(emitterId),
+    displayName: getEmitterTowerDisplayName(emitterId, config),
     slotId,
   };
 }
 
-function getEmitterTowerDisplayName(emitterId: EmitterId): string {
-  return gameConfig.emitters.find(emitter => emitter.id === emitterId)?.towerDisplayName ?? emitterId;
+function getEmitterTowerDisplayName(emitterId: EmitterId, config: GameConfig): string {
+  return config.emitters.find(emitter => emitter.id === emitterId)?.towerDisplayName ?? emitterId;
 }

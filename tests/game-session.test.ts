@@ -1,4 +1,4 @@
-import type { EmitterId, GameAction, GameConfig, RunState } from "@entities/game-session/model/types";
+import type { EmitterId, GameAction, GameConfig, ReactionDefinition, RunState } from "@entities/game-session/model/types";
 import { renderPerformanceBudget } from "@app/phaser/scenes/renderPerformance";
 import { createStadiumLoopBoard, defaultBoardGeometryConfig } from "@entities/game-session/model/boardGeometry";
 import { gameConfig, validateGameConfig } from "@entities/game-session/model/config";
@@ -263,6 +263,32 @@ describe("run simulation", () => {
     const state = createRun(1);
 
     expect(resolveReactions(state.board, towers)).toEqual(resolveReactions(state.board, [...towers].reverse()));
+  });
+
+  it("uses config-defined reaction inputs without resolver branches", () => {
+    const reactions = gameConfig.reactions as unknown as ReactionDefinition[];
+    const originalReactions = [...reactions];
+
+    reactions.push({
+      id: "testPuddle" as ReactionDefinition["id"],
+      displayName: "Test Puddle",
+      tier: 1,
+      layer: "ground",
+      damageFamily: "electric",
+      dps: 16,
+      inputs: ["water", "spark"],
+    });
+
+    try {
+      const resolved = resolveReactions(gameConfig.board, [
+        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-spark-a", "spark", "slot-0-inner"),
+      ]);
+
+      expect(resolved[0]?.ground).toBe("testPuddle");
+    } finally {
+      reactions.splice(0, reactions.length, ...originalReactions);
+    }
   });
 
   it("enforces tier damage ordering in config", () => {
@@ -802,6 +828,28 @@ describe("run simulation", () => {
     expect(twelveCellBoard.pathCells.map(cell => cell.isCorner ? cell.index : null).filter(index => index !== null)).toEqual([2, 5, 8, 11]);
   });
 
+  it("runs headless simulation with a custom board config", () => {
+    const customConfig = cloneConfig(gameConfig);
+    const customBoard = createStadiumLoopBoard({
+      ...defaultBoardGeometryConfig,
+      pathCellCount: 12,
+    });
+
+    (customConfig as MutableObject<GameConfig>).board = customBoard;
+    (customConfig.balance as MutableObject<GameConfig["balance"]>).pathCellCount = 12;
+
+    const initial = createRun(12, { config: customConfig });
+    const result = runHeadlessRun(initial, {
+      maxSteps: 2,
+      autoStartWaves: true,
+      config: customConfig,
+    });
+
+    expect(initial.board.pathCells).toHaveLength(12);
+    expect(result.state.board.pathCells).toHaveLength(12);
+    expect(result.state.phase).toBe("wave");
+  });
+
   it("places physical bench tower instances before the first wave", () => {
     const selected = applyAction(createRun(1), { type: "selectTower", towerId: "tower-water-a" });
     const placed = applyAction(selected, { type: "placeSelectedTower", slotId: "slot-0-outer" });
@@ -937,7 +985,7 @@ describe("game config", () => {
     };
     reactions[0] = {
       ...reactions[0]!,
-      inputs: ["missing-input"],
+      inputs: ["missing-input" as ReactionDefinition["inputs"][number]],
     };
     waves[0] = {
       ...waves[0]!,
@@ -1013,13 +1061,13 @@ function startFirstWave(state: ReturnType<typeof createRun>): ReturnType<typeof 
 
 function advanceToDraftAfterWave2(state: ReturnType<typeof createRun>): ReturnType<typeof createRun> {
   const afterWave1 = stepMany(startFirstWave(state), 520);
-  const wave2Countdown = completeDraftByFirstChoices(afterWave1);
+  const wave2Countdown = chooseFirstDraftOffers(afterWave1);
   const wave2 = stepMany(wave2Countdown, 90);
 
   return stepMany(wave2, 600);
 }
 
-function completeDraftByFirstChoices(state: ReturnType<typeof createRun>): ReturnType<typeof createRun> {
+function chooseFirstDraftOffers(state: ReturnType<typeof createRun>): ReturnType<typeof createRun> {
   const towerOffer = state.draft?.towerOffers[0];
   const withTower = towerOffer
     ? applyAction(state, { type: "chooseDraftTower", emitterId: towerOffer.emitterId })

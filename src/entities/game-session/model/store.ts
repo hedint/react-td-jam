@@ -65,7 +65,6 @@ export const useGameSessionStore = defineStore("game-session", () => {
     }
   });
   const canStartWave = computed(() => phase.value === "ready");
-  const canCompleteDraft = computed(() => false);
   const canRerollDraft = computed(() => phase.value === "draft" && rerollsRemaining.value > 0);
   const damageLabel = computed(() => Math.round(totalDamage.value).toString());
   const bossHpLabel = computed(() => `${Math.ceil(bossHp.value)}/${bossMaxHp.value}`);
@@ -166,7 +165,6 @@ export const useGameSessionStore = defineStore("game-session", () => {
     phaseLabel,
     countdownMs,
     canStartWave,
-    canCompleteDraft,
     canRerollDraft,
     coreHp,
     speed,

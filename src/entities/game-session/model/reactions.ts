@@ -5,7 +5,10 @@ import type {
   CellReagentProjection,
   DamageFamily,
   EmitterId,
+  GameConfig,
+  ReactionDefinition,
   ReactionId,
+  ReactionInputId,
   TowerState,
   UpgradeStackState,
 } from "./types";
@@ -37,27 +40,26 @@ interface DamageEntry {
   readonly amount: number
 }
 
-const groundPriority: readonly ReactionId[] = ["fire", "electroPuddle"];
-const t2AirPriority: readonly ReactionId[] = ["fireVortex", "stormCloud"];
-
 export function resolveReactions(
   board: BoardState,
   placedTowers: readonly TowerState[],
   upgrades: readonly UpgradeStackState[] = [],
+  config: GameConfig = gameConfig,
 ): readonly CellReactionState[] {
-  const projection = createMutableProjection(board, placedTowers, upgrades);
-  const t1 = resolveTier1(board, projection);
-  const t2 = resolveTier2(board, projection, t1);
-
-  return resolveTier3(board, t2);
+  const projection = createMutableProjection(board, placedTowers, upgrades, config);
+  return ([1, 2, 3] as const).reduce(
+    (state, tier) => resolveTier(board, projection, state, tier, config),
+    createEmptyReactionState(board),
+  );
 }
 
 export function projectReagents(
   board: BoardState,
   placedTowers: readonly TowerState[],
   upgrades: readonly UpgradeStackState[] = [],
+  config: GameConfig = gameConfig,
 ): readonly CellReagentProjection[] {
-  return createMutableProjection(board, placedTowers, upgrades).map(cell => ({
+  return createMutableProjection(board, placedTowers, upgrades, config).map(cell => ({
     cellIndex: cell.cellIndex,
     substances: [...cell.substances].sort(),
     energy: [...cell.energy].sort(),
@@ -74,6 +76,7 @@ export function getReactionDamageEntries(
   reaction: CellReactionState,
   deltaMs: number,
   upgrades: readonly UpgradeStackState[] = [],
+  config: GameConfig = gameConfig,
 ): readonly DamageEntry[] {
   return [
     { reactionId: reaction.ground, layer: "ground" as const },
@@ -81,13 +84,13 @@ export function getReactionDamageEntries(
   ]
     .filter((entry): entry is { readonly reactionId: ReactionId, readonly layer: "ground" | "air" } => entry.reactionId !== null)
     .map((entry) => {
-      const definition = getReactionDefinition(entry.reactionId);
+      const definition = getReactionDefinition(entry.reactionId, config);
 
       return {
         reactionId: entry.reactionId,
         layer: entry.layer,
         damageFamily: definition.damageFamily,
-        amount: (definition.dps + getReactionDpsBonus(entry.reactionId, upgrades)) * deltaMs / 1000,
+        amount: (definition.dps + getReactionDpsBonus(entry.reactionId, upgrades, config)) * deltaMs / 1000,
       };
     })
     .filter(entry => entry.amount > 0);
@@ -96,16 +99,17 @@ export function getReactionDamageEntries(
 export function getCellSpeedMultiplier(
   projection: CellReagentProjection | undefined,
   upgrades: readonly UpgradeStackState[] = [],
+  config: GameConfig = gameConfig,
 ): number {
   if (!projection) {
     return 1;
   }
 
   return projection.substances.reduce((multiplier, substance) => {
-    const definition = gameConfig.emitters.find(emitter => emitter.id === substance);
-    const slowBonus = getSubstanceSlowBonus(substance, upgrades);
+    const definition = config.emitters.find(emitter => emitter.id === substance);
+    const slowBonus = getSubstanceSlowBonus(substance, upgrades, config);
 
-    return Math.min(multiplier, Math.max(gameConfig.balance.minSpeedMultiplier, (definition?.speedMultiplier ?? 1) - slowBonus));
+    return Math.min(multiplier, Math.max(config.balance.minSpeedMultiplier, (definition?.speedMultiplier ?? 1) - slowBonus));
   }, 1);
 }
 
@@ -147,6 +151,7 @@ function createMutableProjection(
   board: BoardState,
   placedTowers: readonly TowerState[],
   upgrades: readonly UpgradeStackState[],
+  config: GameConfig,
 ): readonly MutableProjection[] {
   const projection = board.pathCells.map<MutableProjection>(cell => ({
     cellIndex: cell.index,
@@ -172,7 +177,7 @@ function createMutableProjection(
       const cellIndexes = expandCellIndexes(
         board.pathCells.length,
         slot.cellIndexes,
-        getSubstanceCoverageBonus(emitterId, upgrades),
+        getSubstanceCoverageBonus(emitterId, upgrades, config),
       );
 
       cellIndexes.forEach((cellIndex) => {
@@ -195,7 +200,7 @@ function createMutableProjection(
       towerId: tower.id,
       slotId: slot.id,
       cellIndexes: slot.cellIndexes,
-      capacity: getEnergyCapacity(emitterId, upgrades),
+      capacity: getEnergyCapacity(emitterId, upgrades, config),
     });
   });
 
@@ -267,79 +272,85 @@ function assignEnergyToPool(
   return assignedClaims.sort((left, right) => left.cellIndex - right.cellIndex);
 }
 
-function resolveTier1(
+function createEmptyReactionState(board: BoardState): readonly CellReactionState[] {
+  return board.pathCells.map(cell => ({
+    cellIndex: cell.index,
+    ground: null,
+    air: null,
+  }));
+}
+
+function resolveTier(
   board: BoardState,
   projection: readonly MutableProjection[],
+  previous: readonly CellReactionState[],
+  tier: ReactionDefinition["tier"],
+  config: GameConfig,
 ): readonly CellReactionState[] {
+  const definitions = config.reactions.filter(reaction => reaction.tier === tier);
+
   return board.pathCells.map<CellReactionState>((cell) => {
-    const reagent = projection[cell.index]!;
-    const groundCandidates: ReactionId[] = [];
-    const hasWater = reagent.substances.has("water");
-    const hasOil = reagent.substances.has("oil");
-    const hasSpark = reagent.energy.has("spark");
-    const hasHeat = reagent.energy.has("heat");
-
-    if (hasWater && hasSpark) {
-      groundCandidates.push("electroPuddle");
-    }
-
-    if (hasOil && hasHeat) {
-      groundCandidates.push("fire");
-    }
+    const resolved = definitions
+      .filter(reaction => hasReactionInputs(board, projection, previous, tier, cell.index, reaction.inputs, config))
+      .reduce<CellReactionState>((state, reaction) => ({
+        ...state,
+        [reaction.layer]: reaction.id,
+      }), previous[cell.index]!);
 
     return {
       cellIndex: cell.index,
-      ground: chooseByPriority(groundCandidates, groundPriority),
-      air: hasWater && hasHeat ? "steam" : null,
+      ground: resolved.ground,
+      air: resolved.air,
     };
   });
 }
 
-function resolveTier2(
+function hasReactionInputs(
   board: BoardState,
   projection: readonly MutableProjection[],
-  t1: readonly CellReactionState[],
-): readonly CellReactionState[] {
-  return board.pathCells.map<CellReactionState>((cell) => {
-    const contextIndexes = getContextIndexes(board.pathCells.length, cell.index);
-    const hasSteam = contextIndexes.some(index => t1[index]?.air === "steam");
-    const hasFire = contextIndexes.some(index => t1[index]?.ground === "fire");
-    const hasSpark = contextIndexes.some(index => projection[index]?.directEnergy.has("spark") || projection[index]?.energy.has("spark"));
-    const candidates: ReactionId[] = [];
+  previous: readonly CellReactionState[],
+  tier: ReactionDefinition["tier"],
+  cellIndex: number,
+  inputs: readonly ReactionInputId[],
+  config: GameConfig,
+): boolean {
+  const indexes = tier === 1
+    ? [cellIndex]
+    : getContextIndexes(board.pathCells.length, cellIndex);
 
-    if (hasSteam && hasSpark) {
-      candidates.push("stormCloud");
-    }
-
-    if (hasFire && hasSteam) {
-      candidates.push("fireVortex");
-    }
-
-    return {
-      ...t1[cell.index]!,
-      air: chooseByPriority(candidates, t2AirPriority) ?? t1[cell.index]!.air,
-    };
-  });
+  return inputs.every(input => indexes.some(index => hasReactionInput(projection[index], previous[index], tier, input, config)));
 }
 
-function resolveTier3(
-  board: BoardState,
-  t2: readonly CellReactionState[],
-): readonly CellReactionState[] {
-  return board.pathCells.map<CellReactionState>((cell) => {
-    const contextIndexes = getContextIndexes(board.pathCells.length, cell.index);
-    const hasStormCloud = contextIndexes.some(index => t2[index]?.air === "stormCloud");
-    const hasFireVortex = contextIndexes.some(index => t2[index]?.air === "fireVortex");
+function hasReactionInput(
+  projection: MutableProjection | undefined,
+  previous: CellReactionState | undefined,
+  tier: ReactionDefinition["tier"],
+  input: ReactionInputId,
+  config: GameConfig,
+): boolean {
+  if (isReactionId(input, config)) {
+    return previous?.ground === input || previous?.air === input;
+  }
 
-    return {
-      ...t2[cell.index]!,
-      air: hasStormCloud && hasFireVortex ? "fireStorm" : t2[cell.index]!.air,
-    };
-  });
+  if (!projection) {
+    return false;
+  }
+
+  if (isSubstance(input)) {
+    return projection.substances.has(input);
+  }
+
+  if (!isEnergy(input)) {
+    return false;
+  }
+
+  return tier === 1
+    ? projection.energy.has(input)
+    : projection.energy.has(input) || projection.directEnergy.has(input);
 }
 
-function getReactionDefinition(reactionId: ReactionId) {
-  const definition = gameConfig.reactions.find(reaction => reaction.id === reactionId);
+function getReactionDefinition(reactionId: ReactionId, config: GameConfig) {
+  const definition = config.reactions.find(reaction => reaction.id === reactionId);
 
   if (!definition) {
     throw new Error(`Unknown reaction ${reactionId}`);
@@ -348,9 +359,9 @@ function getReactionDefinition(reactionId: ReactionId) {
   return definition;
 }
 
-function getEnergyCapacity(emitterId: EnergyId, upgrades: readonly UpgradeStackState[]): number {
-  return (gameConfig.emitters.find(emitter => emitter.id === emitterId)?.energyCapacity ?? 1)
-    + getUpgradeEffectTotal(upgrades, emitterId, "energyCapacity");
+function getEnergyCapacity(emitterId: EnergyId, upgrades: readonly UpgradeStackState[], config: GameConfig): number {
+  return (config.emitters.find(emitter => emitter.id === emitterId)?.energyCapacity ?? 1)
+    + getUpgradeEffectTotal(upgrades, emitterId, "energyCapacity", config);
 }
 
 function getContextIndexes(pathCellCount: number, cellIndex: number): readonly number[] {
@@ -384,17 +395,17 @@ function expandCellIndexes(pathCellCount: number, cellIndexes: readonly number[]
   return [...expanded].sort((left, right) => left - right);
 }
 
-function getSubstanceCoverageBonus(emitterId: SubstanceId, upgrades: readonly UpgradeStackState[]): number {
-  return getUpgradeEffectTotal(upgrades, emitterId, "substanceCoverage");
+function getSubstanceCoverageBonus(emitterId: SubstanceId, upgrades: readonly UpgradeStackState[], config: GameConfig): number {
+  return getUpgradeEffectTotal(upgrades, emitterId, "substanceCoverage", config);
 }
 
-function getSubstanceSlowBonus(emitterId: EmitterId, upgrades: readonly UpgradeStackState[]): number {
-  return getUpgradeEffectTotal(upgrades, emitterId, "substanceSlow");
+function getSubstanceSlowBonus(emitterId: EmitterId, upgrades: readonly UpgradeStackState[], config: GameConfig): number {
+  return getUpgradeEffectTotal(upgrades, emitterId, "substanceSlow", config);
 }
 
-function getReactionDpsBonus(reactionId: ReactionId, upgrades: readonly UpgradeStackState[]): number {
+function getReactionDpsBonus(reactionId: ReactionId, upgrades: readonly UpgradeStackState[], config: GameConfig): number {
   return upgrades.reduce((bonus, stack) => {
-    const definition = gameConfig.upgrades.find(upgrade => upgrade.id === stack.upgradeId);
+    const definition = config.upgrades.find(upgrade => upgrade.id === stack.upgradeId);
 
     if (definition?.effect.type !== "reactionDps" || definition.effect.reactionId !== reactionId) {
       return bonus;
@@ -408,9 +419,10 @@ function getUpgradeEffectTotal(
   upgrades: readonly UpgradeStackState[],
   emitterId: EmitterId,
   effectType: "energyCapacity" | "substanceCoverage" | "substanceSlow",
+  config: GameConfig,
 ): number {
   return upgrades.reduce((total, stack) => {
-    const definition = gameConfig.upgrades.find(upgrade => upgrade.id === stack.upgradeId);
+    const definition = config.upgrades.find(upgrade => upgrade.id === stack.upgradeId);
 
     if (definition?.emitterId !== emitterId || definition.effect.type !== effectType) {
       return total;
@@ -420,15 +432,14 @@ function getUpgradeEffectTotal(
   }, 0);
 }
 
-function chooseByPriority<T extends ReactionId>(candidates: readonly T[], priority: readonly ReactionId[]): T | null {
-  return [...candidates]
-    .sort((left, right) => priority.indexOf(left) - priority.indexOf(right))[0] ?? null;
-}
-
 function isSubstance(emitterId: EmitterId): emitterId is SubstanceId {
   return emitterId === "water" || emitterId === "oil";
 }
 
 function isEnergy(emitterId: EmitterId): emitterId is EnergyId {
   return emitterId === "spark" || emitterId === "heat";
+}
+
+function isReactionId(input: ReactionInputId, config: GameConfig): input is ReactionId {
+  return config.reactions.some(reaction => reaction.id === input);
 }
