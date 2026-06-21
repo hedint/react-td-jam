@@ -198,6 +198,8 @@ export interface BalanceConfig {
   readonly leakDamage: number
   readonly tickRate: number
   readonly rerollsPerDraft: number
+  readonly postDraftCountdownMs: number
+  readonly minSpeedMultiplier: number
 }
 
 export interface EmitterDefinition {

@@ -34,7 +34,6 @@
   background: rgb(14 15 18 / 72%);
   border: 1px solid rgb(255 255 255 / 14%);
   border-radius: 8px;
-  backdrop-filter: blur(8px);
 }
 
 .run-hud__stat {

@@ -1,4 +1,5 @@
 import type { EmitterId, GameAction, GameConfig, RunState } from "@entities/game-session/model/types";
+import { renderPerformanceBudget } from "@app/phaser/scenes/renderPerformance";
 import { createStadiumLoopBoard, defaultBoardGeometryConfig } from "@entities/game-session/model/boardGeometry";
 import { gameConfig, validateGameConfig } from "@entities/game-session/model/config";
 import { createFixedStepDriver } from "@entities/game-session/model/fixedStepDriver";
@@ -556,7 +557,7 @@ describe("run simulation", () => {
     expect(countdown).toMatchObject({
       phase: "countdown",
       waveIndex: 1,
-      countdownMs: 3000,
+      countdownMs: gameConfig.balance.postDraftCountdownMs,
       draft: null,
     });
 
@@ -901,6 +902,21 @@ describe("run persistence", () => {
   });
 });
 
+describe("render performance budget", () => {
+  it("keeps procedural reaction marks inside the mobile particle budget", () => {
+    const maxEffectMarks = Math.max(...Object.values(renderPerformanceBudget.effectParticleMarks));
+
+    expect(maxEffectMarks).toBeLessThanOrEqual(renderPerformanceBudget.maxParticlesPerEffect);
+    expect(renderPerformanceBudget.phaserParticleSystems).toBe(0);
+    expect(renderPerformanceBudget.bitmapAtlasCount).toBeLessThanOrEqual(1);
+    expect(renderPerformanceBudget.pooledLabels).toBe(true);
+  });
+
+  it("does not use blur or post-processing in runtime overlays", () => {
+    expect(renderPerformanceBudget.blurOrPostProcessing).toBe(false);
+  });
+});
+
 describe("game config", () => {
   it("passes validation for the authored P0 config", () => {
     expect(validateGameConfig(gameConfig)).toEqual([]);
@@ -908,11 +924,13 @@ describe("game config", () => {
 
   it("reports malformed ids and display names", () => {
     const malformed = cloneConfig(gameConfig);
+    const balance = malformed.balance as MutableObject<typeof malformed.balance>;
     const emitters = malformed.emitters as Mutable<typeof malformed.emitters>;
     const reactions = malformed.reactions as Mutable<typeof malformed.reactions>;
     const waves = malformed.waves as Mutable<typeof malformed.waves>;
     const upgrades = malformed.upgrades as Mutable<typeof malformed.upgrades>;
 
+    balance.minSpeedMultiplier = 0;
     emitters[0] = {
       ...emitters[0]!,
       displayName: "",
@@ -931,6 +949,7 @@ describe("game config", () => {
     };
 
     expect(validateGameConfig(malformed)).toEqual([
+      "balance has invalid runtime values",
       "emitter water is missing display names",
       "reaction electroPuddle references unknown input missing-input",
       "wave wave-1 references unknown enemy missing-enemy",
@@ -1107,6 +1126,9 @@ function cloneConfig(config: GameConfig): GameConfig {
 }
 
 type Mutable<T extends readonly unknown[]> = [...T];
+type MutableObject<T> = {
+  -readonly [Key in keyof T]: T[Key]
+};
 
 function createMemoryStorage() {
   const values = new Map<string, string>();

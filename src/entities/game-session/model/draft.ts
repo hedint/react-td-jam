@@ -85,7 +85,7 @@ export function advanceAfterDraft(state: RunState): RunState {
     ...state,
     phase: "countdown",
     waveIndex: Math.min(state.waveIndex + 1, gameConfig.waves.length - 1),
-    countdownMs: 3000,
+    countdownMs: gameConfig.balance.postDraftCountdownMs,
     draft: null,
     waveRuntime: null,
   };

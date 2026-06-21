@@ -683,27 +683,27 @@ Purpose: tune the game into a coherent playable P0 and remove rough edges that b
 - [x] Expand the headless run runner for scripted strategies (build on the minimal harness from Phase 5).
 - [x] Add at least one coherent expected-win strategy and at least one weak/poor strategy that is allowed to leak or lose.
 - [x] Assert expected leak bounds, wave reach, boss outcome, and damage distribution for scripted strategies.
-- [ ] Keep all tuning constants in typed configs; tune wave HP, enemy speed, spawn counts, reaction DPS, slow strength, capacity, and boss numbers through config edits.
+- [x] Keep all tuning constants in typed configs; tune wave HP, enemy speed, spawn counts, reaction DPS, slow strength, capacity, and boss numbers through config edits.
 - [x] VFX polish pass: build on the per-phase reaction VFX; prioritize reaction VFX over general decorative polish; confirm color meanings are not color-only where shape/pattern can cheaply help.
-- [ ] Respect the performance budget (design §13): <= ~15 particles per effect, object pooling for enemies and particles, a single texture atlas; avoid blur/post-processing.
+- [x] Respect the performance budget (design §13): <= ~15 particles per effect, object pooling for enemies and particles, a single texture atlas; avoid blur/post-processing.
 - [x] Improve procedural tower, enemy, cell, reaction, and boss readability.
 - [ ] Add optional audio only if the full playable run is already stable.
-- [ ] Update the README if it still contradicts the implemented portrait P0 game.
-- [ ] Run final checks.
+- [x] Update the README if it still contradicts the implemented portrait P0 game.
+- [x] Run final checks.
 
 ### Acceptance Criteria
 
 - [x] A coherent strategy usually wins the full run; poor placement or poor draft choices can produce meaningful leaks or defeat.
 - [x] Headless strategies are deterministic by seed; manual playthrough is readable in portrait layout.
-- [ ] P0 remains free of excluded P1 systems and respects the performance budget.
-- [ ] README no longer misleads future agents about the implemented game shape.
-- [ ] All three wow moments (design §12) reproduce in a single run.
+- [x] P0 remains free of excluded P1 systems and respects the performance budget.
+- [x] README no longer misleads future agents about the implemented game shape.
+- [x] All three wow moments (design §12) reproduce in a single run.
 
 ### Tests
 
 - [x] Headless full-run expected-win tests.
 - [x] Headless weak-strategy tests.
-- [ ] Regression tests for any bugs found during manual play.
+- [x] Regression tests for any bugs found during manual play.
 
 ### Final Verification
 
@@ -711,7 +711,7 @@ Purpose: tune the game into a coherent playable P0 and remove rough edges that b
 - [x] `npm run typecheck`
 - [x] `npm test`
 - [x] `npm run build`
-- [ ] Manual browser check: new run, wave 1, live bench placement, pause-to-edit removal/move, draft, save/reload/resume, pause/speed, boss, victory/defeat stats, and all three wow moments.
+- [x] Manual browser check: new run, wave 1, live bench placement, pause-to-edit removal/move, draft, save/reload/resume, pause/speed, boss, victory/defeat stats, and all three wow moments.
 
 ### Phase notes
 
@@ -725,13 +725,51 @@ Purpose: tune the game into a coherent playable P0 and remove rough edges that b
   - Asset polish stayed procedural in Phaser: tower glyphs, enemy silhouette accents, path-cell markers, reaction
     shape/pattern overlays, and extra Бочкоед barrel/vulnerable details. No generated sprite strip was introduced
     because the current shipped asset path is procedural graphics, not bitmap sprites.
-  - No wave/reaction/boss numeric tuning constants were changed in this slice.
-  - Browser visual checks covered the start placement -> Электролужа state and a saved-run reaction fixture; the full
-    final manual checklist is still open.
+  - Added `postDraftCountdownMs` and `minSpeedMultiplier` to typed `BalanceConfig`, replacing the remaining local
+    countdown and speed-floor numbers in draft/reaction code.
+  - Ran a config-only balance pass over substance slow, spark capacity, reaction DPS, enemy HP/speeds, wave
+    counts/spawn intervals, and Бочкоед HP/speeds. No simulation rule changes were needed.
+  - Config validation now catches invalid runtime balance values so malformed tuning changes fail fast.
+  - Added a renderer performance budget contract for procedural VFX: no Phaser particle emitters, no blur/post-processing,
+    per-effect reaction marks capped below the mobile <= ~15 particle budget, and reusable scratch points/text pools for
+    Phaser enemy/tower rendering. Because the shipped visuals are procedural Graphics rather than bitmap sprites, there is
+    no multi-texture sprite load; future bitmap art should stay within one atlas.
+  - Updated README from the original starter-template description to the implemented portrait P0 game shape, including
+    the finite run, placement rules, draft loop, save/resume, boss, typed simulation boundary, and excluded P1 systems.
+  - Optional audio remains intentionally unimplemented: required audio is explicitly out of P0, and adding optional audio
+    after stabilization would add surface area without improving the core demo loop.
+  - Final browser checklist used public UI for new run, live bench placement, wave 1, pause-to-edit move, speed, save/reload/resume,
+    draft/reroll/upgrade/countdown, and saved-run fixtures for wow #2, boss Vulnerable/wow #3, victory stats, and defeat stats.
+  - No manual-play bugs were found during the final browser checklist, so no new regression tests were needed beyond the
+    existing headless strategy and render-budget coverage.
 
 ### Phase completion summary
 
-TBD
+Implemented:
+  - Deterministic scripted balance checks for expected-win and weak strategies.
+  - Config-only balance tuning and validation for runtime constants.
+  - Procedural readability polish for towers, enemies, cells, reactions, and Бочкоед.
+  - Render performance budget guardrails: no Phaser particle systems, no blur/post-processing, reaction VFX marks below
+    the mobile <= ~15 particles/effect budget, pooled labels, and reusable scratch points in Phaser rendering.
+  - README updated from the old starter-template description to the implemented portrait P0 game.
+
+Intentionally deferred:
+  - Optional audio. Required audio is out of P0, and no audio was added after the final gameplay checks.
+
+Accepted deviations/tradeoffs:
+  - Browser checks use saved-run fixtures for late boss/end-state visuals rather than replaying a full public UI run in real time.
+    The headless expected-win strategy covers the single-run wave 1 -> wave 10 -> Бочкоед path deterministically.
+
+Tests/checks run:
+  - `npm run lint:fix`
+  - `npm run typecheck`
+  - `npm test` passed: 2 test files, 60 tests.
+  - `npm run build` passed with Vite's existing large chunk warning.
+  - Final browser checklist on `http://127.0.0.1:5185` passed. Screenshots saved under `output/playwright/`:
+    `phase8-final-live-placement-wow1.png`, `phase8-final-pause-move.png`, `phase8-final-resume-wave.png`,
+    `phase8-final-draft-tower.png`, `phase8-final-draft-upgrade.png`, `phase8-final-countdown-after-draft.png`,
+    `phase8-final-wow2-storm-cloud.png`, `phase8-final-wow3-boss-vulnerable.png`,
+    `phase8-final-victory-stats.png`, and `phase8-final-defeat-stats.png`.
 
 ## Global Test Matrix
 
@@ -758,14 +796,14 @@ Use this as the minimum regression checklist while implementing P0.
 
 P0 is complete only when all of the following are true:
 
-- [ ] The game is a full finite run, not a mechanics sandbox.
-- [ ] One run includes wave 1 through wave 10 plus Бочкоед.
-- [ ] The player can place towers live and edit (move/remove) them while paused.
-- [ ] The player gets tower and upgrade drafts between waves.
-- [ ] The P0 reaction graph is implemented and visible.
-- [ ] All three wow moments (design §12) reproduce in a single run.
-- [ ] The game supports full local save/resume.
-- [ ] Win/loss stats are available.
-- [ ] Headless scripted strategy tests exist.
-- [ ] Final verification commands pass.
-- [ ] Phase summaries above are filled in.
+- [x] The game is a full finite run, not a mechanics sandbox.
+- [x] One run includes wave 1 through wave 10 plus Бочкоед.
+- [x] The player can place towers live and edit (move/remove) them while paused.
+- [x] The player gets tower and upgrade drafts between waves.
+- [x] The P0 reaction graph is implemented and visible.
+- [x] All three wow moments (design §12) reproduce in a single run.
+- [x] The game supports full local save/resume.
+- [x] Win/loss stats are available.
+- [x] Headless scripted strategy tests exist.
+- [x] Final verification commands pass.
+- [x] Phase summaries above are filled in.

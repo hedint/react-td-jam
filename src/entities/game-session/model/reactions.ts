@@ -105,7 +105,7 @@ export function getCellSpeedMultiplier(
     const definition = gameConfig.emitters.find(emitter => emitter.id === substance);
     const slowBonus = getSubstanceSlowBonus(substance, upgrades);
 
-    return Math.min(multiplier, Math.max(0.35, (definition?.speedMultiplier ?? 1) - slowBonus));
+    return Math.min(multiplier, Math.max(gameConfig.balance.minSpeedMultiplier, (definition?.speedMultiplier ?? 1) - slowBonus));
   }, 1);
 }
 

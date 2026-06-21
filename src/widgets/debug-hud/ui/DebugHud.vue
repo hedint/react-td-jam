@@ -54,7 +54,6 @@ const session = useGameSessionStore();
   background: var(--color-panel);
   border: 1px solid var(--color-panel-border);
   border-radius: 8px;
-  backdrop-filter: blur(10px);
 }
 
 .debug-hud__header {

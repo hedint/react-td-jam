@@ -14,58 +14,60 @@ export const gameConfig: GameConfig = {
     leakDamage: 1,
     tickRate: 30,
     rerollsPerDraft: 1,
+    postDraftCountdownMs: 3000,
+    minSpeedMultiplier: 0.32,
   },
   board,
   emitters: [
-    { id: "water", displayName: "Вода", towerDisplayName: "Водомёт", family: "substance", speedMultiplier: 0.86 },
-    { id: "oil", displayName: "Нефть", towerDisplayName: "Маслонасос", family: "substance", speedMultiplier: 0.74 },
-    { id: "spark", displayName: "Искра", towerDisplayName: "Разрядник", family: "energy", energyCapacity: 2 },
+    { id: "water", displayName: "Вода", towerDisplayName: "Водомёт", family: "substance", speedMultiplier: 0.84 },
+    { id: "oil", displayName: "Нефть", towerDisplayName: "Маслонасос", family: "substance", speedMultiplier: 0.68 },
+    { id: "spark", displayName: "Искра", towerDisplayName: "Разрядник", family: "energy", energyCapacity: 3 },
     { id: "heat", displayName: "Жар", towerDisplayName: "Магмовый кран", family: "energy", energyCapacity: 2 },
   ],
   reactions: [
-    { id: "electroPuddle", displayName: "Электролужа", tier: 1, layer: "ground", damageFamily: "electric", dps: 16, inputs: ["water", "spark"] },
-    { id: "steam", displayName: "Пар", tier: 1, layer: "air", damageFamily: "steam", dps: 6, inputs: ["water", "heat"] },
-    { id: "fire", displayName: "Пожар", tier: 1, layer: "ground", damageFamily: "fire", dps: 18, inputs: ["oil", "heat"] },
-    { id: "stormCloud", displayName: "Грозовое облако", tier: 2, layer: "air", damageFamily: "electric", dps: 30, inputs: ["steam", "spark"] },
-    { id: "fireVortex", displayName: "Огненный вихрь", tier: 2, layer: "air", damageFamily: "fire", dps: 34, inputs: ["fire", "steam"] },
-    { id: "fireStorm", displayName: "Огненный Шторм", tier: 3, layer: "air", damageFamily: "storm", dps: 60, inputs: ["stormCloud", "fireVortex"] },
+    { id: "electroPuddle", displayName: "Электролужа", tier: 1, layer: "ground", damageFamily: "electric", dps: 15, inputs: ["water", "spark"] },
+    { id: "steam", displayName: "Пар", tier: 1, layer: "air", damageFamily: "steam", dps: 7, inputs: ["water", "heat"] },
+    { id: "fire", displayName: "Пожар", tier: 1, layer: "ground", damageFamily: "fire", dps: 20, inputs: ["oil", "heat"] },
+    { id: "stormCloud", displayName: "Грозовое облако", tier: 2, layer: "air", damageFamily: "electric", dps: 32, inputs: ["steam", "spark"] },
+    { id: "fireVortex", displayName: "Огненный вихрь", tier: 2, layer: "air", damageFamily: "fire", dps: 38, inputs: ["fire", "steam"] },
+    { id: "fireStorm", displayName: "Огненный Шторм", tier: 3, layer: "air", damageFamily: "storm", dps: 68, inputs: ["stormCloud", "fireVortex"] },
   ],
   enemies: [
     { id: "grunt", displayName: "Грунт", hp: 30, speedCellsPerSecond: 1, leakDamage: 1 },
-    { id: "swarm", displayName: "Сварм", hp: 12, speedCellsPerSecond: 1.2, leakDamage: 1 },
-    { id: "tank", displayName: "Танк", hp: 90, speedCellsPerSecond: 0.62, leakDamage: 1 },
-    { id: "flyer", displayName: "Летун", hp: 24, speedCellsPerSecond: 1.05, leakDamage: 1, traits: ["flying"] },
-    { id: "runner", displayName: "Бегун", hp: 22, speedCellsPerSecond: 1.65, leakDamage: 1 },
-    { id: "insulated", displayName: "Грязевик", hp: 55, speedCellsPerSecond: 0.9, leakDamage: 1, resistances: { electric: 0.35 } },
-    { id: "flameproof", displayName: "Магма-выползень", hp: 60, speedCellsPerSecond: 0.86, leakDamage: 1, resistances: { fire: 0.35 } },
+    { id: "swarm", displayName: "Сварм", hp: 14, speedCellsPerSecond: 1.22, leakDamage: 1 },
+    { id: "tank", displayName: "Танк", hp: 105, speedCellsPerSecond: 0.58, leakDamage: 1 },
+    { id: "flyer", displayName: "Летун", hp: 24, speedCellsPerSecond: 1.12, leakDamage: 1, traits: ["flying"] },
+    { id: "runner", displayName: "Бегун", hp: 26, speedCellsPerSecond: 1.72, leakDamage: 1 },
+    { id: "insulated", displayName: "Грязевик", hp: 62, speedCellsPerSecond: 0.88, leakDamage: 1, resistances: { electric: 0.35 } },
+    { id: "flameproof", displayName: "Магма-выползень", hp: 68, speedCellsPerSecond: 0.84, leakDamage: 1, resistances: { fire: 0.35 } },
   ],
   waves: [
     { id: "wave-1", enemyId: "grunt", count: 1, spawnIntervalMs: 900, telegraphEnemyId: "grunt" },
-    { id: "wave-2", enemyId: "swarm", count: 8, spawnIntervalMs: 280, telegraphEnemyId: "swarm" },
+    { id: "wave-2", enemyId: "swarm", count: 9, spawnIntervalMs: 260, telegraphEnemyId: "swarm" },
     { id: "wave-3", enemyId: "flyer", count: 5, spawnIntervalMs: 520, telegraphEnemyId: "flyer" },
-    { id: "wave-4", enemyId: "tank", count: 3, spawnIntervalMs: 900, telegraphEnemyId: "tank" },
-    { id: "wave-5", enemyId: "runner", count: 6, spawnIntervalMs: 420, telegraphEnemyId: "runner" },
-    { id: "wave-6", enemyId: "insulated", count: 5, spawnIntervalMs: 560, telegraphEnemyId: "insulated" },
-    { id: "wave-7", enemyId: "flameproof", count: 5, spawnIntervalMs: 560, telegraphEnemyId: "flameproof" },
-    { id: "wave-8", enemyId: "swarm", count: 12, spawnIntervalMs: 220, telegraphEnemyId: "swarm" },
-    { id: "wave-9", enemyId: "tank", count: 5, spawnIntervalMs: 720, telegraphEnemyId: "tank" },
-    { id: "wave-10", enemyId: "runner", count: 10, spawnIntervalMs: 320, telegraphEnemyId: "runner" },
+    { id: "wave-4", enemyId: "tank", count: 4, spawnIntervalMs: 820, telegraphEnemyId: "tank" },
+    { id: "wave-5", enemyId: "runner", count: 7, spawnIntervalMs: 380, telegraphEnemyId: "runner" },
+    { id: "wave-6", enemyId: "insulated", count: 6, spawnIntervalMs: 520, telegraphEnemyId: "insulated" },
+    { id: "wave-7", enemyId: "flameproof", count: 6, spawnIntervalMs: 520, telegraphEnemyId: "flameproof" },
+    { id: "wave-8", enemyId: "swarm", count: 14, spawnIntervalMs: 200, telegraphEnemyId: "swarm" },
+    { id: "wave-9", enemyId: "tank", count: 6, spawnIntervalMs: 680, telegraphEnemyId: "tank" },
+    { id: "wave-10", enemyId: "runner", count: 12, spawnIntervalMs: 290, telegraphEnemyId: "runner" },
   ],
   boss: {
     id: "barrel-eater",
     displayName: "Бочкоед",
-    hp: 520,
+    hp: 620,
     laps: 3,
     lapCoreDamage: 3,
-    speedCellsPerSecond: 0.52,
-    speedIncreasePerLap: 0.18,
+    speedCellsPerSecond: 0.54,
+    speedIncreasePerLap: 0.2,
     reactionBreakThreshold: 3,
     vulnerableDurationMs: 5000,
     vulnerableDamageMultiplier: 2,
   },
   upgrades: [
     { id: "waterCapacity", displayName: "Напор водомёта", maxStacks: 2, emitterId: "water", effect: { type: "substanceCoverage", amount: 1 } },
-    { id: "oilControl", displayName: "Вязкая смола", maxStacks: 2, emitterId: "oil", effect: { type: "substanceSlow", amount: 0.08 } },
+    { id: "oilControl", displayName: "Вязкая смола", maxStacks: 2, emitterId: "oil", effect: { type: "substanceSlow", amount: 0.1 } },
     { id: "sparkCapacity", displayName: "Емкость разрядника", maxStacks: 3, emitterId: "spark", effect: { type: "energyCapacity", amount: 1 } },
     { id: "heatReach", displayName: "Жаровая тяга", maxStacks: 2, emitterId: "heat", effect: { type: "energyCapacity", amount: 1 } },
     { id: "fireCatalyst", displayName: "Пламенная присадка", maxStacks: 2, emitterId: "oil", effect: { type: "reactionDps", reactionId: "fire", amount: 4 } },
@@ -81,6 +83,18 @@ export function validateGameConfig(config: GameConfig): readonly string[] {
 
   if (config.balance.pathCellCount !== config.board.pathCells.length) {
     errors.push("balance.pathCellCount must match board.pathCells.length");
+  }
+
+  if (
+    config.balance.coreHp <= 0
+    || config.balance.leakDamage <= 0
+    || config.balance.tickRate <= 0
+    || config.balance.rerollsPerDraft < 0
+    || config.balance.postDraftCountdownMs < 0
+    || config.balance.minSpeedMultiplier <= 0
+    || config.balance.minSpeedMultiplier > 1
+  ) {
+    errors.push("balance has invalid runtime values");
   }
 
   config.emitters.forEach((emitter) => {

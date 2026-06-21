@@ -8,16 +8,16 @@ import Phaser from "phaser";
 import {
   findSlotAtPoint,
   getActiveReactionLabel,
-  getBossPosition,
-  getEnemyPosition,
   getEnemyVisual,
   getTowerColors,
   getTowerFieldLabel,
-  getTowerPosition,
   renderAirReaction,
   renderEnemyAccent,
   renderGroundReaction,
   renderTowerGlyph,
+  writeBossPosition,
+  writeEnemyPosition,
+  writeTowerPosition,
 } from "./runSceneRender";
 
 const LOGICAL_WIDTH = 540;
@@ -40,6 +40,9 @@ export class RunScene extends Phaser.Scene {
   private bossLabel?: Phaser.GameObjects.Text;
   private enemyLabels: Phaser.GameObjects.Text[] = [];
   private towerLabels: Phaser.GameObjects.Text[] = [];
+  private readonly bossPosition = { x: 0, y: 0 };
+  private readonly enemyPosition = { x: 0, y: 0 };
+  private readonly towerPosition = { x: 0, y: 0 };
   private unsubscribeAction?: Unsubscribe;
   private unsubscribeLoad?: Unsubscribe;
   private autosaveMs = 0;
@@ -299,7 +302,7 @@ export class RunScene extends Phaser.Scene {
     }
 
     snapshot.livingEnemies.forEach((enemy, index) => {
-      const position = getEnemyPosition(snapshot.board.pathCells, enemy);
+      const position = writeEnemyPosition(snapshot.board.pathCells, enemy, this.enemyPosition);
       const hpRatio = enemy.hp / enemy.maxHp;
       const label = this.enemyLabels[index];
       const visual = getEnemyVisual(enemy.enemyId);
@@ -353,7 +356,7 @@ export class RunScene extends Phaser.Scene {
       return;
     }
 
-    const position = getBossPosition(snapshot.board.pathCells, snapshot.boss);
+    const position = writeBossPosition(snapshot.board.pathCells, snapshot.boss, this.bossPosition);
     const hpRatio = snapshot.boss.hp / snapshot.boss.maxHp;
     const vulnerable = snapshot.boss.vulnerableMs > 0;
     const pulse = 3 + Math.sin(snapshot.elapsedMs / 90) * 3;
@@ -427,7 +430,7 @@ export class RunScene extends Phaser.Scene {
         return;
       }
 
-      const position = getTowerPosition(tower, slots);
+      const position = writeTowerPosition(tower, slots, this.towerPosition);
       label.setVisible(true);
       label.setPosition(position.x, position.y - 33);
       label.setText(getTowerFieldLabel(tower.emitterId));

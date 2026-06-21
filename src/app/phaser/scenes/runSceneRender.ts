@@ -2,20 +2,25 @@ import type { BoardSlot, BossState, CellReactionState, EnemyState, PathCell, Rea
 import { gameConfig } from "@entities/game-session/model/config";
 import Phaser from "phaser";
 
-export function getEnemyPosition(cells: readonly PathCell[], enemy: EnemyState): Phaser.Math.Vector2 {
+export interface RenderPoint {
+  x: number
+  y: number
+}
+
+export function writeEnemyPosition(cells: readonly PathCell[], enemy: EnemyState, out: RenderPoint): RenderPoint {
   const currentIndex = Math.floor(enemy.pathProgress) % cells.length;
   const nextIndex = (currentIndex + 1) % cells.length;
   const current = cells[currentIndex] ?? cells[0];
   const next = cells[nextIndex] ?? current;
   const amount = enemy.pathProgress - Math.floor(enemy.pathProgress);
 
-  return new Phaser.Math.Vector2(
-    Phaser.Math.Linear(current.x, next.x, amount),
-    Phaser.Math.Linear(current.y, next.y, amount),
-  );
+  out.x = Phaser.Math.Linear(current.x, next.x, amount);
+  out.y = Phaser.Math.Linear(current.y, next.y, amount);
+
+  return out;
 }
 
-export function getBossPosition(cells: readonly PathCell[], boss: BossState): Phaser.Math.Vector2 {
+export function writeBossPosition(cells: readonly PathCell[], boss: BossState, out: RenderPoint): RenderPoint {
   const pathProgress = boss.pathProgress % cells.length;
   const currentIndex = Math.floor(pathProgress) % cells.length;
   const nextIndex = (currentIndex + 1) % cells.length;
@@ -23,16 +28,19 @@ export function getBossPosition(cells: readonly PathCell[], boss: BossState): Ph
   const next = cells[nextIndex] ?? current;
   const amount = pathProgress - Math.floor(pathProgress);
 
-  return new Phaser.Math.Vector2(
-    Phaser.Math.Linear(current.x, next.x, amount),
-    Phaser.Math.Linear(current.y, next.y, amount),
-  );
+  out.x = Phaser.Math.Linear(current.x, next.x, amount);
+  out.y = Phaser.Math.Linear(current.y, next.y, amount);
+
+  return out;
 }
 
-export function getTowerPosition(tower: TowerState, slots: readonly BoardSlot[]): Phaser.Math.Vector2 {
+export function writeTowerPosition(tower: TowerState, slots: readonly BoardSlot[], out: RenderPoint): RenderPoint {
   const slot = slots.find(candidate => candidate.id === tower.slotId);
 
-  return new Phaser.Math.Vector2(slot?.x ?? 0, slot?.y ?? 0);
+  out.x = slot?.x ?? 0;
+  out.y = slot?.y ?? 0;
+
+  return out;
 }
 
 export function findSlotAtPoint(slots: readonly BoardSlot[], x: number, y: number): BoardSlot | undefined {
@@ -241,7 +249,7 @@ export function renderAirReaction(
 export function renderEnemyAccent(
   graphics: Phaser.GameObjects.Graphics,
   enemyId: EnemyState["enemyId"],
-  position: Phaser.Math.Vector2,
+  position: RenderPoint,
   radius: number,
 ): void {
   graphics.lineStyle(2, 0xF5E6C8, 0.78);
@@ -312,7 +320,7 @@ export function renderEnemyAccent(
 export function renderTowerGlyph(
   graphics: Phaser.GameObjects.Graphics,
   tower: TowerState,
-  position: Phaser.Math.Vector2,
+  position: RenderPoint,
 ): void {
   graphics.lineStyle(3, 0xFFF8D6, 0.92);
 
