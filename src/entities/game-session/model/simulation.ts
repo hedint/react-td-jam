@@ -1,7 +1,5 @@
 import type {
   DamageFamily,
-  DraftTowerOffer,
-  EmitterId,
   EnemyDefinition,
   EnemyId,
   EnemyState,
@@ -9,38 +7,24 @@ import type {
   GameSessionState,
   GameSnapshot,
   ReactionId,
-  RngState,
   RunState,
   TowerState,
-  UpgradeId,
   WaveRuntimeState,
 } from "./types";
 import { gameConfig } from "./config";
+import { advanceAfterDraft, chooseDraftTower, chooseDraftUpgrade, createDraftState, rerollDraft } from "./draft";
 import { getCellSpeedMultiplier, getReactionDamageEntries, projectReagents, resolveReactions } from "./reactions";
+import { createRng } from "./rng";
+import { createTower } from "./towerFactory";
+import { placeSelectedTower, selectTower, tapSlot } from "./towerPlacement";
 
-const RNG_MODULUS = 0x100000000;
-const RNG_MULTIPLIER = 1664525;
-const RNG_INCREMENT = 1013904223;
+export { createRng, nextRandom } from "./rng";
+export { createTower } from "./towerFactory";
 
 const startingTowers: readonly TowerState[] = [
-  {
-    id: "tower-water-a",
-    emitterId: "water",
-    displayName: getEmitterTowerDisplayName("water"),
-    slotId: null,
-  },
-  {
-    id: "tower-water-b",
-    emitterId: "water",
-    displayName: getEmitterTowerDisplayName("water"),
-    slotId: null,
-  },
-  {
-    id: "tower-spark-a",
-    emitterId: "spark",
-    displayName: getEmitterTowerDisplayName("spark"),
-    slotId: null,
-  },
+  createTower("tower-water-a", "water", null),
+  createTower("tower-water-b", "water", null),
+  createTower("tower-spark-a", "spark", null),
 ];
 
 export interface SerializedRunPayload {
@@ -51,25 +35,6 @@ export interface SerializedRunPayload {
 export interface CreateRunOptions {
   readonly placedTowers?: readonly TowerState[]
   readonly enemies?: readonly EnemyState[]
-}
-
-export function createRng(seed: number): RngState {
-  return {
-    seed,
-    state: seed >>> 0,
-  };
-}
-
-export function nextRandom(rng: RngState): [RngState, number] {
-  const state = (Math.imul(rng.state, RNG_MULTIPLIER) + RNG_INCREMENT) >>> 0;
-
-  return [
-    {
-      seed: rng.seed,
-      state,
-    },
-    state / RNG_MODULUS,
-  ];
 }
 
 export function createRun(seed = 1, options: CreateRunOptions = {}): RunState {
@@ -317,15 +282,6 @@ export function deserializeRun(payload: string | SerializedRunPayload): RunState
   };
 }
 
-export function createTower(id: string, emitterId: EmitterId, slotId: string | null): TowerState {
-  return {
-    id,
-    emitterId,
-    displayName: getEmitterTowerDisplayName(emitterId),
-    slotId,
-  };
-}
-
 export function createGrunt(overrides: Partial<EnemyState> = {}): EnemyState {
   return createEnemy("enemy-grunt-a", "grunt", overrides);
 }
@@ -506,393 +462,4 @@ function updateWaveStats(
       damageByReaction,
     };
   });
-}
-
-function createDraftState(state: RunState): { readonly draft: NonNullable<RunState["draft"]>, readonly rng: RngState } {
-  const towerOffers = generateTowerOffers(state, state.rng);
-  const upgradeOffers = generateUpgradeOffers(state, towerOffers.rng);
-
-  return {
-    rng: upgradeOffers.rng,
-    draft: {
-      step: "tower",
-      rerollsRemaining: gameConfig.balance.rerollsPerDraft,
-      towerOffers: towerOffers.offers,
-      upgradeOffers: upgradeOffers.offers,
-    },
-  };
-}
-
-function rerollDraft(state: RunState): RunState {
-  if (!state.draft || state.draft.rerollsRemaining <= 0) {
-    return state;
-  }
-
-  const generated = state.draft.step === "tower"
-    ? generateTowerOffers(state, state.rng)
-    : generateUpgradeOffers(state, state.rng);
-
-  return {
-    ...state,
-    rng: generated.rng,
-    draft: {
-      ...state.draft,
-      rerollsRemaining: state.draft.rerollsRemaining - 1,
-      towerOffers: state.draft.step === "tower" ? generated.offers as readonly DraftTowerOffer[] : state.draft.towerOffers,
-      upgradeOffers: state.draft.step === "upgrade" ? generated.offers as readonly UpgradeId[] : state.draft.upgradeOffers,
-    },
-  };
-}
-
-function generateTowerOffers(
-  state: RunState,
-  initialRng: RngState,
-): { readonly offers: readonly DraftTowerOffer[], readonly rng: RngState } {
-  let rng = initialRng;
-  const synergies = getSynergyEmitterIds(state);
-  const requiredOffers = getRequiredTowerOffers(state);
-  const allEmitters = gameConfig.emitters.map(emitter => emitter.id);
-  const offers: DraftTowerOffer[] = [];
-  const support = pickEmitter(rng, synergies.length > 0 ? synergies : allEmitters, offers);
-
-  rng = support.rng;
-  offers.push({ emitterId: support.emitterId, role: "support" });
-
-  requiredOffers.forEach((emitterId) => {
-    addOrReplaceOffer(offers, { emitterId, role: "pivot" }, synergies);
-  });
-
-  while (offers.length < 3) {
-    const role = offers.some(offer => offer.role === "generic") ? "pivot" : "generic";
-    const picked = pickEmitter(rng, role === "pivot" ? getPivotEmitterIds(state) : allEmitters, offers);
-
-    rng = picked.rng;
-    offers.push({ emitterId: picked.emitterId, role });
-  }
-
-  if (!offers.some(offer => synergies.includes(offer.emitterId))) {
-    const picked = pickEmitter(
-      rng,
-      synergies.length > 0 ? synergies : allEmitters,
-      offers.filter(offer => offer.role !== "support"),
-    );
-
-    rng = picked.rng;
-    addOrReplaceOffer(offers, { emitterId: picked.emitterId, role: "support" }, synergies);
-  }
-
-  return {
-    rng,
-    offers: offers.slice(0, 3),
-  };
-}
-
-function generateUpgradeOffers(
-  state: RunState,
-  initialRng: RngState,
-): { readonly offers: readonly UpgradeId[], readonly rng: RngState } {
-  let rng = initialRng;
-  const available = gameConfig.upgrades
-    .filter(upgrade => getUpgradeStacks(state, upgrade.id) < upgrade.maxStacks)
-    .map(upgrade => upgrade.id);
-  const fallback = gameConfig.upgrades.map(upgrade => upgrade.id);
-  const pool = available.length > 0 ? available : fallback;
-  const offers: UpgradeId[] = [];
-
-  while (offers.length < Math.min(3, pool.length)) {
-    const picked = pickUpgrade(rng, pool, offers);
-
-    rng = picked.rng;
-    offers.push(picked.upgradeId);
-  }
-
-  return { rng, offers };
-}
-
-function addOrReplaceOffer(
-  offers: DraftTowerOffer[],
-  nextOffer: DraftTowerOffer,
-  synergyEmitterIds: readonly EmitterId[],
-): void {
-  const existingIndex = offers.findIndex(offer => offer.emitterId === nextOffer.emitterId);
-
-  if (existingIndex >= 0) {
-    offers[existingIndex] = {
-      ...offers[existingIndex]!,
-      role: offers[existingIndex]!.role === "support" ? "support" : nextOffer.role,
-    };
-    return;
-  }
-
-  if (offers.length < 3) {
-    offers.push(nextOffer);
-    return;
-  }
-
-  const replacementIndex = offers.findIndex(offer => offer.role !== "support" || synergyEmitterIds.includes(nextOffer.emitterId));
-
-  offers[replacementIndex >= 0 ? replacementIndex : offers.length - 1] = nextOffer;
-}
-
-function pickEmitter(
-  rng: RngState,
-  candidates: readonly EmitterId[],
-  existingOffers: readonly Pick<DraftTowerOffer, "emitterId">[],
-): { readonly emitterId: EmitterId, readonly rng: RngState } {
-  const existing = new Set(existingOffers.map(offer => offer.emitterId));
-  const available = candidates.filter(emitterId => !existing.has(emitterId));
-  const pool = available.length > 0 ? available : gameConfig.emitters.map(emitter => emitter.id);
-  const [nextRng, roll] = nextRandom(rng);
-
-  return {
-    rng: nextRng,
-    emitterId: pool[Math.floor(roll * pool.length) % pool.length]!,
-  };
-}
-
-function pickUpgrade(
-  rng: RngState,
-  candidates: readonly UpgradeId[],
-  existingOffers: readonly UpgradeId[],
-): { readonly upgradeId: UpgradeId, readonly rng: RngState } {
-  const existing = new Set(existingOffers);
-  const available = candidates.filter(upgradeId => !existing.has(upgradeId));
-  const pool = available.length > 0 ? available : candidates;
-  const [nextRng, roll] = nextRandom(rng);
-
-  return {
-    rng: nextRng,
-    upgradeId: pool[Math.floor(roll * pool.length) % pool.length]!,
-  };
-}
-
-function getRequiredTowerOffers(state: RunState): readonly EmitterId[] {
-  const clearedWaveNumber = state.waveIndex + 1;
-  const offers: EmitterId[] = [];
-
-  if (clearedWaveNumber >= 2 && !hasEmitterTower(state, "heat")) {
-    offers.push("heat");
-  }
-
-  if (clearedWaveNumber >= 4 && !hasEmitterTower(state, "oil")) {
-    offers.push("oil");
-  }
-
-  return offers;
-}
-
-function getSynergyEmitterIds(state: RunState): readonly EmitterId[] {
-  const placedEmitterIds = new Set(state.placedTowers.map(tower => tower.emitterId));
-  const synergies = new Set<EmitterId>();
-
-  if (placedEmitterIds.has("water")) {
-    synergies.add("spark");
-    synergies.add("heat");
-  }
-
-  if (placedEmitterIds.has("oil")) {
-    synergies.add("heat");
-  }
-
-  if (placedEmitterIds.has("spark")) {
-    synergies.add("water");
-  }
-
-  if (placedEmitterIds.has("heat")) {
-    synergies.add("water");
-    synergies.add("oil");
-  }
-
-  if (synergies.size === 0) {
-    synergies.add("water");
-    synergies.add("spark");
-  }
-
-  return [...synergies].sort();
-}
-
-function getPivotEmitterIds(state: RunState): readonly EmitterId[] {
-  const owned = new Set([...state.bench, ...state.placedTowers].map(tower => tower.emitterId));
-  const unowned = gameConfig.emitters.map(emitter => emitter.id).filter(emitterId => !owned.has(emitterId));
-
-  return unowned.length > 0 ? unowned : gameConfig.emitters.map(emitter => emitter.id);
-}
-
-function hasEmitterTower(state: RunState, emitterId: EmitterId): boolean {
-  return [...state.bench, ...state.placedTowers].some(tower => tower.emitterId === emitterId);
-}
-
-function chooseDraftTower(state: RunState, emitterId: EmitterId): RunState {
-  if (state.draft?.step !== "tower" || !state.draft.towerOffers.some(offer => offer.emitterId === emitterId)) {
-    return state;
-  }
-
-  const tower = createTower(`tower-${emitterId}-${state.waveIndex}-${state.tick}`, emitterId, null);
-
-  return {
-    ...state,
-    bench: [...state.bench, tower],
-    draft: {
-      ...state.draft,
-      step: "upgrade",
-    },
-  };
-}
-
-function chooseDraftUpgrade(state: RunState, upgradeId: UpgradeId): RunState {
-  if (state.draft?.step !== "upgrade" || !state.draft.upgradeOffers.includes(upgradeId)) {
-    return state;
-  }
-
-  const current = state.upgrades.find(upgrade => upgrade.upgradeId === upgradeId);
-  const definition = gameConfig.upgrades.find(upgrade => upgrade.id === upgradeId);
-  const nextStacks = Math.min((current?.stacks ?? 0) + 1, definition?.maxStacks ?? 1);
-  const upgrades = current
-    ? state.upgrades.map(upgrade => upgrade.upgradeId === upgradeId ? { ...upgrade, stacks: nextStacks } : upgrade)
-    : [...state.upgrades, { upgradeId, stacks: nextStacks }];
-
-  return advanceAfterDraft({
-    ...state,
-    upgrades,
-  });
-}
-
-function advanceAfterDraft(state: RunState): RunState {
-  return {
-    ...state,
-    phase: "countdown",
-    waveIndex: Math.min(state.waveIndex + 1, gameConfig.waves.length - 1),
-    countdownMs: 3000,
-    draft: null,
-    waveRuntime: null,
-  };
-}
-
-function getUpgradeStacks(state: RunState, upgradeId: UpgradeId): number {
-  return state.upgrades.find(upgrade => upgrade.upgradeId === upgradeId)?.stacks ?? 0;
-}
-
-function placeSelectedTower(state: RunState, slotId: string): RunState {
-  const slot = state.board.slots.find(candidate => candidate.id === slotId);
-  const selectedTower = findSelectedTower(state);
-
-  if (!selectedTower || !slot || slot.locked) {
-    return state;
-  }
-
-  if (state.bench.some(tower => tower.id === selectedTower.id)) {
-    return placeBenchTower(state, selectedTower, slotId);
-  }
-
-  if (!state.paused) {
-    return state;
-  }
-
-  return movePlacedTower(state, selectedTower, slotId);
-}
-
-function selectTower(state: RunState, towerId: string | null): RunState {
-  if (towerId === null) {
-    return { ...state, selectedTowerId: null };
-  }
-
-  return [...state.bench, ...state.placedTowers].some(tower => tower.id === towerId)
-    ? { ...state, selectedTowerId: towerId }
-    : state;
-}
-
-function tapSlot(state: RunState, slotId: string): RunState {
-  const slot = state.board.slots.find(candidate => candidate.id === slotId);
-
-  if (!slot || slot.locked) {
-    return state;
-  }
-
-  const occupiedTower = state.placedTowers.find(tower => tower.slotId === slotId);
-
-  if (!state.selectedTowerId) {
-    return occupiedTower && state.paused
-      ? { ...state, selectedTowerId: occupiedTower.id }
-      : state;
-  }
-
-  return placeSelectedTower(state, slotId);
-}
-
-function placeBenchTower(state: RunState, selectedTower: TowerState, slotId: string): RunState {
-  const occupiedTower = state.placedTowers.find(tower => tower.slotId === slotId);
-
-  if (occupiedTower && !state.paused) {
-    return state;
-  }
-
-  const placedTower = {
-    ...selectedTower,
-    slotId,
-  };
-  const placedTowers = occupiedTower
-    ? [
-        ...state.placedTowers
-          .filter(tower => tower.id !== occupiedTower.id)
-          .map(tower => tower.id === selectedTower.id ? placedTower : tower),
-        placedTower,
-      ]
-    : [...state.placedTowers, placedTower];
-  const bench = occupiedTower
-    ? [
-        ...state.bench.filter(tower => tower.id !== selectedTower.id),
-        { ...occupiedTower, slotId: null },
-      ]
-    : state.bench.filter(tower => tower.id !== selectedTower.id);
-
-  return {
-    ...state,
-    bench,
-    placedTowers,
-    selectedTowerId: null,
-    reactions: resolveReactions(state.board, placedTowers, state.upgrades),
-  };
-}
-
-function movePlacedTower(state: RunState, selectedTower: TowerState, slotId: string): RunState {
-  const occupiedTower = state.placedTowers.find(tower => tower.slotId === slotId);
-
-  if (occupiedTower?.id === selectedTower.id) {
-    const placedTowers = state.placedTowers.filter(tower => tower.id !== selectedTower.id);
-
-    return {
-      ...state,
-      bench: [...state.bench, { ...selectedTower, slotId: null }],
-      placedTowers,
-      selectedTowerId: null,
-      reactions: resolveReactions(state.board, placedTowers, state.upgrades),
-    };
-  }
-
-  const placedTowers = state.placedTowers.map((tower) => {
-    if (tower.id === selectedTower.id) {
-      return { ...tower, slotId };
-    }
-
-    if (tower.id === occupiedTower?.id) {
-      return { ...tower, slotId: selectedTower.slotId };
-    }
-
-    return tower;
-  });
-
-  return {
-    ...state,
-    placedTowers,
-    selectedTowerId: null,
-    reactions: resolveReactions(state.board, placedTowers, state.upgrades),
-  };
-}
-
-function findSelectedTower(state: RunState): TowerState | undefined {
-  return [...state.bench, ...state.placedTowers].find(tower => tower.id === state.selectedTowerId);
-}
-
-function getEmitterTowerDisplayName(emitterId: EmitterId): string {
-  return gameConfig.emitters.find(emitter => emitter.id === emitterId)?.towerDisplayName ?? emitterId;
 }

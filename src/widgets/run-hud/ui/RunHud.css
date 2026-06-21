@@ -1,0 +1,349 @@
+.run-hud {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.run-hud__top,
+.run-hud__bottom {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.run-hud__top {
+  top: 12px;
+}
+
+.run-hud__bottom {
+  bottom: 12px;
+}
+
+.run-hud__stat,
+.run-hud__bench {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  color: var(--color-text);
+  background: rgb(14 15 18 / 72%);
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+}
+
+.run-hud__stat {
+  box-sizing: border-box;
+  flex: 0 0 58px;
+  justify-content: space-between;
+}
+
+.run-hud__top .run-hud__stat:nth-child(2) {
+  flex-basis: 64px;
+}
+
+.run-hud__stat--threat {
+  flex-basis: 116px;
+}
+
+.run-hud__top .run-hud__stat:nth-child(4) {
+  flex-basis: 52px;
+}
+
+.run-hud__bench {
+  width: 100%;
+  overflow-x: auto;
+  pointer-events: auto;
+}
+
+.run-hud__stat span,
+.run-hud__tower span,
+dt {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-hud__stat strong,
+.run-hud__tower strong,
+dd {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  color: var(--color-text);
+  font-size: 14px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-hud__threat-value {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.run-hud__threat-value span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.run-hud__enemy-icon {
+  flex: 0 0 13px;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgb(255 255 255 / 72%);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 30%);
+}
+
+.run-hud__enemy-icon--grunt {
+  background: #9f7b4f;
+  border-radius: 3px;
+}
+
+.run-hud__enemy-icon--swarm {
+  background:
+    radial-gradient(circle at 30% 35%, #f2d27a 0 18%, transparent 20%),
+    radial-gradient(circle at 70% 65%, #f2d27a 0 18%, transparent 20%),
+    #46392c;
+  border-radius: 50%;
+}
+
+.run-hud__enemy-icon--tank {
+  background: #8f9096;
+  border-radius: 2px;
+  transform: scaleX(1.16);
+}
+
+.run-hud__enemy-icon--flyer {
+  background: #9ed8ff;
+  clip-path: polygon(50% 0, 100% 82%, 50% 60%, 0 82%);
+}
+
+.run-hud__enemy-icon--runner {
+  background: #f0c45f;
+  clip-path: polygon(0 18%, 100% 50%, 0 82%);
+}
+
+.run-hud__enemy-icon--insulated {
+  background: repeating-linear-gradient(45deg, #6e6f74 0 3px, #b9bec5 3px 6px);
+  border-radius: 4px;
+}
+
+.run-hud__enemy-icon--flameproof {
+  background: linear-gradient(135deg, #4e221a 0 48%, #f06433 50% 100%);
+  border-radius: 50% 50% 4px 4px;
+}
+
+.run-hud__tower {
+  display: grid;
+  min-width: 96px;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+
+.run-hud__tower--selected {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 4px;
+}
+
+.run-hud__button {
+  min-height: 34px;
+  padding: 0 11px;
+  color: var(--color-text);
+  pointer-events: auto;
+  cursor: pointer;
+  background: rgb(25 28 34 / 88%);
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 8px;
+}
+
+.run-hud__button:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+.run-hud__button--primary {
+  color: #102022;
+  background: var(--color-accent-strong);
+  border-color: transparent;
+}
+
+.run-hud__scrim {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  pointer-events: auto;
+  background: rgb(0 0 0 / 42%);
+}
+
+.run-hud__scrim:not(.run-hud__scrim--blocking) {
+  pointer-events: none;
+}
+
+.run-hud__scrim--blocking {
+  pointer-events: auto;
+}
+
+.run-hud__scrim--draft {
+  place-items: stretch;
+  padding: 78px 18px 86px;
+  background: rgb(7 8 10 / 78%);
+}
+
+.run-hud__modal {
+  width: min(310px, 100%);
+  padding: 16px;
+  color: var(--color-text);
+  pointer-events: auto;
+  background: rgb(18 20 24 / 94%);
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 8px;
+  box-shadow: 0 18px 48px rgb(0 0 0 / 42%);
+}
+
+.run-hud__modal h2 {
+  margin: 0 0 12px;
+  font-size: 20px;
+  line-height: 1.15;
+}
+
+.run-hud__modal dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.run-hud__modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.run-hud__draft {
+  display: grid;
+  align-content: center;
+  width: min(430px, 100%);
+  margin: 0 auto;
+  color: var(--color-text);
+}
+
+.run-hud__draft-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.run-hud__draft-header span,
+.run-hud__draft-card span {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.run-hud__draft-header h2 {
+  margin: 3px 0 0;
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.run-hud__draft-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.run-hud__draft-card {
+  display: grid;
+  min-height: 128px;
+  align-content: space-between;
+  padding: 13px;
+  color: var(--color-text);
+  text-align: left;
+  pointer-events: auto;
+  cursor: pointer;
+  background: rgb(23 26 31 / 96%);
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 8px;
+  box-shadow: 0 14px 34px rgb(0 0 0 / 32%);
+}
+
+.run-hud__draft-card:focus-visible,
+.run-hud__draft-card:hover {
+  border-color: var(--color-accent-strong);
+}
+
+.run-hud__draft-card strong {
+  overflow-wrap: anywhere;
+  font-size: 18px;
+  line-height: 1.12;
+}
+
+@media (max-width: 420px) {
+  .run-hud__top,
+  .run-hud__bottom {
+    left: 10px;
+    right: 10px;
+  }
+
+  .run-hud__top {
+    gap: 6px;
+  }
+
+  .run-hud__stat {
+    flex-basis: 54px;
+    padding-inline: 7px;
+  }
+
+  .run-hud__top .run-hud__stat:nth-child(2) {
+    flex-basis: 58px;
+  }
+
+  .run-hud__stat--threat {
+    flex-basis: 104px;
+  }
+
+  .run-hud__top .run-hud__stat:nth-child(4) {
+    flex-basis: 46px;
+  }
+
+  .run-hud__stat span,
+  .run-hud__tower span {
+    font-size: 10px;
+  }
+
+  .run-hud__stat strong {
+    font-size: 13px;
+  }
+
+  .run-hud__scrim--draft {
+    padding: 68px 12px 78px;
+  }
+
+  .run-hud__draft-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .run-hud__draft-card {
+    min-height: 76px;
+  }
+}
