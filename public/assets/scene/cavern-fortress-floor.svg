@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="540" height="960" viewBox="0 0 540 960" role="img" aria-label="Cavern fortress floor background layer">
+  <defs>
+    <radialGradient id="floorGlow" cx="50%" cy="50%" r="62%">
+      <stop offset="0" stop-color="#2b2119"/>
+      <stop offset="0.5" stop-color="#1c1918"/>
+      <stop offset="1" stop-color="#101217"/>
+    </radialGradient>
+    <linearGradient id="wallMetal" x1="0" x2="1">
+      <stop offset="0" stop-color="#15171a"/>
+      <stop offset="0.45" stop-color="#29251f"/>
+      <stop offset="1" stop-color="#15171a"/>
+    </linearGradient>
+    <pattern id="rivetGrid" width="54" height="54" patternUnits="userSpaceOnUse">
+      <rect width="54" height="54" fill="none"/>
+      <circle cx="12" cy="12" r="2.5" fill="#6d5944" opacity=".45"/>
+      <circle cx="42" cy="40" r="1.8" fill="#8b6a45" opacity=".26"/>
+      <path d="M0 53h54M53 0v54" stroke="#302a25" stroke-width="1" opacity=".35"/>
+    </pattern>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#050504" flood-opacity=".55"/>
+    </filter>
+  </defs>
+  <rect width="540" height="960" fill="#101217"/>
+  <rect x="34" y="72" width="472" height="820" rx="34" fill="url(#wallMetal)" stroke="#6d5944" stroke-width="4" filter="url(#softShadow)"/>
+  <rect x="54" y="96" width="432" height="772" rx="26" fill="url(#floorGlow)" stroke="#3b332b" stroke-width="3"/>
+  <rect x="54" y="96" width="432" height="772" rx="26" fill="url(#rivetGrid)" opacity=".5"/>
+  <path d="M82 144h376M82 816h376M104 122v724M436 122v724" stroke="#111316" stroke-width="16" stroke-linecap="round" opacity=".82"/>
+  <path d="M92 156h356M92 804h356M116 134v700M424 134v700" stroke="#6d5944" stroke-width="3" stroke-linecap="round" opacity=".74"/>
+  <path d="M64 235c42-30 84-31 128-3 39 25 78 25 116 0 45-29 91-27 139 6" fill="none" stroke="#3a2016" stroke-width="12" stroke-linecap="round" opacity=".5"/>
+  <path d="M78 735c46 24 88 23 126-2 43-27 86-27 126 1 45 31 89 32 132 3" fill="none" stroke="#241a14" stroke-width="15" stroke-linecap="round" opacity=".62"/>
+  <g opacity=".64">
+    <path d="M92 260l38-14 26 15-33 20z" fill="#29231e"/>
+    <path d="M410 238l32 18-11 32-42-12z" fill="#24201d"/>
+    <path d="M78 604l44-18 20 25-36 20z" fill="#211d1a"/>
+    <path d="M401 685l47-10 13 31-38 22z" fill="#2a241e"/>
+    <circle cx="126" cy="360" r="5" fill="#8b6a45" opacity=".46"/>
+    <circle cx="438" cy="564" r="4" fill="#b66f3b" opacity=".38"/>
+    <circle cx="188" cy="755" r="3" fill="#c8a76a" opacity=".32"/>
+    <circle cx="358" cy="174" r="3" fill="#c8a76a" opacity=".3"/>
+  </g>
+  <path d="M48 116c18 18 36 26 61 29M492 118c-17 18-37 26-62 29M48 850c20-17 42-24 68-26M492 850c-18-17-40-24-68-26" fill="none" stroke="#b66f3b" stroke-width="4" stroke-linecap="round" opacity=".32"/>
+</svg>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="40" viewBox="0 0 96 40" role="img" aria-label="Rivet chip frame">
+  <rect x="2" y="3" width="92" height="34" rx="6" fill="#1a1b1f" stroke="#6d5944" stroke-width="3"/>
+  <path d="M16 10h64M16 30h64" stroke="#2f2923" stroke-width="3" opacity=".78"/>
+  <circle cx="14" cy="20" r="4" fill="#c8a76a"/>
+  <circle cx="82" cy="20" r="4" fill="#c8a76a"/>
+</svg>

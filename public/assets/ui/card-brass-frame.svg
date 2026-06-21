@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="220" viewBox="0 0 160 220" role="img" aria-label="Brass card frame">
+  <rect x="4" y="4" width="152" height="212" rx="8" fill="#17181b" stroke="#c8a76a" stroke-width="5"/>
+  <rect x="14" y="16" width="132" height="188" rx="5" fill="#222326" stroke="#6d5944" stroke-width="3"/>
+  <path d="M24 42h112M24 162h112" stroke="#b66f3b" stroke-width="4" opacity=".78"/>
+  <g fill="#c8a76a">
+    <circle cx="24" cy="24" r="4"/>
+    <circle cx="136" cy="24" r="4"/>
+    <circle cx="24" cy="196" r="4"/>
+    <circle cx="136" cy="196" r="4"/>
+  </g>
+</svg>

@@ -1,3 +1,5 @@
+@import "../../shared/assets/skin.css";
+
 :root {
   color: var(--color-text);
   background: var(--color-page);
@@ -9,14 +11,14 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  --color-page: #101217;
+  --color-page: var(--skin-page);
   --color-stage-bg: #151923;
   --color-stage-line: rgb(255 255 255 / 7%);
   --color-panel: rgb(17 20 28 / 78%);
   --color-panel-border: rgb(255 255 255 / 15%);
-  --color-text: #eef2f8;
-  --color-text-muted: #a9b3c3;
-  --color-accent: #4fd1c5;
+  --color-text: var(--skin-text);
+  --color-text-muted: var(--skin-text-muted);
+  --color-accent: var(--skin-electric);
   --color-accent-strong: #8cf4e9;
   --safe-gap: clamp(8px, 1.8vw, 18px);
 }

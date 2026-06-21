@@ -3,8 +3,17 @@ import type { Unsubscribe } from "@shared/lib/event-bus/createTypedEventBus";
 import { createFixedStepDriver } from "@entities/game-session/model/fixedStepDriver";
 import { hasSavedRun, saveRun } from "@entities/game-session/model/persistence";
 import { applyAction, createRun, createSnapshot, stepRun } from "@entities/game-session/model/simulation";
+import { assetGroups } from "@shared/assets/manifest";
 import { gameEvents } from "@shared/lib/event-bus/gameEvents";
 import Phaser from "phaser";
+import {
+  renderBoardFrame,
+  renderBoardSlots,
+  renderDynamicPath,
+  renderGateMarker,
+  renderGreatCube,
+  renderPlacementSlotFeedback,
+} from "./runSceneBoardRender";
 import {
   findSlotAtPoint,
   getActiveReactionLabel,
@@ -34,6 +43,9 @@ export class RunScene extends Phaser.Scene {
   private worldGraphics?: Phaser.GameObjects.Graphics;
   private effectGraphics?: Phaser.GameObjects.Graphics;
   private enemyGraphics?: Phaser.GameObjects.Graphics;
+  private placementGraphics?: Phaser.GameObjects.Graphics;
+  private backdropFloor?: Phaser.GameObjects.Image;
+  private backdropAtmosphere?: Phaser.GameObjects.Image;
   private titleText?: Phaser.GameObjects.Text;
   private coreText?: Phaser.GameObjects.Text;
   private reactionText?: Phaser.GameObjects.Text;
@@ -53,10 +65,17 @@ export class RunScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.cameras.main.setBackgroundColor("#161413");
-    this.worldGraphics = this.add.graphics();
-    this.effectGraphics = this.add.graphics();
-    this.enemyGraphics = this.add.graphics();
+    this.cameras.main.setBackgroundColor("#101217");
+    this.backdropFloor = this.add.image(0, 0, assetGroups.scene.cavernFortressFloor.key)
+      .setOrigin(0)
+      .setDepth(-30);
+    this.backdropAtmosphere = this.add.image(0, 0, assetGroups.scene.cavernFortressAtmosphere.key)
+      .setOrigin(0)
+      .setDepth(-20);
+    this.worldGraphics = this.add.graphics().setDepth(0);
+    this.effectGraphics = this.add.graphics().setDepth(10);
+    this.enemyGraphics = this.add.graphics().setDepth(20);
+    this.placementGraphics = this.add.graphics().setDepth(35);
 
     this.titleText = this.add.text(LOGICAL_WIDTH / 2, 122, "Осадная галерея", {
       align: "center",
@@ -64,7 +83,7 @@ export class RunScene extends Phaser.Scene {
       fontFamily: "Arial, sans-serif",
       fontSize: "24px",
       fontStyle: "700",
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(40);
 
     this.coreText = this.add.text(LOGICAL_WIDTH / 2, 480, "", {
       align: "center",
@@ -72,7 +91,7 @@ export class RunScene extends Phaser.Scene {
       fontFamily: "Arial, sans-serif",
       fontSize: "18px",
       fontStyle: "700",
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(42);
 
     this.reactionText = this.add.text(LOGICAL_WIDTH / 2, 692, "", {
       align: "center",
@@ -80,7 +99,7 @@ export class RunScene extends Phaser.Scene {
       fontFamily: "Arial, sans-serif",
       fontSize: "18px",
       fontStyle: "700",
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(42);
 
     this.bossLabel = this.add.text(0, 0, "", {
       align: "center",
@@ -88,7 +107,7 @@ export class RunScene extends Phaser.Scene {
       fontFamily: "Arial, sans-serif",
       fontSize: "14px",
       fontStyle: "700",
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(42);
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       const tap = {
@@ -164,7 +183,8 @@ export class RunScene extends Phaser.Scene {
     this.renderEffects(snapshot);
     this.renderEnemies(snapshot);
     this.renderBoss(snapshot);
-    this.renderTowers(snapshot.placedTowers, snapshot.board.slots);
+    this.renderTowers(snapshot.placedTowers, snapshot.board.slots, snapshot.selectedTowerId, this.time.now);
+    this.renderPlacementFeedback(snapshot);
 
     if (this.coreText) {
       this.coreText.setText(`Великий Куб: ${snapshot.coreHp}`);
@@ -183,78 +203,14 @@ export class RunScene extends Phaser.Scene {
     }
 
     graphics.clear();
-    graphics.fillStyle(0x211D1A, 1);
-    graphics.fillRoundedRect(48, 88, 444, 784, 26);
-    graphics.lineStyle(2, 0x6D5944, 0.8);
-    graphics.strokeRoundedRect(62, 108, 416, 744, 22);
-
-    graphics.fillStyle(0x3A2016, 1);
-    graphics.fillCircle(LOGICAL_WIDTH / 2, 480, 78);
-    graphics.lineStyle(4, 0xF08A28, 0.8);
-    graphics.strokeCircle(LOGICAL_WIDTH / 2, 480, 78);
 
     const cells = snapshot.board.pathCells;
-    graphics.lineStyle(22, 0x4B4137, 1);
-    graphics.beginPath();
-    graphics.moveTo(cells[0]?.x ?? 0, cells[0]?.y ?? 0);
-    cells.slice(1).forEach(cell => graphics.lineTo(cell.x, cell.y));
-    graphics.closePath();
-    graphics.strokePath();
-
-    cells.forEach((cell) => {
-      graphics.lineStyle(2, 0xC8A76A, cell.isCorner ? 0.82 : 0.48);
-      graphics.strokeCircle(cell.x, cell.y, cell.isCorner ? 9 : 5);
-      graphics.fillStyle(0xC8A76A, cell.isCorner ? 0.5 : 0.32);
-      graphics.fillCircle(cell.x, cell.y, cell.isCorner ? 4 : 3);
-
-      if (cell.isCorner) {
-        graphics.lineStyle(2, 0xF0B85B, 0.9);
-        graphics.strokeCircle(cell.x, cell.y, 15);
-      }
-    });
-
-    this.renderSlots(snapshot);
-  }
-
-  private renderSlots(snapshot: GameSnapshot): void {
-    const graphics = this.worldGraphics;
-    if (!graphics) {
-      return;
-    }
-
-    const occupiedSlotIds = new Set(snapshot.placedTowers.map(tower => tower.slotId).filter(Boolean));
-    const selectedTower = [...snapshot.bench, ...snapshot.placedTowers].find(tower => tower.id === snapshot.selectedTowerId);
-
-    snapshot.board.slots.forEach((slot) => {
-      const isOccupied = occupiedSlotIds.has(slot.id);
-      const isSelectedSlot = selectedTower?.slotId === slot.id;
-      const isBenchSelection = selectedTower ? snapshot.bench.some(tower => tower.id === selectedTower.id) : false;
-      const isValidTarget = selectedTower !== undefined && !slot.locked && (
-        isBenchSelection
-          ? (!isOccupied || snapshot.paused)
-          : snapshot.paused
-      );
-
-      graphics.fillStyle(slot.locked ? 0x2B2E35 : isValidTarget ? 0x244B45 : 0x171A1E, slot.locked ? 0.55 : 0.85);
-      graphics.fillCircle(slot.x, slot.y, slot.isCorner ? 14 : 11);
-      graphics.lineStyle(
-        isSelectedSlot ? 4 : isOccupied ? 3 : 2,
-        isSelectedSlot ? 0xF6E27A : isValidTarget ? 0x61D6B5 : isOccupied ? 0xD8C18E : 0x5F6874,
-        isValidTarget || isOccupied || isSelectedSlot ? 0.95 : 0.62,
-      );
-      graphics.strokeCircle(slot.x, slot.y, slot.isCorner ? 16 : 13);
-
-      if (slot.isCorner) {
-        graphics.lineStyle(2, isValidTarget ? 0x61D6B5 : 0xC79A55, 0.82);
-        graphics.beginPath();
-        graphics.moveTo(slot.x - 7, slot.y);
-        graphics.lineTo(slot.x, slot.y - 7);
-        graphics.lineTo(slot.x + 7, slot.y);
-        graphics.lineTo(slot.x, slot.y + 7);
-        graphics.closePath();
-        graphics.strokePath();
-      }
-    });
+    this.backdropAtmosphere?.setAlpha(getAtmosphereAlpha(snapshot));
+    renderBoardFrame(graphics);
+    renderDynamicPath(graphics, cells, snapshot.elapsedMs);
+    renderGateMarker(graphics, cells, snapshot.elapsedMs);
+    renderGreatCube(graphics, snapshot);
+    renderBoardSlots(graphics, snapshot);
   }
 
   private renderEffects(snapshot: GameSnapshot): void {
@@ -283,6 +239,16 @@ export class RunScene extends Phaser.Scene {
     });
   }
 
+  private renderPlacementFeedback(snapshot: GameSnapshot): void {
+    const graphics = this.placementGraphics;
+    if (!graphics) {
+      return;
+    }
+
+    graphics.clear();
+    renderPlacementSlotFeedback(graphics, snapshot, this.time.now);
+  }
+
   private renderEnemies(snapshot: GameSnapshot): void {
     const graphics = this.enemyGraphics;
     if (!graphics) {
@@ -298,7 +264,7 @@ export class RunScene extends Phaser.Scene {
         fontFamily: "Arial, sans-serif",
         fontSize: "12px",
         fontStyle: "700",
-      }).setOrigin(0.5));
+      }).setOrigin(0.5).setDepth(42));
     }
 
     snapshot.livingEnemies.forEach((enemy, index) => {
@@ -412,7 +378,12 @@ export class RunScene extends Phaser.Scene {
     this.bossLabel?.setText(vulnerable ? "Уязвим" : `Круг ${snapshot.boss.lap}`);
   }
 
-  private renderTowers(towers: readonly TowerState[], slots: readonly BoardSlot[]): void {
+  private renderTowers(
+    towers: readonly TowerState[],
+    slots: readonly BoardSlot[],
+    selectedTowerId: string | null,
+    visualMs: number,
+  ): void {
     while (this.towerLabels.length < towers.length) {
       this.towerLabels.push(this.add.text(0, 0, "", {
         align: "center",
@@ -420,7 +391,7 @@ export class RunScene extends Phaser.Scene {
         fontFamily: "Arial, sans-serif",
         fontSize: "12px",
         fontStyle: "700",
-      }).setOrigin(0.5));
+      }).setOrigin(0.5).setDepth(42));
     }
 
     this.towerLabels.forEach((label, index) => {
@@ -441,11 +412,22 @@ export class RunScene extends Phaser.Scene {
       }
 
       const colors = getTowerColors(tower.emitterId);
+      const isSelected = tower.id === selectedTowerId;
+      const towerPulse = 2 + Math.sin(visualMs / 120 + index) * 2;
+
+      if (isSelected) {
+        graphics.fillStyle(0xF6E27A, 0.16);
+        graphics.fillCircle(position.x, position.y, 30 + towerPulse);
+        graphics.lineStyle(3, 0xF6E27A, 0.92);
+        graphics.strokeCircle(position.x, position.y, 28 + towerPulse);
+        graphics.lineStyle(1, 0xFFF8D6, 0.72);
+        graphics.strokeCircle(position.x, position.y, 34 + towerPulse);
+      }
 
       graphics.fillStyle(colors.fill, 1);
-      graphics.fillCircle(position.x, position.y, 24);
+      graphics.fillCircle(position.x, position.y, 21);
       graphics.lineStyle(3, colors.stroke, 0.95);
-      graphics.strokeCircle(position.x, position.y, 24);
+      graphics.strokeCircle(position.x, position.y, 21);
       renderTowerGlyph(graphics, tower, position);
     });
   }
@@ -468,4 +450,14 @@ export class RunScene extends Phaser.Scene {
 
     saveRun(this.driver.state);
   }
+}
+
+function getAtmosphereAlpha(snapshot: GameSnapshot): number {
+  const phaseAlpha = snapshot.phase === "boss"
+    ? 0.96
+    : snapshot.phase === "wave"
+      ? 0.88
+      : 0.78;
+
+  return phaseAlpha + Math.sin(snapshot.elapsedMs / 720) * 0.04;
 }

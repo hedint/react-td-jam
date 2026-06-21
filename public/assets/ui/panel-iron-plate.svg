@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="96" viewBox="0 0 192 96" role="img" aria-label="Iron panel frame">
+  <rect x="3" y="3" width="186" height="90" rx="8" fill="#181a1d" stroke="#6d5944" stroke-width="4"/>
+  <rect x="11" y="11" width="170" height="74" rx="5" fill="#222326" stroke="#2f2923" stroke-width="2"/>
+  <path d="M18 22h156M18 74h156" stroke="#3f342a" stroke-width="3" opacity=".85"/>
+  <g fill="#c8a76a" stroke="#4a3928" stroke-width="2">
+    <circle cx="18" cy="18" r="5"/>
+    <circle cx="174" cy="18" r="5"/>
+    <circle cx="18" cy="78" r="5"/>
+    <circle cx="174" cy="78" r="5"/>
+  </g>
+</svg>

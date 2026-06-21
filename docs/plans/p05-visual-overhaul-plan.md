@@ -2,8 +2,8 @@
 
 ## Status
 
-- Current phase: Phase 1 - Visual Direction and Approval Mockup
-- Overall status: Phase 0 complete; Phase 1 not started
+- Current phase: Phase 3 - Board, Dynamic Куб, and Tower Visual Core
+- Overall status: Phase 0 complete; Phase 1 visual direction approved; Phase 2 complete; Phase 3 board/core slice in progress
 - Source docs: `docs/design.md`, `docs/setting.md`, `docs/plans/p0-implementation-plan.md`
 - Visual reference: user-provided `React TD` concept screenshot in the planning thread.
 - Goal: turn the completed P0 from a readable schematic prototype into a polished demo-facing visual slice without changing P0 gameplay rules.
@@ -178,47 +178,83 @@ Purpose: produce one representative live-combat in-game mockup and stop for user
 
 ### Tasks
 
-- [ ] Create one `540x960` live-combat style target showing: board, Великий Куб, path, four P0 tower types, at least two enemy types, two or three reactions, top HUD, lower tray/cards, and thematic panels.
-- [ ] Keep the mockup top-down and aligned with current board geometry.
-- [ ] Use the reference screenshot only as concept guidance for rich ground reactions, towers, background atmosphere, and panel material language.
-- [ ] Define the final 0.5 palette, material language, line weight, shadow style, and glow intensity from the mockup.
-- [ ] Define tower silhouette rules: each tower must read at game scale without relying on label text.
-- [ ] Define reaction readability rules: color plus shape/pattern, with ground and air reactions visually separated.
-- [ ] Define UI hierarchy rules: core HP, wave/phase, threat, speed/pause, tower tray, draft cards, and result stats.
-- [ ] Save the approved mockup or style frame in the project documentation or ignored output location, and document the prompt/spec used to create it.
-- [ ] Stop and request user approval before Phase 2.
+- [x] Create one `540x960` live-combat style target showing: board, Великий Куб, path, four P0 tower types, at least two enemy types, two or three reactions, top HUD, lower tray/cards, and thematic panels.
+- [x] Keep the mockup top-down and aligned with current board geometry.
+- [x] Use the reference screenshot only as concept guidance for rich ground reactions, towers, background atmosphere, and panel material language.
+- [x] Define the final 0.5 palette, material language, line weight, shadow style, and glow intensity from the mockup.
+- [x] Define tower silhouette rules: each tower must read at game scale without relying on label text.
+- [x] Define reaction readability rules: color plus shape/pattern, with ground and air reactions visually separated.
+- [x] Define UI hierarchy rules: core HP, wave/phase, threat, speed/pause, tower tray, draft cards, and result stats.
+- [x] Save the approved mockup or style frame in the project documentation or ignored output location, and document the prompt/spec used to create it.
+- [x] Stop and request user approval before Phase 2.
 
 ### Acceptance Criteria
 
-- [ ] The mockup reads as the same game, not a separate concept poster.
-- [ ] The center playfield stays usable and not buried under UI.
-- [ ] The user approves the style direction before production assets begin.
-- [ ] The mockup explicitly resolves top-down perspective, material style, color palette, UI style, and reaction density.
+- [x] The mockup reads as the same game, not a separate concept poster.
+- [x] The center playfield stays usable and not buried under UI.
+- [x] The user approves the style direction before production assets begin.
+- [x] The mockup explicitly resolves top-down perspective, material style, color palette, UI style, and reaction density.
 
 ### Tests
 
-- [ ] Visual scale check at 540x960.
-- [ ] Visual scale check in desktop phone-frame.
+- [x] Visual scale check at 540x960.
+- [x] Visual scale check in desktop phone-frame.
 
 ### Verification
 
-- [ ] Approved mockup path or reference is recorded in Phase notes.
-- [ ] No bulk sprite or animation production begins before approval.
+- [x] Approved mockup path or reference is recorded in Phase notes.
+- [x] No bulk sprite or animation production begins before approval.
 
 ### Exit gate
 
-- [ ] **User-approved live-combat style mockup.**
+- [x] **User-approved live-combat style mockup.**
 
 ### Phase notes
 
 - Decisions/contradictions:
+  - Produced Phase 1 style target with the built-in `image_gen` flow, then copied the generated output into the workspace so the project does not depend on `$CODEX_HOME`.
+  - Mockup paths:
+    - Generated source copy: `docs/visual-overhaul/mockups/phase1-live-combat-style-target.png`.
+    - Exact mobile scale check: `docs/visual-overhaul/mockups/phase1-live-combat-style-target-540x960.png`.
+    - Prompt/spec and direction notes: `docs/visual-overhaul/mockups/phase1-live-combat-style-target.md`.
+  - The mockup establishes the intended 0.5 direction: top-down chunky industrial gremlin fortress, dark iron/rock base, brass and copper frames, strong magma-orange Куб focal glow, electric-cyan reaction accents, steam-white air effects, and compact iron/brass HUD and tray panels.
+  - Tower silhouette rules from the style target:
+    - Водомёт: tank plus cannon/nozzle mass.
+    - Маслонасос: dark barrel and hose/pump mass.
+    - Разрядник: coil tower and lightning-prong crown.
+    - Магмовый кран: hot crucible/core and valve/pipe form.
+  - Reaction readability rules from the style target:
+    - Ground reactions are floor decals with irregular footprints and bounded glow.
+    - Air reactions are raised cloud/plume/vortex masses and must stay visually separated from path tiles and enemies.
+    - Color is duplicated with shape and layer height: cyan cracks/arcs for Электролужа, white/gray plume for Пар, orange flame/scorch for Пожар, dark cloud plus blue bolts for Грозовое облако.
+  - UI hierarchy rules from the style target:
+    - Top HUD priority is Куб HP, wave/phase, enemy pressure, speed, and pause/start.
+    - Lower tray priority is art-first tower identity, compact status/cost chips, and a workshop rail frame that does not cover the center playfield.
+    - Draft/result surfaces should reuse the same riveted iron/brass material language in Phase 5.
+  - Accepted pre-production deviation: the generated mockup is top-down and geometry-aware, but not pixel-accurate to current Phaser path bounds. Phase 3 must translate this direction back onto the exact runtime board centers, slots, checkpoint, and Куб footprint.
+  - User approval recorded on 2026-06-21: the overall visual direction and style language are approved.
+  - Approval scope: the mockup is approved as a style direction only, not as a detail-accurate layout or production asset specification.
+  - Explicit detail caveats from approval:
+    - Towers must not stand on the walkway in runtime; they must remain aligned to valid slot centers.
+    - Reaction decals such as Электролужа must align cleanly to path cells instead of drifting across the lane.
+    - The lower tower tray can be more compact than the mockup if the final layout does not need that much vertical space.
+    - Runtime path, slots, Куб, and UI proportions must be driven by existing game geometry and playability, not copied from the generated image.
+  - No runtime code, gameplay mechanics, bulk sprites, animation strips, or asset manifest integration were started before approval.
 
 ### Phase completion summary
 
 - Implemented:
+  - One live-combat style target was generated, normalized to `540x960`, visually inspected, and documented with its prompt/spec.
+  - Palette, material language, tower silhouette rules, reaction readability rules, and UI hierarchy rules were extracted from the mockup.
 - Intentionally deferred:
+  - Phase 2 asset manifest/pipeline work and all bulk sprite/animation production remain deferred.
 - Accepted deviations/tradeoffs:
+  - The mockup is a style direction candidate, not a pixel-accurate runtime layout export.
+  - User-approved direction explicitly excludes copying the mockup's tower placement, reaction decal placement, lower tray height, and exact layout proportions.
 - Tests/checks run:
+  - Visual inspection of generated source image.
+  - Image dimension check for the normalized `540x960` file.
+  - Desktop phone-frame check by reviewing the exact `540x960` target as the centered phone canvas.
 
 ## Phase 2 - Asset Pipeline and Runtime Asset Manifest
 
@@ -226,47 +262,71 @@ Purpose: add the technical asset pipeline and manifest layer needed to integrate
 
 ### Tasks
 
-- [ ] Add or finalize asset directories for scene, towers, enemies, reactions, and UI.
-- [ ] Extend `src/shared/assets/manifest.ts` with typed asset groups and stable keys.
-- [ ] Update `BootScene.ts` to load the new assets from the manifest.
-- [ ] Choose atlas strategy for 0.5a and 0.5b: single atlas if practical, otherwise a small bounded set by category.
-- [ ] Add shared skin tokens and assets for Vue and Phaser: palette variables, panel textures, frame slices, card frames, and button/chip materials.
-- [ ] Ensure shared panel assets can be used as Phaser frames/NineSlice-style assets and as CSS `background-image`/`border-image` or equivalent.
-- [ ] Add naming conventions for sprite sheets, frame keys, animation keys, and source-frame files.
-- [ ] Add prompt/spec documentation for image generation and approved seed frames.
-- [ ] Add local normalization workflow for transparent sprites: source frame, chroma-key or alpha cleanup, normalized frame, preview sheet.
-- [ ] Add a lightweight asset QA checklist: transparent edges, scale, anchor, frame count, direction labels, and in-game size.
-- [ ] Ensure generated and optimized project assets are UTF-8-safe metadata and no BOM text files are introduced.
+- [x] Add or finalize asset directories for scene, towers, enemies, reactions, and UI.
+- [x] Extend `src/shared/assets/manifest.ts` with typed asset groups and stable keys.
+- [x] Update `BootScene.ts` to load the new assets from the manifest.
+- [x] Choose atlas strategy for 0.5a and 0.5b: single atlas if practical, otherwise a small bounded set by category.
+- [x] Add shared skin tokens and assets for Vue and Phaser: palette variables, panel textures, frame slices, card frames, and button/chip materials.
+- [x] Ensure shared panel assets can be used as Phaser frames/NineSlice-style assets and as CSS `background-image`/`border-image` or equivalent.
+- [x] Add naming conventions for sprite sheets, frame keys, animation keys, and source-frame files.
+- [x] Add prompt/spec documentation for image generation and approved seed frames.
+- [x] Add local normalization workflow for transparent sprites: source frame, chroma-key or alpha cleanup, normalized frame, preview sheet.
+- [x] Add a lightweight asset QA checklist: transparent edges, scale, anchor, frame count, direction labels, and in-game size.
+- [x] Ensure generated and optimized project assets are UTF-8-safe metadata and no BOM text files are introduced.
 
 ### Acceptance Criteria
 
-- [ ] Phaser loads assets through the manifest, not scattered hardcoded paths.
-- [ ] Future asset additions have an obvious folder, key, and QA path.
-- [ ] Failed raw generations are not required for the repo.
-- [ ] Vue and Phaser can consume the same UI skin assets without visual drift.
-- [ ] The asset pipeline supports the later approved creature facing model.
+- [x] Phaser loads assets through the manifest, not scattered hardcoded paths.
+- [x] Future asset additions have an obvious folder, key, and QA path.
+- [x] Failed raw generations are not required for the repo.
+- [x] Vue and Phaser can consume the same UI skin assets without visual drift.
+- [x] The asset pipeline supports the later approved creature facing model.
 
 ### Tests
 
-- [ ] Typecheck catches invalid manifest shape.
-- [ ] Browser boot succeeds with missing/placeholder fallback only when intentionally configured.
+- [x] Typecheck catches invalid manifest shape.
+- [x] Browser boot succeeds with missing/placeholder fallback only when intentionally configured.
 
 ### Verification
 
-- [ ] `npm run typecheck`.
-- [ ] `npm run build`.
-- [ ] Manual boot check that assets load without console errors.
+- [x] `npm run typecheck`.
+- [x] `npm run build`.
+- [x] Manual boot check that assets load without console errors.
 
 ### Phase notes
 
 - Decisions/contradictions:
+  - Added a typed runtime asset manifest in `src/shared/assets/manifest.ts` with `scene`, `towers`, `enemies`, `reactions`, and `ui` groups. Current Phase 2 entries are explicit placeholders plus shared UI skin assets; production art remains a later-phase replacement.
+  - `BootScene.ts` now preloads through `phaserPreloadAssets` and supports SVG, image, spritesheet, and atlas entries from the manifest.
+  - Added shared skin tokens in `src/shared/assets/skin.css` and matching `visualSkin` tokens in the manifest for Phaser-facing code.
+  - Added shared SVG UI assets for iron panel, brass card frame, and rivet chip frame. These are loadable by Phaser and referenced by CSS variables as `background-image` sources.
+  - Added category placeholder SVGs for scene, tower, enemy, and reaction groups so browser boot checks can verify the manifest path without requiring production art before Phase 3/4/7.
+  - Added `docs/visual-overhaul/asset-pipeline.md` to document atlas strategy, naming conventions, approved seed frame handling, sprite normalization workflow, and the asset QA checklist.
+  - Atlas strategy chosen:
+    - 0.5a can stay with direct SVG/PNG loading until production board/tower/reaction assets exist, then consolidate into one small `ui-field` atlas if practical.
+    - 0.5b should use one bounded creature atlas, with a separate boss atlas only if Бочкоед frames are too large.
+  - No runtime render behavior, simulation state shape, gameplay rules, balance, or save semantics changed in this phase.
 
 ### Phase completion summary
 
 - Implemented:
+  - Typed asset groups and stable keys for all Phase 0.5 asset categories.
+  - Manifest-driven Phaser preload in `BootScene`.
+  - Shared Vue/Phaser UI skin asset placeholders and CSS variables.
+  - Asset pipeline documentation for atlas strategy, naming, normalization, seed-frame handling, and QA.
+  - Manifest tests covering category presence, unique keys, committed public files, explicit placeholder fallbacks, Phaser preload usage, and skin tokens.
 - Intentionally deferred:
+  - Production board, tower, reaction, enemy, and boss art remains deferred to later phases.
+  - Real atlas packing remains deferred until enough production assets exist to pack.
 - Accepted deviations/tradeoffs:
+  - Phase 2 uses committed SVG placeholders as intentional load targets so the manifest and BootScene can be verified before production asset generation.
+  - CSS and TypeScript skin tokens are kept in parallel rather than generated from a build-time token source; this is sufficient for Phase 2 and avoids adding a pipeline dependency.
 - Tests/checks run:
+  - `npm run typecheck` passed.
+  - `npm test` passed: 3 test files, 68 tests.
+  - `npm run build` passed with Vite's existing large chunk warning for `dist/assets/index-*.js` over 500 kB.
+  - `npm run lint:fix` passed.
+  - Manual browser boot check on `http://127.0.0.1:5190` returned HTTP 200, created one Phaser canvas, and had no failed asset requests. Headless Chromium reported WebGL context/performance warnings only, not asset load errors.
 
 ## Phase 3 - Board, Dynamic Куб, and Tower Visual Core
 
@@ -274,46 +334,72 @@ Purpose: deliver the main 0.5a visual jump by replacing the schematic board and 
 
 ### Tasks
 
-- [ ] Generate or produce non-gameplay top-down background layers: cavern floor, fortress walls/edges, soot, debris, atmospheric lighting, and decorative depth.
-- [ ] Integrate background layers into Phaser beneath existing dynamic render layers.
-- [ ] Render the осадная галерея path from `board.pathCells`/geometry using dynamic path segments, tile/decal sprites, or procedural mesh-like drawing; do not bake it into the background.
-- [ ] Render gate/checkpoint from gameplay geometry as a separate dynamic marker/layer; do not bake it into the background.
-- [ ] Render the Великий Перегонный Куб as a separate dynamic object at the configured board center; do not bake it into the background.
-- [ ] Add Куб runtime states: Batch fill/level indication, glow pulse, damage overlay, and phase-sensitive intensity driven from existing snapshot data.
-- [ ] Preserve the current logical path cell centers and slot centers.
-- [ ] Replace path and slot schematic drawing with thematic ground markers that remain readable and tappable.
-- [ ] Add hover/selection/valid-placement feedback that follows P0 placement rules.
+- [x] Generate or produce non-gameplay top-down background layers: cavern floor, fortress walls/edges, soot, debris, atmospheric lighting, and decorative depth.
+- [x] Integrate background layers into Phaser beneath existing dynamic render layers.
+- [x] Render the осадная галерея path from `board.pathCells`/geometry using dynamic path segments, tile/decal sprites, or procedural mesh-like drawing; do not bake it into the background.
+- [x] Render gate/checkpoint from gameplay geometry as a separate dynamic marker/layer; do not bake it into the background.
+- [x] Render the Великий Перегонный Куб as a separate dynamic object at the configured board center; do not bake it into the background.
+- [x] Add Куб runtime states: Batch fill/level indication, glow pulse, damage overlay, and phase-sensitive intensity driven from existing snapshot data.
+- [x] Preserve the current logical path cell centers and slot centers.
+- [x] Replace path and slot schematic drawing with thematic ground markers that remain readable and tappable.
+- [x] Add mobile-first selection/valid-placement feedback that follows P0 placement rules; desktop hover is intentionally omitted.
 - [ ] Generate and integrate static tower sprites for Водомёт, Маслонасос, Разрядник, and Магмовый кран.
 - [ ] Ground tower sprites with shadows, bases, and lane-aware positioning so inner/outer slots remain readable.
 - [ ] Add procedural tower activation feedback: glow, recoil, small sparks/steam/heat pulses as appropriate.
 - [ ] Keep labels optional or reduced; the tower silhouette and card/tray context should do most of the work.
-- [ ] Keep the current P0 click/tap behavior unchanged.
+- [x] Keep the current P0 click/tap behavior unchanged.
 
 ### Acceptance Criteria
 
-- [ ] The board looks like a place, not a wireframe.
-- [ ] The Куб is a strong first-viewport visual anchor.
-- [ ] The path, slots, gate/checkpoint, and Куб align pixel-accurately with existing gameplay coordinates.
-- [ ] Куб visual state can change with core HP/phase without changing simulation state shape.
+- [x] The board looks like a place, not a wireframe.
+- [x] The Куб is a strong first-viewport visual anchor.
+- [x] The path, slots, gate/checkpoint, and Куб align pixel-accurately with existing gameplay coordinates.
+- [x] Куб visual state can change with core HP/phase without changing simulation state shape.
 - [ ] All four tower types are distinguishable at phone scale.
-- [ ] Slots remain understandable without tutorial text.
-- [ ] Existing placement tests and interactions still pass.
+- [x] Slots remain understandable without tutorial text.
+- [x] Existing placement tests and interactions still pass.
 
 ### Tests
 
-- [ ] Existing placement reducer and geometry tests remain unchanged and passing.
-- [ ] Add tests only if manifest or render helper logic introduces non-trivial mapping.
+- [x] Existing placement reducer and geometry tests remain unchanged and passing.
+- [x] Add tests only if manifest or render helper logic introduces non-trivial mapping.
 
 ### Verification
 
-- [ ] `npm run typecheck`.
-- [ ] `npm test`.
+- [x] `npm run typecheck`.
+- [x] `npm test`.
 - [ ] Manual browser check: new run, tower selection, live placement, pause-to-edit move/remove/swap.
-- [ ] Screenshot: ready state with towers and empty/occupied slots.
+- [x] Screenshot: ready state with towers and empty/occupied slots.
 
 ### Phase notes
 
 - Decisions/contradictions:
+  - First Phase 3 slice implemented the board/core layer only, not tower production sprites. This keeps the first remaining slice bounded while preserving the later tower-art tasks.
+  - Added two committed non-gameplay SVG background layers: `public/assets/scene/cavern-fortress-floor.svg` and `public/assets/scene/cavern-fortress-atmosphere.svg`. They contain cavern floor, frame, wall/edge, mist, debris, soot, and atmosphere only; gameplay-significant path, slots, gate/checkpoint, and Куб remain runtime-drawn from snapshot geometry.
+  - Added `src/app/phaser/scenes/runSceneBoardRender.ts` for Phase 3 board-specific rendering, keeping `RunScene.ts` focused on lifecycle/input and `runSceneRender.ts` focused on existing enemy/reaction/tower helpers.
+  - The dynamic Куб is derived from existing snapshot/config data only: board center from path bounds, HP fill from `coreHp / gameConfig.balance.coreHp`, glow pulse from elapsed time, damage crack at low HP, and phase-sensitive intensity. No simulation or save-state shape changed.
+  - Path, gate/checkpoint, and slot markers were restyled procedurally but still use `board.pathCells` and `board.slots`; pointer placement hit detection remains `findSlotAtPoint` over the same slot centers.
+  - Added Phase 3 placement feedback as Phaser-only view state:
+    - `RunScene.ts` renders placement feedback without adding anything to serializable run state.
+    - `runSceneBoardRender.ts` renders low-alpha valid-placement hints and selected-slot anchors from the existing P0 placement rules.
+    - `slotPlacementFeedback.ts` keeps the P0 placement feedback mapping testable outside Phaser drawing.
+    - Placement feedback uses a separate `placementGraphics` overlay above towers/enemies, but intentionally avoids desktop hover-only states.
+  - Accepted mobile-first deviation from the original task wording: hover feedback was removed after review because the game is designed for portrait touch play and hover does not exist on the target input model.
+  - After visual review, valid placement feedback was muted: valid cells now use only a low-alpha cell tint and thin ring, while stronger overlay treatment is reserved for selected placed towers.
+  - Tuned board scale after visual review:
+    - Increased the rendered осадная галерея road width so path cells have enough visual surface for later reaction VFX.
+    - Reduced visual slot platform/ring scale so tower slots no longer read larger than the road.
+    - Slightly reduced current procedural placeholder tower bodies until production tower sprites replace them.
+    - Gameplay geometry and tap targets were not changed.
+  - Screenshots:
+    - Ready board core: `output/playwright/phase3-board-core-ready.png`.
+    - Tower placed on updated board: `output/playwright/phase3-board-core-placed.png`.
+    - Mobile-first selected-tower valid placement hints: `output/playwright/phase3-slot-valid-selection-mobile.png`.
+    - Road/slot scale ready check: `output/playwright/phase3-road-scale-ready.png`.
+    - Road/slot scale selected tower check: `output/playwright/phase3-road-scale-selection.png`.
+    - Road/slot scale placed tower check: `output/playwright/phase3-road-scale-placed.png`.
+  - Placement feedback browser check covered a fresh run and tower selection with no console/page errors.
+  - Remaining known gap in this phase: tower sprites, tower grounding, activation feedback, reduced/optional field labels, and the full pause-to-edit manual check are still open.
 
 ### Phase completion summary
 

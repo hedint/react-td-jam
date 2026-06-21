@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="540" height="960" viewBox="0 0 540 960" role="img" aria-label="Scene backdrop placeholder">
+  <rect width="540" height="960" fill="#161413"/>
+  <rect x="44" y="84" width="452" height="792" rx="28" fill="#211d1a" stroke="#6d5944" stroke-width="4"/>
+  <path d="M72 140h396M72 820h396M100 112v736M440 112v736" stroke="#2f2923" stroke-width="18" stroke-linecap="round"/>
+  <path d="M72 174c58-28 100-28 158 0s100 28 158 0 92-30 112-12M60 760c64 30 112 28 164-2s96-30 150-2 96 32 128 4" fill="none" stroke="#3a2016" stroke-width="12" stroke-linecap="round" opacity=".74"/>
+  <circle cx="270" cy="480" r="112" fill="#1a1715" stroke="#3a2016" stroke-width="8" opacity=".78"/>
+  <circle cx="270" cy="480" r="76" fill="#241912" stroke="#f08a28" stroke-width="4" opacity=".34"/>
+</svg>

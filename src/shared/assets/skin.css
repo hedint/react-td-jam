@@ -1,0 +1,22 @@
+:root {
+  --skin-page: #101217;
+  --skin-field-iron: #1c1a17;
+  --skin-field-stone: #2a2520;
+  --skin-panel-iron: #181a1d;
+  --skin-panel-iron-light: #2a2d31;
+  --skin-panel-border: #6d5944;
+  --skin-brass: #c8a76a;
+  --skin-copper: #b66f3b;
+  --skin-magma: #f08a28;
+  --skin-electric: #61d6d6;
+  --skin-steam: #d7eff0;
+  --skin-text: #f3ead8;
+  --skin-text-muted: #b9aa91;
+  --skin-danger: #e05b3f;
+  --skin-panel-radius: 8px;
+  --skin-chip-radius: 6px;
+  --skin-card-radius: 8px;
+  --skin-panel-image: url("/assets/ui/panel-iron-plate.svg");
+  --skin-card-frame-image: url("/assets/ui/card-brass-frame.svg");
+  --skin-chip-frame-image: url("/assets/ui/chip-rivet-frame.svg");
+}

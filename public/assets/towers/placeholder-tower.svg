@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96" role="img" aria-label="Tower sprite placeholder">
+  <ellipse cx="48" cy="72" rx="30" ry="10" fill="#0b0c0e" opacity=".45"/>
+  <circle cx="48" cy="50" r="27" fill="#25282d" stroke="#c8a76a" stroke-width="4"/>
+  <path d="M34 50h28M48 36v28" stroke="#61d6d6" stroke-width="6" stroke-linecap="round"/>
+  <path d="M30 70h36" stroke="#6d5944" stroke-width="6" stroke-linecap="round"/>
+</svg>
