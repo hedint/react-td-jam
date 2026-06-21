@@ -8,7 +8,7 @@ const board = createStadiumLoopBoard(defaultBoardGeometryConfig);
 
 export const gameConfig: GameConfig = {
   balance: {
-    schemaVersion: 3,
+    schemaVersion: 4,
     pathCellCount: 16,
     coreHp: 15,
     leakDamage: 1,
@@ -54,8 +54,14 @@ export const gameConfig: GameConfig = {
   boss: {
     id: "barrel-eater",
     displayName: "Бочкоед",
+    hp: 520,
     laps: 3,
-    lapCoreDamage: 2,
+    lapCoreDamage: 3,
+    speedCellsPerSecond: 0.52,
+    speedIncreasePerLap: 0.18,
+    reactionBreakThreshold: 3,
+    vulnerableDurationMs: 5000,
+    vulnerableDamageMultiplier: 2,
   },
   upgrades: [
     { id: "waterCapacity", displayName: "Напор водомёта", maxStacks: 2, emitterId: "water", effect: { type: "substanceCoverage", amount: 1 } },
@@ -120,6 +126,23 @@ export function validateGameConfig(config: GameConfig): readonly string[] {
       errors.push(`wave ${wave.id} must have positive count and spawnIntervalMs`);
     }
   });
+
+  if (!config.boss.displayName) {
+    errors.push(`boss ${config.boss.id} is missing displayName`);
+  }
+
+  if (
+    config.boss.hp <= 0
+    || config.boss.laps <= 0
+    || config.boss.lapCoreDamage <= 0
+    || config.boss.speedCellsPerSecond <= 0
+    || config.boss.speedIncreasePerLap < 0
+    || config.boss.reactionBreakThreshold <= 0
+    || config.boss.vulnerableDurationMs <= 0
+    || config.boss.vulnerableDamageMultiplier < 1
+  ) {
+    errors.push(`boss ${config.boss.id} has invalid combat values`);
+  }
 
   config.upgrades.forEach((upgrade) => {
     if (!upgrade.displayName) {

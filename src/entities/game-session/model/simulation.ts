@@ -11,6 +11,7 @@ import type {
   TowerState,
   WaveRuntimeState,
 } from "./types";
+import { createBossState, stepBoss } from "./boss";
 import { gameConfig } from "./config";
 import { advanceAfterDraft, chooseDraftTower, chooseDraftUpgrade, createDraftState, rerollDraft } from "./draft";
 import { getCellSpeedMultiplier, getReactionDamageEntries, projectReagents, resolveReactions } from "./reactions";
@@ -69,6 +70,7 @@ export function createRun(seed = 1, options: CreateRunOptions = {}): RunState {
     stats: {
       leaks: 0,
       kills: 0,
+      bossBreaks: 0,
       totalDamage: 0,
       damageByReaction: {},
       waveStats: [],
@@ -100,6 +102,10 @@ export function stepRun(state: RunState, deltaMs: number): RunState {
     };
 
     return countdownMs <= 0 ? startWave(nextState) : nextState;
+  }
+
+  if (state.phase === "boss" && state.boss) {
+    return stepBoss(state, scaledDeltaMs);
   }
 
   if (state.phase !== "wave") {
@@ -185,11 +191,16 @@ export function stepRun(state: RunState, deltaMs: number): RunState {
   const nextPhase = coreHp <= 0
     ? "defeat"
     : waveComplete
-      ? "draft"
+      ? state.waveIndex >= gameConfig.waves.length - 1
+        ? "boss"
+        : "draft"
       : state.phase;
   const generatedDraft = nextPhase === "draft"
     ? createDraftState(state)
     : null;
+  const boss = nextPhase === "boss"
+    ? createBossState()
+    : state.boss;
 
   return {
     ...state,
@@ -198,7 +209,8 @@ export function stepRun(state: RunState, deltaMs: number): RunState {
     tick: state.tick + 1,
     elapsedMs: state.elapsedMs + scaledDeltaMs,
     draft: generatedDraft?.draft ?? state.draft,
-    waveRuntime: nextPhase === "draft" || nextPhase === "defeat" ? null : spawned.waveRuntime,
+    waveRuntime: nextPhase === "draft" || nextPhase === "boss" || nextPhase === "defeat" ? null : spawned.waveRuntime,
+    boss,
     coreHp,
     enemies,
     reactions,
@@ -438,6 +450,7 @@ function updateWaveStats(
     : ensureWaveStats({
       leaks: 0,
       kills: 0,
+      bossBreaks: 0,
       totalDamage: 0,
       damageByReaction: {},
       waveStats,

@@ -10,7 +10,7 @@
         <strong>{{ session.waveLabel }}</strong>
       </div>
       <div class="run-hud__stat run-hud__stat--threat">
-        <span>Враг</span>
+        <span>{{ session.phase === "boss" ? "Босс" : "Враг" }}</span>
         <strong class="run-hud__threat-value">
           <span
             v-if="session.waveThreatEnemyId"
@@ -18,7 +18,7 @@
             :class="`run-hud__enemy-icon--${session.waveThreatEnemyId}`"
             aria-hidden="true"
           />
-          <span>{{ session.waveThreatLabel }}</span>
+          <span>{{ session.phase === "boss" ? session.bossHpLabel : session.waveThreatLabel }}</span>
         </strong>
       </div>
       <div class="run-hud__stat">
@@ -145,6 +145,73 @@
     </div>
 
     <div
+      v-else-if="session.phase === 'victory' || session.phase === 'defeat'"
+      class="run-hud__scrim run-hud__scrim--blocking"
+    >
+      <section class="run-hud__modal run-hud__modal--result">
+        <h2>{{ resultTitle }}</h2>
+        <p class="run-hud__result-note">
+          {{ resultSubtitle }}
+        </p>
+        <dl>
+          <div>
+            <dt>Seed</dt>
+            <dd>{{ session.seed }}</dd>
+          </div>
+          <div>
+            <dt>Волны</dt>
+            <dd>{{ session.wavesCleared }}/10</dd>
+          </div>
+          <div>
+            <dt>Утечки</dt>
+            <dd>{{ session.leaks }}</dd>
+          </div>
+          <div>
+            <dt>Урон</dt>
+            <dd>{{ session.damageLabel }}</dd>
+          </div>
+          <div>
+            <dt>Break</dt>
+            <dd>{{ session.bossBreaks }}</dd>
+          </div>
+          <div>
+            <dt>Время</dt>
+            <dd>{{ session.runtimeLabel }}</dd>
+          </div>
+          <div>
+            <dt>Топ реакция</dt>
+            <dd>{{ session.topReactionLabel }}</dd>
+          </div>
+        </dl>
+        <div class="run-hud__reaction-list">
+          <div
+            v-for="reaction in session.reactionStats"
+            :key="reaction.reactionId"
+          >
+            <span>{{ reaction.label }}</span>
+            <strong>{{ reaction.damage }}</strong>
+          </div>
+        </div>
+        <div class="run-hud__modal-actions">
+          <button
+            class="run-hud__button run-hud__button--primary"
+            type="button"
+            @click="restartRun"
+          >
+            Рестарт
+          </button>
+          <button
+            class="run-hud__button"
+            type="button"
+            @click="newRun"
+          >
+            Новый ран
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <div
       v-else-if="session.paused"
       class="run-hud__scrim"
     >
@@ -202,6 +269,12 @@ const session = useGameSessionStore();
 const resumePromptVisible = ref(false);
 const savedSeed = ref<number | null>(null);
 const nextSpeed = computed(() => session.speed === 1 ? 2 : 1);
+const resultTitle = computed(() => session.phase === "victory" ? "Бочкоед иссушён" : "Батч пролит");
+const resultSubtitle = computed(() =>
+  session.phase === "victory"
+    ? "Великий Куб удержан."
+    : "Бочкоед добрался до Куба.",
+);
 
 onMounted(() => {
   const savedRun = loadSavedRun();
@@ -245,6 +318,11 @@ function toggleSpeed(): void {
 function restartRun(): void {
   clearSavedRun();
   gameEvents.emit("run:action", { type: "restart", seed: session.seed });
+}
+
+function newRun(): void {
+  clearSavedRun();
+  gameEvents.emit("run:action", { type: "restart", seed: Date.now() % 100000 });
 }
 
 function resumeSavedRun(): void {

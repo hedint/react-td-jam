@@ -2,7 +2,7 @@ import type { EmitterId, GameAction, GameConfig, RunState } from "@entities/game
 import { createStadiumLoopBoard, defaultBoardGeometryConfig } from "@entities/game-session/model/boardGeometry";
 import { gameConfig, validateGameConfig } from "@entities/game-session/model/config";
 import { createFixedStepDriver } from "@entities/game-session/model/fixedStepDriver";
-import { runHeadlessRun } from "@entities/game-session/model/headlessRun";
+import { runHeadlessRun, runHeadlessStrategy } from "@entities/game-session/model/headlessRun";
 import { clearSavedRun, hasSavedRun, loadSavedRun, saveRun } from "@entities/game-session/model/persistence";
 import { collectConnectedPools, projectReagents, resolveReactions } from "@entities/game-session/model/reactions";
 import {
@@ -582,14 +582,201 @@ describe("run simulation", () => {
       autoStartWaves: true,
       autoCompleteDrafts: true,
       stopWhen: state =>
-        state.phase === "draft"
-        && state.waveIndex === 9
+        state.phase === "boss"
         && state.stats.waveStats.some(wave => wave.waveId === "wave-10" && wave.kills + wave.leaks >= gameConfig.waves[9]!.count),
     });
 
     expect(result.stoppedByPredicate).toBe(true);
     expect(result.state.coreHp).toBeGreaterThan(0);
     expect(result.state.stats.waveStats.map(wave => wave.waveId)).toContain("wave-10");
+    expect(result.state.boss).toMatchObject({
+      bossId: "barrel-eater",
+      lap: 1,
+    });
+  });
+
+  it("drives a headless full run from wave 1 through Бочкоед to victory", () => {
+    const result = runHeadlessRun(createRun(1, {
+      placedTowers: createElectroRingTowers(),
+    }), {
+      maxSteps: 50000,
+      autoStartWaves: true,
+      autoCompleteDrafts: true,
+      stopWhen: state => state.phase === "victory" || state.phase === "defeat",
+    });
+
+    expect(result.stoppedByPredicate).toBe(true);
+    expect(result.state.phase).toBe("victory");
+    expect(result.state.stats.waveStats.map(wave => wave.waveId)).toContain("wave-10");
+    expect(result.state.boss?.hp).toBe(0);
+    expect(result.state.stats.damageByReaction.electroPuddle).toBeGreaterThan(0);
+  });
+
+  it("drives an expected-win scripted strategy with bounded leaks and mixed reaction damage", () => {
+    const result = runHeadlessStrategy({
+      id: "expected-win-p0",
+      seed: 8,
+      placementPlan: {
+        water: ["slot-0-outer", "slot-1-outer", "slot-3-outer", "slot-5-outer", "slot-7-outer"],
+        spark: ["slot-0-inner", "slot-3-inner", "slot-5-inner", "slot-7-inner"],
+        heat: ["slot-1-inner", "slot-2-inner", "slot-4-inner", "slot-6-inner"],
+        oil: ["slot-2-outer", "slot-4-outer", "slot-6-outer"],
+      },
+      draftPlan: {
+        towerPriority: ["heat", "oil", "spark", "water"],
+        upgradePriority: ["sparkCapacity", "heatReach", "waterCapacity", "fireCatalyst", "oilControl"],
+      },
+    }, {
+      maxSteps: 50000,
+      stopWhen: state => state.phase === "victory" || state.phase === "defeat",
+    });
+
+    expect(result.stoppedByPredicate).toBe(true);
+    expect(result.summary.phase).toBe("victory");
+    expect(result.summary.wavesCleared).toBe(10);
+    expect(result.summary.leaks).toBeLessThanOrEqual(3);
+    expect(result.summary.bossBreaks).toBeGreaterThan(0);
+    expect(result.summary.damageByReaction.electroPuddle).toBeGreaterThan(0);
+    expect(
+      (result.summary.damageByReaction.stormCloud ?? 0)
+      + (result.summary.damageByReaction.fireVortex ?? 0)
+      + (result.summary.damageByReaction.fireStorm ?? 0),
+    ).toBeGreaterThan(0);
+  });
+
+  it("drives a weak scripted strategy to meaningful leaks or defeat", () => {
+    const result = runHeadlessStrategy({
+      id: "weak-water-only",
+      seed: 8,
+      placementPlan: {
+        water: ["slot-0-outer", "slot-1-outer", "slot-2-outer"],
+      },
+      draftPlan: {
+        towerPriority: ["water", "oil", "heat", "spark"],
+        upgradePriority: ["waterCapacity", "oilControl", "heatReach", "sparkCapacity", "fireCatalyst"],
+      },
+    }, {
+      maxSteps: 50000,
+      stopWhen: state => state.phase === "victory" || state.phase === "defeat",
+    });
+
+    expect(result.stoppedByPredicate).toBe(true);
+    expect(result.summary.phase).toBe("defeat");
+    expect(result.summary.leaks).toBeGreaterThan(0);
+    expect(result.summary.coreHp).toBe(0);
+  });
+
+  it("progresses boss laps and applies configured core damage", () => {
+    const state = createBossRun({
+      boss: createBossState({ pathProgress: 15.95 }),
+    });
+    const next = stepRun(state, 1000);
+
+    expect(next.phase).toBe("boss");
+    expect(next.coreHp).toBe(12);
+    expect(next.boss).toMatchObject({
+      lap: 2,
+      reactionBreakIds: [],
+      vulnerableMs: 0,
+    });
+  });
+
+  it("defeats the run if Бочкоед completes the final lap alive", () => {
+    const state = createBossRun({
+      coreHp: 3,
+      boss: createBossState({ lap: 3, pathProgress: 47.95 }),
+    });
+    const next = stepRun(state, 1000);
+
+    expect(next.phase).toBe("defeat");
+    expect(next.coreHp).toBe(0);
+    expect(next.boss?.hp).toBeGreaterThan(0);
+  });
+
+  it("triggers boss Reaction Break from three distinct reaction ids per lap", () => {
+    const state = createBossRun({
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-spark-a", "spark", "slot-0-inner"),
+      ],
+      boss: createBossState({
+        reactionBreakIds: ["fire", "steam"],
+      }),
+    });
+    const next = stepRun(state, 100);
+
+    expect(next.boss?.reactionBreakIds).toEqual(["electroPuddle", "fire", "steam"]);
+    expect(next.boss?.vulnerableMs).toBe(gameConfig.boss.vulnerableDurationMs);
+    expect(next.stats.bossBreaks).toBe(1);
+  });
+
+  it("does not trigger boss Reaction Break from repeated reaction ids", () => {
+    const state = createBossRun({
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-spark-a", "spark", "slot-0-inner"),
+      ],
+      boss: createBossState({
+        reactionBreakIds: ["electroPuddle"],
+      }),
+    });
+    const next = stepRun(state, 100);
+
+    expect(next.boss?.reactionBreakIds).toEqual(["electroPuddle"]);
+    expect(next.boss?.vulnerableMs).toBe(0);
+    expect(next.stats.bossBreaks).toBe(0);
+  });
+
+  it("applies the vulnerable boss damage multiplier for its duration", () => {
+    const towers = [
+      createTower("tower-water-a", "water", "slot-0-outer"),
+      createTower("tower-spark-a", "spark", "slot-0-inner"),
+    ];
+    const normal = stepRun(createBossRun({ placedTowers: towers, boss: createBossState({ hp: 100, maxHp: 100 }) }), 1000);
+    const vulnerable = stepRun(createBossRun({
+      placedTowers: towers,
+      boss: createBossState({ hp: 100, maxHp: 100, vulnerableMs: 1000 }),
+    }), 1000);
+
+    expect(100 - (vulnerable.boss?.hp ?? 100)).toBeCloseTo((100 - (normal.boss?.hp ?? 100)) * 2);
+    expect(vulnerable.boss?.vulnerableMs).toBe(0);
+  });
+
+  it("transitions to victory when the boss dies and aggregates reaction stats", () => {
+    const state = createBossRun({
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-spark-a", "spark", "slot-0-inner"),
+      ],
+      boss: createBossState({ hp: 1, maxHp: gameConfig.boss.hp }),
+    });
+    const next = stepRun(state, 1000);
+
+    expect(next.phase).toBe("victory");
+    expect(next.boss?.hp).toBe(0);
+    expect(next.stats.totalDamage).toBe(1);
+    expect(next.stats.damageByReaction.electroPuddle).toBe(1);
+  });
+
+  it("round-trips boss and end-state data through save serialization", () => {
+    const state = {
+      ...createBossRun({
+        boss: createBossState({ hp: 123, pathProgress: 9.5, reactionBreakIds: ["steam", "fireVortex"] }),
+      }),
+      phase: "victory" as const,
+      stats: {
+        ...createBossRun().stats,
+        bossBreaks: 2,
+        totalDamage: 77,
+        damageByReaction: { steam: 30, fireVortex: 47 },
+      },
+    };
+    const restored = deserializeRun(serializeRun(state));
+
+    expect(restored.phase).toBe("victory");
+    expect(restored.boss).toEqual(state.boss);
+    expect(restored.stats.bossBreaks).toBe(2);
+    expect(restored.stats.damageByReaction).toEqual({ steam: 30, fireVortex: 47 });
   });
 
   it("generates a parameterized stadium loop with corner slot influence", () => {
@@ -862,6 +1049,13 @@ function createSteamRingTowers() {
   ]).flat();
 }
 
+function createElectroRingTowers() {
+  return Array.from({ length: gameConfig.balance.pathCellCount }, (_, index) => [
+    createTower(`tower-water-electro-${index}`, "water", `slot-${index}-outer`),
+    createTower(`tower-spark-electro-${index}`, "spark", `slot-${index}-inner`),
+  ]).flat();
+}
+
 function createStormCloudTowers() {
   return [
     createTower("tower-water-a", "water", "slot-0-outer"),
@@ -869,6 +1063,36 @@ function createStormCloudTowers() {
     createTower("tower-heat-a", "heat", "slot-0-inner"),
     createTower("tower-spark-a", "spark", "slot-1-inner"),
   ];
+}
+
+function createBossState(overrides: Partial<NonNullable<RunState["boss"]>> = {}): NonNullable<RunState["boss"]> {
+  const pathProgress = overrides.pathProgress ?? 0;
+
+  return {
+    bossId: gameConfig.boss.id,
+    lap: 1,
+    hp: gameConfig.boss.hp,
+    maxHp: gameConfig.boss.hp,
+    pathProgress,
+    currentCellIndex: getCurrentPathCellIndex(pathProgress % gameConfig.balance.pathCellCount, gameConfig.balance.pathCellCount),
+    vulnerableMs: 0,
+    reactionBreakIds: [],
+    ...overrides,
+  };
+}
+
+function createBossRun(overrides: Partial<RunState> = {}): ReturnType<typeof createRun> {
+  return {
+    ...createRun(1, {
+      placedTowers: overrides.placedTowers,
+    }),
+    phase: "boss",
+    waveIndex: gameConfig.waves.length - 1,
+    enemies: [],
+    waveRuntime: null,
+    boss: createBossState(),
+    ...overrides,
+  };
 }
 
 function placeBenchTower(state: ReturnType<typeof createRun>, towerId: string, slotId: string): ReturnType<typeof createRun> {

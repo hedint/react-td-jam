@@ -1,4 +1,4 @@
-import type { DraftRole, DraftStep, EmitterId, EnemyId, RuntimeSnapshot, StagePoint, UpgradeId, ViewportSize } from "./types";
+import type { DraftRole, DraftStep, EmitterId, EnemyId, ReactionId, RunPhase, RuntimeSnapshot, StagePoint, UpgradeId, ViewportSize } from "./types";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { gameConfig } from "./config";
@@ -13,7 +13,7 @@ export const useGameSessionStore = defineStore("game-session", () => {
   const elapsedMs = ref(0);
   const fps = ref(0);
   const seed = ref(0);
-  const phase = ref("wave");
+  const phase = ref<RunPhase>("wave");
   const waveIndex = ref(0);
   const countdownMs = ref(0);
   const coreHp = ref(0);
@@ -23,7 +23,15 @@ export const useGameSessionStore = defineStore("game-session", () => {
   const waveThreatEnemyId = ref<EnemyId | null>(null);
   const waveThreatLabel = ref("");
   const leaks = ref(0);
+  const kills = ref(0);
+  const bossBreaks = ref(0);
   const totalDamage = ref(0);
+  const wavesCleared = ref(0);
+  const bossLap = ref(0);
+  const bossHp = ref(0);
+  const bossMaxHp = ref(0);
+  const bossVulnerableMs = ref(0);
+  const reactionStats = ref<Array<{ readonly reactionId: ReactionId, readonly label: string, readonly damage: number }>>([]);
   const selectedTowerId = ref<string | null>(null);
   const towerItems = ref<Array<{ readonly id: string, readonly label: string, readonly placed: boolean }>>([]);
   const draftStep = ref<DraftStep | null>(null);
@@ -35,7 +43,7 @@ export const useGameSessionStore = defineStore("game-session", () => {
   const viewport = ref<ViewportSize>(initialViewport);
 
   const elapsedSeconds = computed(() => (elapsedMs.value / 1000).toFixed(1));
-  const waveLabel = computed(() => `${waveIndex.value + 1}`);
+  const waveLabel = computed(() => phase.value === "boss" ? `${bossLap.value}/${gameConfig.boss.laps}` : `${waveIndex.value + 1}`);
   const phaseLabel = computed(() => {
     switch (phase.value) {
       case "ready":
@@ -46,14 +54,23 @@ export const useGameSessionStore = defineStore("game-session", () => {
         return "Волна";
       case "draft":
         return "Драфт";
+      case "boss":
+        return bossVulnerableMs.value > 0 ? "Уязв." : "Босс";
+      case "victory":
+        return "Победа";
+      case "defeat":
+        return "Поражение";
       default:
-        return phase.value;
+        return phase.value satisfies never;
     }
   });
   const canStartWave = computed(() => phase.value === "ready");
   const canCompleteDraft = computed(() => false);
   const canRerollDraft = computed(() => phase.value === "draft" && rerollsRemaining.value > 0);
   const damageLabel = computed(() => Math.round(totalDamage.value).toString());
+  const bossHpLabel = computed(() => `${Math.ceil(bossHp.value)}/${bossMaxHp.value}`);
+  const runtimeLabel = computed(() => `${(elapsedMs.value / 1000).toFixed(1)} с`);
+  const topReactionLabel = computed(() => reactionStats.value[0]?.label ?? "нет");
   const lastTapLabel = computed(() => {
     if (!lastTap.value) {
       return "none";
@@ -74,10 +91,29 @@ export const useGameSessionStore = defineStore("game-session", () => {
     speed.value = snapshot.speed;
     livingEnemyCount.value = snapshot.livingEnemies.length;
     activeReactionCount.value = snapshot.activeReactions.length;
-    waveThreatEnemyId.value = getWaveThreatEnemyId(snapshot.waveIndex);
-    waveThreatLabel.value = getWaveThreatLabel(waveThreatEnemyId.value);
+    waveThreatEnemyId.value = snapshot.phase === "boss" || snapshot.phase === "victory" || snapshot.phase === "defeat"
+      ? null
+      : getWaveThreatEnemyId(snapshot.waveIndex);
+    waveThreatLabel.value = snapshot.phase === "boss" || snapshot.boss
+      ? gameConfig.boss.displayName
+      : getWaveThreatLabel(waveThreatEnemyId.value);
     leaks.value = snapshot.stats.leaks;
+    kills.value = snapshot.stats.kills;
+    bossBreaks.value = snapshot.stats.bossBreaks;
     totalDamage.value = snapshot.stats.totalDamage;
+    wavesCleared.value = snapshot.stats.waveStats.filter(wave => wave.kills + wave.leaks > 0).length;
+    bossLap.value = snapshot.boss?.lap ?? 0;
+    bossHp.value = snapshot.boss?.hp ?? 0;
+    bossMaxHp.value = snapshot.boss?.maxHp ?? 0;
+    bossVulnerableMs.value = snapshot.boss?.vulnerableMs ?? 0;
+    reactionStats.value = Object.entries(snapshot.stats.damageByReaction)
+      .map(([reactionId, damage]) => ({
+        reactionId: reactionId as ReactionId,
+        label: getReactionLabel(reactionId as ReactionId),
+        damage: Math.round(damage ?? 0),
+      }))
+      .filter(entry => entry.damage > 0)
+      .sort((left, right) => right.damage - left.damage || left.label.localeCompare(right.label));
     selectedTowerId.value = snapshot.selectedTowerId;
     towerItems.value = [
       ...snapshot.placedTowers.map(tower => ({
@@ -139,8 +175,19 @@ export const useGameSessionStore = defineStore("game-session", () => {
     waveThreatEnemyId,
     waveThreatLabel,
     leaks,
+    kills,
+    bossBreaks,
     totalDamage,
     damageLabel,
+    wavesCleared,
+    bossLap,
+    bossHp,
+    bossMaxHp,
+    bossHpLabel,
+    bossVulnerableMs,
+    runtimeLabel,
+    topReactionLabel,
+    reactionStats,
     selectedTowerId,
     towerItems,
     draftStep,
@@ -160,6 +207,10 @@ function getWaveThreatEnemyId(waveIndex: number): EnemyId | null {
   const wave = gameConfig.waves[waveIndex];
 
   return wave?.telegraphEnemyId ?? wave?.enemyId ?? null;
+}
+
+function getReactionLabel(reactionId: ReactionId): string {
+  return gameConfig.reactions.find(reaction => reaction.id === reactionId)?.displayName ?? reactionId;
 }
 
 function getWaveThreatLabel(enemyId: EnemyId | null): string {

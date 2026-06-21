@@ -104,6 +104,10 @@ export interface UpgradeStackState {
 export interface BossState {
   readonly bossId: string
   readonly lap: number
+  readonly hp: number
+  readonly maxHp: number
+  readonly pathProgress: number
+  readonly currentCellIndex: number
   readonly vulnerableMs: number
   readonly reactionBreakIds: readonly ReactionId[]
 }
@@ -126,6 +130,7 @@ export interface WaveStats {
 export interface RunStats {
   readonly leaks: number
   readonly kills: number
+  readonly bossBreaks: number
   readonly totalDamage: number
   readonly damageByReaction: Partial<Record<ReactionId, number>>
   readonly waveStats: readonly WaveStats[]
@@ -235,8 +240,14 @@ export interface WaveDefinition {
 export interface BossDefinition {
   readonly id: string
   readonly displayName: string
+  readonly hp: number
   readonly laps: number
   readonly lapCoreDamage: number
+  readonly speedCellsPerSecond: number
+  readonly speedIncreasePerLap: number
+  readonly reactionBreakThreshold: number
+  readonly vulnerableDurationMs: number
+  readonly vulnerableDamageMultiplier: number
 }
 
 export interface UpgradeDefinition {
