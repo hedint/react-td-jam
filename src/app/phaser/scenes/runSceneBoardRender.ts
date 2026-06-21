@@ -85,10 +85,11 @@ export function renderBoardSlots(
     const isOccupied = occupiedSlotIds.has(slot.id);
     const isSelectedSlot = selectedTower?.slotId === slot.id;
     const isBenchSelection = selectedTower ? snapshot.bench.some(tower => tower.id === selectedTower.id) : false;
+    const canEditPlacedTowers = snapshot.paused || snapshot.phase === "ready";
     const isValidTarget = selectedTower !== undefined && !slot.locked && (
       isBenchSelection
-        ? (!isOccupied || snapshot.paused)
-        : snapshot.paused
+        ? (!isOccupied || canEditPlacedTowers)
+        : canEditPlacedTowers
     );
     const feedback = getSlotFeedback({
       hasSelectedTower: selectedTower !== undefined,
@@ -150,10 +151,11 @@ export function renderPlacementSlotFeedback(
     const isOccupied = occupiedSlotIds.has(slot.id);
     const isSelectedSlot = selectedTower?.slotId === slot.id;
     const isBenchSelection = selectedTower ? snapshot.bench.some(tower => tower.id === selectedTower.id) : false;
+    const canEditPlacedTowers = snapshot.paused || snapshot.phase === "ready";
     const isValidTarget = selectedTower !== undefined && !slot.locked && (
       isBenchSelection
-        ? (!isOccupied || snapshot.paused)
-        : snapshot.paused
+        ? (!isOccupied || canEditPlacedTowers)
+        : canEditPlacedTowers
     );
     const feedback = getSlotFeedback({
       hasSelectedTower: selectedTower !== undefined,

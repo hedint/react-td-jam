@@ -910,6 +910,16 @@ describe("run simulation", () => {
     expect(placed.selectedTowerId).toBeNull();
   });
 
+  it("removes a placed tower with one field tap before the first wave", () => {
+    const ready = createPlacedStartingRun(1);
+    const removed = applyAction(ready, { type: "tapSlot", slotId: "slot-1-outer" });
+
+    expect(removed.phase).toBe("ready");
+    expect(removed.placedTowers.some(tower => tower.id === "tower-water-a")).toBe(false);
+    expect(removed.bench.find(tower => tower.id === "tower-water-a")?.slotId).toBeNull();
+    expect(removed.selectedTowerId).toBeNull();
+  });
+
   it("allows additive bench placement during a running wave", () => {
     const running = startFirstWave(createRun(1));
     const selected = applyAction(running, { type: "selectTower", towerId: "tower-water-a" });
@@ -932,7 +942,7 @@ describe("run simulation", () => {
     expect(selectedBenchTower).toBe(running);
   });
 
-  it("moves, removes, and swaps placed towers only while paused", () => {
+  it("moves, removes, and swaps placed towers while paused", () => {
     const paused = applyAction(createPlacedStartingRun(1), { type: "pause" });
     const moved = applyAction(
       applyAction(paused, { type: "selectTower", towerId: "tower-water-a" }),
@@ -952,6 +962,15 @@ describe("run simulation", () => {
     expect(removed.bench.find(tower => tower.id === "tower-water-a")?.slotId).toBeNull();
     expect(swapped.placedTowers.find(tower => tower.id === "tower-water-a")?.slotId).toBe("slot-2-outer");
     expect(swapped.placedTowers.find(tower => tower.id === "tower-water-b")?.slotId).toBe("slot-1-outer");
+  });
+
+  it("removes a placed tower with one field tap while paused", () => {
+    const paused = applyAction(createPlacedStartingRun(1), { type: "pause" });
+    const removed = applyAction(paused, { type: "tapSlot", slotId: "slot-1-outer" });
+
+    expect(removed.placedTowers.some(tower => tower.id === "tower-water-a")).toBe(false);
+    expect(removed.bench.find(tower => tower.id === "tower-water-a")?.slotId).toBeNull();
+    expect(removed.selectedTowerId).toBeNull();
   });
 
   it("recomputes tower projection after placement changes", () => {

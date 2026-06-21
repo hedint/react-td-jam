@@ -13,7 +13,7 @@ export function placeSelectedTower(state: RunState, slotId: string): RunState {
     return placeBenchTower(state, selectedTower, slotId);
   }
 
-  if (!state.paused) {
+  if (!canEditPlacedTowers(state)) {
     return state;
   }
 
@@ -40,8 +40,8 @@ export function tapSlot(state: RunState, slotId: string): RunState {
   const occupiedTower = state.placedTowers.find(tower => tower.slotId === slotId);
 
   if (!state.selectedTowerId) {
-    return occupiedTower && state.paused
-      ? { ...state, selectedTowerId: occupiedTower.id }
+    return occupiedTower && canEditPlacedTowers(state)
+      ? removePlacedTower(state, occupiedTower)
       : state;
   }
 
@@ -51,7 +51,7 @@ export function tapSlot(state: RunState, slotId: string): RunState {
 function placeBenchTower(state: RunState, selectedTower: TowerState, slotId: string): RunState {
   const occupiedTower = state.placedTowers.find(tower => tower.slotId === slotId);
 
-  if (occupiedTower && !state.paused) {
+  if (occupiedTower && !canEditPlacedTowers(state)) {
     return state;
   }
 
@@ -87,15 +87,7 @@ function movePlacedTower(state: RunState, selectedTower: TowerState, slotId: str
   const occupiedTower = state.placedTowers.find(tower => tower.slotId === slotId);
 
   if (occupiedTower?.id === selectedTower.id) {
-    const placedTowers = state.placedTowers.filter(tower => tower.id !== selectedTower.id);
-
-    return {
-      ...state,
-      bench: [...state.bench, { ...selectedTower, slotId: null }],
-      placedTowers,
-      selectedTowerId: null,
-      reactions: resolveReactions(state.board, placedTowers, state.upgrades),
-    };
+    return removePlacedTower(state, selectedTower);
   }
 
   const placedTowers = state.placedTowers.map((tower) => {
@@ -118,6 +110,22 @@ function movePlacedTower(state: RunState, selectedTower: TowerState, slotId: str
   };
 }
 
+function removePlacedTower(state: RunState, towerToRemove: TowerState): RunState {
+  const placedTowers = state.placedTowers.filter(tower => tower.id !== towerToRemove.id);
+
+  return {
+    ...state,
+    bench: [...state.bench, { ...towerToRemove, slotId: null }],
+    placedTowers,
+    selectedTowerId: null,
+    reactions: resolveReactions(state.board, placedTowers, state.upgrades),
+  };
+}
+
 function findSelectedTower(state: RunState): TowerState | undefined {
   return [...state.bench, ...state.placedTowers].find(tower => tower.id === state.selectedTowerId);
+}
+
+function canEditPlacedTowers(state: RunState): boolean {
+  return state.paused || state.phase === "ready";
 }
