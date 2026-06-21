@@ -38,7 +38,7 @@ describe("run simulation", () => {
       lastTap: null,
     });
     expect(state.board.pathCells).toHaveLength(16);
-    expect(state.board.slots).toHaveLength(32);
+    expect(state.board.slots).toHaveLength(23);
     expect(state.board.slots.every(slot => !slot.locked)).toBe(true);
     expect(state.bench.map(tower => tower.displayName)).toEqual(["Водомёт", "Водомёт", "Разрядник"]);
     expect(state.bench.every(tower => tower.slotId === null)).toBe(true);
@@ -114,9 +114,9 @@ describe("run simulation", () => {
     const state = createPlacedStartingRun(1);
 
     expect(state.reactions).toEqual([
-      { cellIndex: 0, ground: "electroPuddle", air: null },
+      { cellIndex: 0, ground: null, air: null },
       { cellIndex: 1, ground: "electroPuddle", air: null },
-      { cellIndex: 2, ground: null, air: null },
+      { cellIndex: 2, ground: "electroPuddle", air: null },
       { cellIndex: 3, ground: null, air: null },
       { cellIndex: 4, ground: null, air: null },
       { cellIndex: 5, ground: null, air: null },
@@ -139,8 +139,8 @@ describe("run simulation", () => {
 
     expect(snapshot.livingEnemies).toHaveLength(1);
     expect(snapshot.activeReactions).toEqual([
-      { cellIndex: 0, ground: "electroPuddle", air: null },
       { cellIndex: 1, ground: "electroPuddle", air: null },
+      { cellIndex: 2, ground: "electroPuddle", air: null },
     ]);
     expect("fps" in snapshot).toBe(false);
   });
@@ -148,7 +148,7 @@ describe("run simulation", () => {
   it("does not form a damaging reaction from a lone tower", () => {
     const state = createRun(1, {
       placedTowers: [
-        createTower("tower-water-only", "water", "slot-0-outer"),
+        createTower("tower-water-only", "water", "slot-1-outer"),
       ],
       enemies: [
         createGrunt(),
@@ -163,13 +163,13 @@ describe("run simulation", () => {
   it("projects live reagents from currently placed towers", () => {
     const state = createRun(1, {
       placedTowers: [
-        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-water-a", "water", "slot-1-outer"),
         createTower("tower-heat-a", "heat", "slot-0-inner"),
       ],
     });
 
-    expect(projectReagents(state.board, state.placedTowers)[0]).toEqual({
-      cellIndex: 0,
+    expect(projectReagents(state.board, state.placedTowers)[1]).toEqual({
+      cellIndex: 1,
       substances: ["water"],
       energy: ["heat"],
       directEnergy: ["heat"],
@@ -181,7 +181,7 @@ describe("run simulation", () => {
         },
       ],
     });
-    expect(state.reactions[0]).toEqual({ cellIndex: 0, ground: null, air: "steam" });
+    expect(state.reactions[1]).toEqual({ cellIndex: 1, ground: null, air: "steam" });
   });
 
   it("keeps water and oil pools connected only along the ring", () => {
@@ -191,17 +191,17 @@ describe("run simulation", () => {
   it("applies source capacity over connected pools by nearest cells", () => {
     const state = createRun(1, {
       placedTowers: [
-        createTower("tower-water-a", "water", "slot-0-outer"),
-        createTower("tower-water-b", "water", "slot-1-outer"),
+        createTower("tower-water-a", "water", "slot-1-outer"),
+        createTower("tower-water-b", "water", "slot-2-outer"),
         createTower("tower-water-c", "water", "slot-2-outer"),
         createTower("tower-spark-a", "spark", "slot-0-inner"),
-        createTower("tower-spark-b", "spark", "slot-2-inner"),
+        createTower("tower-spark-b", "spark", "slot-4-inner"),
       ],
     });
     const projection = projectReagents(state.board, state.placedTowers);
     const energizedCells = projection.filter(cell => cell.energy.includes("spark")).map(cell => cell.cellIndex);
 
-    expect(energizedCells).toEqual([0, 1, 2]);
+    expect(energizedCells).toEqual([1, 2]);
     expect(projection[1]?.energyClaims).toEqual([
       {
         emitterId: "spark",
@@ -214,35 +214,34 @@ describe("run simulation", () => {
   it("resolves the P0 T1/T2/T3 reaction graph", () => {
     const t1 = createRun(1, {
       placedTowers: [
-        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-water-a", "water", "slot-1-outer"),
         createTower("tower-heat-a", "heat", "slot-0-inner"),
-        createTower("tower-oil-a", "oil", "slot-8-outer"),
+        createTower("tower-oil-a", "oil", "slot-7-outer"),
         createTower("tower-heat-b", "heat", "slot-8-inner"),
       ],
     });
     const stormCloud = createRun(1, {
       placedTowers: [
-        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-water-a", "water", "slot-1-outer"),
         createTower("tower-heat-a", "heat", "slot-0-inner"),
         createTower("tower-spark-a", "spark", "slot-1-outer"),
       ],
     });
     const fireVortex = createRun(1, {
       placedTowers: [
-        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-water-a", "water", "slot-1-outer"),
         createTower("tower-heat-a", "heat", "slot-0-inner"),
         createTower("tower-oil-a", "oil", "slot-1-outer"),
-        createTower("tower-heat-b", "heat", "slot-1-inner"),
+        createTower("tower-heat-b", "heat", "slot-2-inner"),
       ],
     });
     const fireStorm = createRun(1, {
       placedTowers: [
-        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-water-a", "water", "slot-1-outer"),
         createTower("tower-heat-a", "heat", "slot-0-inner"),
         createTower("tower-spark-a", "spark", "slot-1-outer"),
-        createTower("tower-water-b", "water", "slot-2-outer"),
-        createTower("tower-oil-b", "oil", "slot-2-inner"),
-        createTower("tower-heat-b", "heat", "slot-2-outer"),
+        createTower("tower-oil-b", "oil", "slot-2-outer"),
+        createTower("tower-heat-b", "heat", "slot-2-inner"),
       ],
     });
 
@@ -255,10 +254,10 @@ describe("run simulation", () => {
 
   it("resolves reactions independently from placed tower iteration order", () => {
     const towers = [
-      createTower("tower-water-a", "water", "slot-0-outer"),
+      createTower("tower-water-a", "water", "slot-1-outer"),
       createTower("tower-heat-a", "heat", "slot-0-inner"),
       createTower("tower-spark-a", "spark", "slot-1-outer"),
-      createTower("tower-oil-a", "oil", "slot-1-inner"),
+      createTower("tower-oil-a", "oil", "slot-2-inner"),
     ];
     const state = createRun(1);
 
@@ -281,11 +280,11 @@ describe("run simulation", () => {
 
     try {
       const resolved = resolveReactions(gameConfig.board, [
-        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-water-a", "water", "slot-1-outer"),
         createTower("tower-spark-a", "spark", "slot-0-inner"),
       ]);
 
-      expect(resolved[0]?.ground).toBe("testPuddle");
+      expect(resolved[1]?.ground).toBe("testPuddle");
     } finally {
       reactions.splice(0, reactions.length, ...originalReactions);
     }
@@ -304,22 +303,21 @@ describe("run simulation", () => {
   it("allows one ground and one air reaction to coexist on a cell", () => {
     const state = createRun(1, {
       placedTowers: [
-        createTower("tower-water-a", "water", "slot-0-outer"),
-        createTower("tower-oil-a", "oil", "slot-15-outer"),
+        createTower("tower-water-a", "water", "slot-1-outer"),
         createTower("tower-heat-a", "heat", "slot-0-inner"),
-        createTower("tower-spark-a", "spark", "slot-15-inner"),
+        createTower("tower-spark-a", "spark", "slot-1-outer"),
       ],
     });
 
-    expect(state.reactions[0]?.ground).not.toBeNull();
-    expect(state.reactions[0]?.air).not.toBeNull();
+    expect(state.reactions[1]?.ground).not.toBeNull();
+    expect(state.reactions[1]?.air).not.toBeNull();
   });
 
   it("keeps raw water and oil as zero-damage control/setup", () => {
     const state = createRun(1, {
       placedTowers: [
-        createTower("tower-water-only", "water", "slot-0-outer"),
-        createTower("tower-oil-only", "oil", "slot-1-outer"),
+        createTower("tower-water-only", "water", "slot-1-outer"),
+        createTower("tower-oil-only", "oil", "slot-2-outer"),
       ],
       enemies: [
         createGrunt(),
@@ -329,7 +327,7 @@ describe("run simulation", () => {
 
     expect(next.stats.totalDamage).toBe(0);
     expect(next.enemies[0]?.hp).toBe(30);
-    expect(next.enemies[0]?.pathProgress).toBeLessThan(1 / 30);
+    expect(next.enemies[0]?.pathProgress).toBeCloseTo(1 / 30);
   });
 
   it("damages and kills a Грунт that crosses the Электролужа", () => {
@@ -372,20 +370,20 @@ describe("run simulation", () => {
   it("damages flying enemies only with air reactions", () => {
     const groundReaction = createRun(1, {
       placedTowers: [
-        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-water-a", "water", "slot-1-outer"),
         createTower("tower-spark-a", "spark", "slot-0-inner"),
       ],
       enemies: [
-        createEnemy("enemy-flyer-a", "flyer"),
+        createEnemy("enemy-flyer-a", "flyer", { pathProgress: 1 }),
       ],
     });
     const airReaction = createRun(1, {
       placedTowers: [
-        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-water-a", "water", "slot-1-outer"),
         createTower("tower-heat-a", "heat", "slot-0-inner"),
       ],
       enemies: [
-        createEnemy("enemy-flyer-a", "flyer"),
+        createEnemy("enemy-flyer-a", "flyer", { pathProgress: 1 }),
       ],
     });
 
@@ -409,19 +407,19 @@ describe("run simulation", () => {
 
   it("applies strong resistance without making enemies immune", () => {
     const towers = [
-      createTower("tower-water-a", "water", "slot-0-outer"),
+      createTower("tower-water-a", "water", "slot-1-outer"),
       createTower("tower-spark-a", "spark", "slot-0-inner"),
     ];
     const grunt = stepRun(createRun(1, {
       placedTowers: towers,
       enemies: [
-        createEnemy("enemy-grunt-a", "grunt", { hp: 100, maxHp: 100 }),
+        createEnemy("enemy-grunt-a", "grunt", { hp: 100, maxHp: 100, pathProgress: 1 }),
       ],
     }), 100);
     const insulated = stepRun(createRun(1, {
       placedTowers: towers,
       enemies: [
-        createEnemy("enemy-insulated-a", "insulated", { hp: 100, maxHp: 100 }),
+        createEnemy("enemy-insulated-a", "insulated", { hp: 100, maxHp: 100, pathProgress: 1 }),
       ],
     }), 100);
 
@@ -467,12 +465,12 @@ describe("run simulation", () => {
     const draft = stepMany(startFirstWave(createPlacedStartingRun(5)), 90);
     const withTower = applyAction(draft, { type: "chooseDraftTower", emitterId: draft.draft!.towerOffers[0]!.emitterId });
     const selected = applyAction(withTower, { type: "selectTower", towerId: withTower.bench[0]!.id });
-    const placed = applyAction(selected, { type: "placeSelectedTower", slotId: "slot-2-outer" });
+    const placed = applyAction(selected, { type: "placeSelectedTower", slotId: "slot-3-outer" });
     const upgraded = applyAction(withTower, { type: "chooseDraftUpgrade", upgradeId: withTower.draft!.upgradeOffers[0]! });
 
     expect(withTower.draft?.step).toBe("upgrade");
     expect(placed.bench).toHaveLength(0);
-    expect(placed.placedTowers.some(tower => tower.slotId === "slot-2-outer")).toBe(true);
+    expect(placed.placedTowers.some(tower => tower.slotId === "slot-3-outer")).toBe(true);
     expect(upgraded).toMatchObject({
       phase: "countdown",
       draft: null,
@@ -483,7 +481,7 @@ describe("run simulation", () => {
   it("generates tower draft roles with a synergistic support offer", () => {
     const draft = stepMany(startFirstWave(createRun(5, {
       placedTowers: [
-        createTower("tower-water-only", "water", "slot-0-outer"),
+        createTower("tower-water-only", "water", "slot-1-outer"),
       ],
     })), 520);
 
@@ -535,8 +533,8 @@ describe("run simulation", () => {
     };
     const capped = applyAction(maxedDraft, { type: "chooseDraftUpgrade", upgradeId: "waterCapacity" });
     const towers = [
-      createTower("tower-water-a", "water", "slot-0-outer"),
-      createTower("tower-spark-a", "spark", "slot-1-inner"),
+      createTower("tower-water-a", "water", "slot-1-outer"),
+      createTower("tower-spark-a", "spark", "slot-2-inner"),
     ];
 
     expect(capped.upgrades).toEqual([{ upgradeId: "waterCapacity", stacks: 2 }]);
@@ -644,9 +642,9 @@ describe("run simulation", () => {
       id: "expected-win-p0",
       seed: 8,
       placementPlan: {
-        water: ["slot-0-outer", "slot-1-outer", "slot-3-outer", "slot-5-outer", "slot-7-outer"],
-        spark: ["slot-0-inner", "slot-3-inner", "slot-5-inner", "slot-7-inner"],
-        heat: ["slot-1-inner", "slot-2-inner", "slot-4-inner", "slot-6-inner"],
+        water: ["slot-1-outer", "slot-2-outer", "slot-3-outer", "slot-5-outer", "slot-7-outer"],
+        spark: ["slot-0-inner", "slot-4-inner", "slot-6-inner", "slot-8-inner"],
+        heat: ["slot-2-inner", "slot-4-inner", "slot-6-inner", "slot-8-inner"],
         oil: ["slot-2-outer", "slot-4-outer", "slot-6-outer"],
       },
       draftPlan: {
@@ -676,7 +674,7 @@ describe("run simulation", () => {
       id: "weak-water-only",
       seed: 8,
       placementPlan: {
-        water: ["slot-0-outer", "slot-1-outer", "slot-2-outer"],
+        water: ["slot-1-outer", "slot-2-outer", "slot-3-outer"],
       },
       draftPlan: {
         towerPriority: ["water", "oil", "heat", "spark"],
@@ -723,10 +721,11 @@ describe("run simulation", () => {
   it("triggers boss Reaction Break from three distinct reaction ids per lap", () => {
     const state = createBossRun({
       placedTowers: [
-        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-water-a", "water", "slot-1-outer"),
         createTower("tower-spark-a", "spark", "slot-0-inner"),
       ],
       boss: createBossState({
+        pathProgress: 1,
         reactionBreakIds: ["fire", "steam"],
       }),
     });
@@ -740,10 +739,11 @@ describe("run simulation", () => {
   it("does not trigger boss Reaction Break from repeated reaction ids", () => {
     const state = createBossRun({
       placedTowers: [
-        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-water-a", "water", "slot-1-outer"),
         createTower("tower-spark-a", "spark", "slot-0-inner"),
       ],
       boss: createBossState({
+        pathProgress: 1,
         reactionBreakIds: ["electroPuddle"],
       }),
     });
@@ -756,13 +756,13 @@ describe("run simulation", () => {
 
   it("applies the vulnerable boss damage multiplier for its duration", () => {
     const towers = [
-      createTower("tower-water-a", "water", "slot-0-outer"),
+      createTower("tower-water-a", "water", "slot-1-outer"),
       createTower("tower-spark-a", "spark", "slot-0-inner"),
     ];
-    const normal = stepRun(createBossRun({ placedTowers: towers, boss: createBossState({ hp: 100, maxHp: 100 }) }), 1000);
+    const normal = stepRun(createBossRun({ placedTowers: towers, boss: createBossState({ hp: 100, maxHp: 100, pathProgress: 1 }) }), 1000);
     const vulnerable = stepRun(createBossRun({
       placedTowers: towers,
-      boss: createBossState({ hp: 100, maxHp: 100, vulnerableMs: 1000 }),
+      boss: createBossState({ hp: 100, maxHp: 100, pathProgress: 1, vulnerableMs: 1000 }),
     }), 1000);
 
     expect(100 - (vulnerable.boss?.hp ?? 100)).toBeCloseTo((100 - (normal.boss?.hp ?? 100)) * 2);
@@ -772,10 +772,10 @@ describe("run simulation", () => {
   it("transitions to victory when the boss dies and aggregates reaction stats", () => {
     const state = createBossRun({
       placedTowers: [
-        createTower("tower-water-a", "water", "slot-0-outer"),
+        createTower("tower-water-a", "water", "slot-1-outer"),
         createTower("tower-spark-a", "spark", "slot-0-inner"),
       ],
-      boss: createBossState({ hp: 1, maxHp: gameConfig.boss.hp }),
+      boss: createBossState({ hp: 1, maxHp: gameConfig.boss.hp, pathProgress: 1 }),
     });
     const next = stepRun(state, 1000);
 
@@ -806,26 +806,70 @@ describe("run simulation", () => {
     expect(restored.stats.damageByReaction).toEqual({ steam: 30, fireVortex: 47 });
   });
 
-  it("generates a parameterized stadium loop with corner slot influence", () => {
+  it("generates a parameterized stadium grid loop without corner slot influence", () => {
     const board = createStadiumLoopBoard(defaultBoardGeometryConfig);
     const twelveCellBoard = createStadiumLoopBoard({
       ...defaultBoardGeometryConfig,
       pathCellCount: 12,
     });
+    const lockedJunctionBoard = createStadiumLoopBoard({
+      ...defaultBoardGeometryConfig,
+      lockInnerCornerSlots: true,
+    });
 
     expect(board.pathCells.map(cell => cell.index)).toEqual(Array.from({ length: 16 }, (_, index) => index));
-    expect(board.pathCells.map(cell => cell.isCorner ? cell.index : null).filter(index => index !== null)).toEqual([3, 7, 11, 15]);
-    expect(board.slots).toHaveLength(32);
-    expect(board.slots.filter(slot => slot.id.endsWith("-inner"))).toHaveLength(16);
-    expect(board.slots.filter(slot => slot.id.endsWith("-outer"))).toHaveLength(16);
-    expect(board.slots.find(slot => slot.id === "slot-0-inner")?.cellIndexes).toEqual([0]);
-    expect(board.slots.find(slot => slot.id === "slot-3-inner")).toMatchObject({
+    expect(board.pathCells.map(cell => cell.isCorner ? cell.index : null).filter(index => index !== null)).toEqual([0, 4, 8, 12]);
+    expect(board.slots).toHaveLength(23);
+    expect(board.slots.filter(slot => slot.id.endsWith("-inner"))).toHaveLength(8);
+    expect(board.slots.filter(slot => slot.id.endsWith("-outer"))).toHaveLength(15);
+    expect(board.slots.filter(slot => slot.cellIndexes.length > 1).map(slot => slot.id)).toEqual([
+      "slot-0-inner",
+      "slot-4-inner",
+      "slot-8-inner",
+      "slot-12-inner",
+    ]);
+    expect(board.slots.find(slot => slot.id === "slot-0-inner")?.cellIndexes).toEqual([1, 15]);
+    expect(board.slots.find(slot => slot.id === "slot-4-inner")?.cellIndexes).toEqual([3, 5]);
+    expect(board.slots.find(slot => slot.id === "slot-4-outer")).toMatchObject({
       isCorner: true,
-      cellIndexes: [3, 4],
+      cellIndexes: [4],
     });
-    expect(board.slots.find(slot => slot.id === "slot-15-outer")?.cellIndexes).toEqual([15, 0]);
+    expect(board.slots.find(slot => slot.id === "slot-15-outer")?.cellIndexes).toEqual([15]);
+    expect(board.slots.find(slot => slot.id === "slot-0-outer")).toBeUndefined();
+    expect(board.slots.find(slot => slot.id === "slot-1-inner")).toBeUndefined();
+    expect(board.slots.find(slot => slot.id === "slot-3-inner")).toBeUndefined();
+    board.pathCells.forEach((cell) => {
+      const outer = board.slots.find(slot => slot.id === `slot-${cell.index}-outer`);
+
+      if (cell.index === 0) {
+        expect(outer).toBeUndefined();
+      } else {
+        expect(Math.hypot(outer!.x - cell.x, outer!.y - cell.y)).toBeCloseTo(cell.isCorner ? defaultBoardGeometryConfig.slotOffset * Math.SQRT2 : defaultBoardGeometryConfig.slotOffset);
+      }
+
+      const inner = board.slots.find(slot => slot.id === `slot-${cell.index}-inner`);
+
+      if (inner && !cell.isCorner && outer) {
+        expect((inner.x + outer.x) / 2).toBe(cell.x);
+        expect((inner.y + outer.y) / 2).toBe(cell.y);
+        expect(Math.hypot(inner.x - outer.x, inner.y - outer.y)).toBe(defaultBoardGeometryConfig.slotOffset * 2);
+      }
+    });
+    expect(lockedJunctionBoard.slots.filter(slot => slot.cellIndexes.length > 1).every(slot => slot.locked)).toBe(true);
+    expect(lockedJunctionBoard.slots.filter(slot => slot.cellIndexes.length === 1).every(slot => !slot.locked)).toBe(true);
+    expect(board.pathCells[0]).toMatchObject({ x: 118, y: 636, isCorner: true });
+    expect(board.slots.find(slot => slot.id === "slot-0-inner")).toMatchObject({ x: 194, y: 560 });
+    expect(board.slots.find(slot => slot.id === "slot-1-outer")).toMatchObject({ x: 194, y: 712 });
+    expect(board.slots.find(slot => slot.id === "slot-4-outer")).toMatchObject({ x: 498, y: 712 });
+    expect(board.slots.find(slot => slot.id === "slot-4-inner")).toMatchObject({ x: 346, y: 560 });
+    expect(board.slots.find(slot => slot.id === "slot-8-inner")).toMatchObject({ x: 346, y: 408 });
+    expect(board.slots.find(slot => slot.id === "slot-8-outer")).toMatchObject({ x: 498, y: 256 });
+    expect(board.slots.find(slot => slot.id === "slot-12-inner")).toMatchObject({ x: 194, y: 408 });
+    expect(board.slots.find(slot => slot.id === "slot-12-outer")).toMatchObject({ x: 42, y: 256 });
+    expect(board.slots.find(slot => slot.id === "slot-15-outer")).toMatchObject({ x: 42, y: 560 });
     expect(twelveCellBoard.pathCells).toHaveLength(12);
-    expect(twelveCellBoard.pathCells.map(cell => cell.isCorner ? cell.index : null).filter(index => index !== null)).toEqual([2, 5, 8, 11]);
+    expect(twelveCellBoard.pathCells.map(cell => cell.isCorner ? cell.index : null).filter(index => index !== null)).toEqual([0, 3, 6, 9]);
+    expect(twelveCellBoard.slots).toHaveLength(15);
   });
 
   it("runs headless simulation with a custom board config", () => {
@@ -852,7 +896,7 @@ describe("run simulation", () => {
 
   it("places physical bench tower instances before the first wave", () => {
     const selected = applyAction(createRun(1), { type: "selectTower", towerId: "tower-water-a" });
-    const placed = applyAction(selected, { type: "placeSelectedTower", slotId: "slot-0-outer" });
+    const placed = applyAction(selected, { type: "placeSelectedTower", slotId: "slot-1-outer" });
 
     expect(placed.bench.map(tower => tower.id)).toEqual(["tower-water-b", "tower-spark-a"]);
     expect(placed.placedTowers).toEqual([
@@ -860,7 +904,7 @@ describe("run simulation", () => {
         id: "tower-water-a",
         emitterId: "water",
         displayName: "Водомёт",
-        slotId: "slot-0-outer",
+        slotId: "slot-1-outer",
       },
     ]);
     expect(placed.selectedTowerId).toBeNull();
@@ -869,10 +913,10 @@ describe("run simulation", () => {
   it("allows additive bench placement during a running wave", () => {
     const running = startFirstWave(createRun(1));
     const selected = applyAction(running, { type: "selectTower", towerId: "tower-water-a" });
-    const placed = applyAction(selected, { type: "tapSlot", slotId: "slot-0-outer" });
+    const placed = applyAction(selected, { type: "tapSlot", slotId: "slot-1-outer" });
 
     expect(placed.phase).toBe("wave");
-    expect(placed.placedTowers.find(tower => tower.id === "tower-water-a")?.slotId).toBe("slot-0-outer");
+    expect(placed.placedTowers.find(tower => tower.id === "tower-water-a")?.slotId).toBe("slot-1-outer");
     expect(placed.bench.some(tower => tower.id === "tower-water-a")).toBe(false);
   });
 
@@ -880,10 +924,10 @@ describe("run simulation", () => {
     const running = startFirstWave(createPlacedStartingRun(1));
     const selectedPlacedTower = applyAction(running, { type: "selectTower", towerId: "tower-water-a" });
     const moveAttempt = applyAction(selectedPlacedTower, { type: "placeSelectedTower", slotId: "slot-2-outer" });
-    const tapAttempt = applyAction({ ...running, selectedTowerId: null }, { type: "tapSlot", slotId: "slot-0-outer" });
+    const tapAttempt = applyAction({ ...running, selectedTowerId: null }, { type: "tapSlot", slotId: "slot-1-outer" });
     const selectedBenchTower = applyAction(running, { type: "selectTower", towerId: "tower-heat-test" });
 
-    expect(moveAttempt.placedTowers.find(tower => tower.id === "tower-water-a")?.slotId).toBe("slot-0-outer");
+    expect(moveAttempt.placedTowers.find(tower => tower.id === "tower-water-a")?.slotId).toBe("slot-1-outer");
     expect(tapAttempt.selectedTowerId).toBeNull();
     expect(selectedBenchTower).toBe(running);
   });
@@ -892,27 +936,27 @@ describe("run simulation", () => {
     const paused = applyAction(createPlacedStartingRun(1), { type: "pause" });
     const moved = applyAction(
       applyAction(paused, { type: "selectTower", towerId: "tower-water-a" }),
-      { type: "placeSelectedTower", slotId: "slot-2-outer" },
+      { type: "placeSelectedTower", slotId: "slot-3-outer" },
     );
     const removed = applyAction(
       applyAction(moved, { type: "selectTower", towerId: "tower-water-a" }),
-      { type: "tapSlot", slotId: "slot-2-outer" },
+      { type: "tapSlot", slotId: "slot-3-outer" },
     );
     const swapped = applyAction(
       applyAction(paused, { type: "selectTower", towerId: "tower-water-a" }),
-      { type: "placeSelectedTower", slotId: "slot-1-outer" },
+      { type: "placeSelectedTower", slotId: "slot-2-outer" },
     );
 
-    expect(moved.placedTowers.find(tower => tower.id === "tower-water-a")?.slotId).toBe("slot-2-outer");
+    expect(moved.placedTowers.find(tower => tower.id === "tower-water-a")?.slotId).toBe("slot-3-outer");
     expect(removed.placedTowers.some(tower => tower.id === "tower-water-a")).toBe(false);
     expect(removed.bench.find(tower => tower.id === "tower-water-a")?.slotId).toBeNull();
-    expect(swapped.placedTowers.find(tower => tower.id === "tower-water-a")?.slotId).toBe("slot-1-outer");
-    expect(swapped.placedTowers.find(tower => tower.id === "tower-water-b")?.slotId).toBe("slot-0-outer");
+    expect(swapped.placedTowers.find(tower => tower.id === "tower-water-a")?.slotId).toBe("slot-2-outer");
+    expect(swapped.placedTowers.find(tower => tower.id === "tower-water-b")?.slotId).toBe("slot-1-outer");
   });
 
   it("recomputes tower projection after placement changes", () => {
-    const withFirstWater = placeBenchTower(createRun(1), "tower-water-a", "slot-0-outer");
-    const withSecondWater = placeBenchTower(withFirstWater, "tower-water-b", "slot-1-outer");
+    const withFirstWater = placeBenchTower(createRun(1), "tower-water-a", "slot-1-outer");
+    const withSecondWater = placeBenchTower(withFirstWater, "tower-water-b", "slot-2-outer");
     const withSpark = placeBenchTower(withSecondWater, "tower-spark-a", "slot-0-inner");
     const removedSpark = applyAction(
       applyAction(applyAction(withSpark, { type: "pause" }), { type: "selectTower", towerId: "tower-spark-a" }),
@@ -920,7 +964,7 @@ describe("run simulation", () => {
     );
 
     expect(withFirstWater.reactions.every(reaction => reaction.ground === null && reaction.air === null)).toBe(true);
-    expect(withSpark.reactions.filter(reaction => reaction.ground === "electroPuddle").map(reaction => reaction.cellIndex)).toEqual([0, 1]);
+    expect(withSpark.reactions.filter(reaction => reaction.ground === "electroPuddle").map(reaction => reaction.cellIndex)).toEqual([1, 2]);
     expect(removedSpark.reactions.every(reaction => reaction.ground === null && reaction.air === null)).toBe(true);
   });
 
@@ -1102,33 +1146,39 @@ function getDraftCompletionActionsAvoiding(state: RunState, avoidedEmitterId: Em
 function createPlacedStartingRun(seed: number): ReturnType<typeof createRun> {
   return createRun(seed, {
     placedTowers: [
-      createTower("tower-water-a", "water", "slot-0-outer"),
-      createTower("tower-water-b", "water", "slot-1-outer"),
+      createTower("tower-water-a", "water", "slot-1-outer"),
+      createTower("tower-water-b", "water", "slot-2-outer"),
       createTower("tower-spark-a", "spark", "slot-0-inner"),
     ],
   });
 }
 
 function createSteamRingTowers() {
-  return Array.from({ length: gameConfig.balance.pathCellCount }, (_, index) => [
-    createTower(`tower-water-ring-${index}`, "water", `slot-${index}-outer`),
-    createTower(`tower-heat-ring-${index}`, "heat", `slot-${index}-inner`),
-  ]).flat();
+  const outerSlots = gameConfig.board.slots.filter(slot => slot.lane === "outer");
+  const innerSlots = gameConfig.board.slots.filter(slot => slot.lane === "inner");
+
+  return [
+    ...outerSlots.map(slot => createTower(`tower-water-ring-${slot.id}`, "water", slot.id)),
+    ...innerSlots.map(slot => createTower(`tower-heat-ring-${slot.id}`, "heat", slot.id)),
+  ];
 }
 
 function createElectroRingTowers() {
-  return Array.from({ length: gameConfig.balance.pathCellCount }, (_, index) => [
-    createTower(`tower-water-electro-${index}`, "water", `slot-${index}-outer`),
-    createTower(`tower-spark-electro-${index}`, "spark", `slot-${index}-inner`),
-  ]).flat();
+  const outerSlots = gameConfig.board.slots.filter(slot => slot.lane === "outer");
+  const innerSlots = gameConfig.board.slots.filter(slot => slot.lane === "inner");
+
+  return [
+    ...outerSlots.map(slot => createTower(`tower-water-electro-${slot.id}`, "water", slot.id)),
+    ...innerSlots.map(slot => createTower(`tower-spark-electro-${slot.id}`, "spark", slot.id)),
+  ];
 }
 
 function createStormCloudTowers() {
   return [
-    createTower("tower-water-a", "water", "slot-0-outer"),
-    createTower("tower-water-b", "water", "slot-1-outer"),
+    createTower("tower-water-a", "water", "slot-1-outer"),
+    createTower("tower-water-b", "water", "slot-2-outer"),
     createTower("tower-heat-a", "heat", "slot-0-inner"),
-    createTower("tower-spark-a", "spark", "slot-1-inner"),
+    createTower("tower-spark-a", "spark", "slot-2-inner"),
   ];
 }
 

@@ -23,3 +23,22 @@ Produce static tower source frames for:
 
 - Cards and lower tray items reuse tower art.
 - Activation feedback remains procedural: recoil, glow, steam, sparks, or heat pulse.
+- Inner-corner junction slots are a separate runtime state: one tower affects two adjacent straight path cells.
+- Directional tower silhouettes must account for junction placement. Preferred follow-up asset path: generate dedicated corner/junction variants per tower type rather than composing two nozzle overlays at runtime.
+- Junction variants should read as one grounded tower with dual-output intent, not two stacked towers.
+
+## Phase 3 Generated Tower Set
+
+- Source sheet: `public/assets/towers/source/phase3-tower-set-source-01.png`.
+- Runtime stills:
+  - `public/assets/towers/water-cannon.png` for Водомёт;
+  - `public/assets/towers/oil-pump.png` for Маслонасос;
+  - `public/assets/towers/spark-discharger.png` for Разрядник;
+  - `public/assets/towers/magma-crane.png` for Магмовый кран.
+- Generation path: built-in `imagegen` produced one 2x2 chroma-key tower sheet; the sheet was copied into the workspace and locally chroma-keyed/cropped into 192x192 transparent PNG runtime stills.
+
+Prompt summary:
+
+```text
+Create a 2x2 sprite sheet of four distinct top-down static tower sprites for a chunky industrial gremlin fortress tower defense game: water cannon, oil pump, spark discharger, and magma crane. Use dark iron, rock, soot, brass/copper, magma orange, electric cyan, and steam white accents. Put exactly one isolated sprite per quadrant, centered on an invisible 256x256 cell, on a perfectly flat #00ff00 chroma-key background. No text, labels, UI frame, watermark, characters, or path tiles.
+```

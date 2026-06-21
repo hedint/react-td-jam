@@ -73,36 +73,6 @@ export function getEnemyVisual(enemyId: EnemyState["enemyId"]): {
   }
 }
 
-export function getTowerColors(emitterId: TowerState["emitterId"]): { readonly fill: number, readonly stroke: number } {
-  switch (emitterId) {
-    case "water":
-      return { fill: 0x287BB8, stroke: 0x9DDCFF };
-    case "oil":
-      return { fill: 0x2E2A1F, stroke: 0xA8844F };
-    case "spark":
-      return { fill: 0xF3C24D, stroke: 0xFFF1A8 };
-    case "heat":
-      return { fill: 0xC84C26, stroke: 0xFFB05B };
-    default:
-      return emitterId satisfies never;
-  }
-}
-
-export function getTowerFieldLabel(emitterId: TowerState["emitterId"]): string {
-  switch (emitterId) {
-    case "water":
-      return "Вода";
-    case "oil":
-      return "Нефть";
-    case "spark":
-      return "Искра";
-    case "heat":
-      return "Жар";
-    default:
-      return emitterId satisfies never;
-  }
-}
-
 export function renderGroundReaction(
   graphics: Phaser.GameObjects.Graphics,
   cell: PathCell,
@@ -111,20 +81,6 @@ export function renderGroundReaction(
 ): void {
   switch (reactionId) {
     case "electroPuddle":
-      graphics.fillStyle(0x1B9BD0, 0.58);
-      graphics.fillEllipse(cell.x, cell.y + 6, 78 + pulse, 38 + pulse);
-      graphics.lineStyle(3, 0x9FF7FF, 0.9);
-      graphics.strokeEllipse(cell.x, cell.y + 6, 78 + pulse, 38 + pulse);
-      graphics.lineStyle(1, 0xD7FFFF, 0.64);
-      graphics.strokeEllipse(cell.x - 14, cell.y + 6, 22 + pulse, 9 + pulse / 2);
-      graphics.strokeEllipse(cell.x + 18, cell.y + 10, 18 + pulse, 7 + pulse / 2);
-      graphics.lineStyle(2, 0xE9FFFF, 0.9);
-      graphics.beginPath();
-      graphics.moveTo(cell.x - 22, cell.y + 2);
-      graphics.lineTo(cell.x - 6, cell.y - 8);
-      graphics.lineTo(cell.x + 2, cell.y + 4);
-      graphics.lineTo(cell.x + 20, cell.y - 6);
-      graphics.strokePath();
       break;
     case "fire":
       graphics.fillStyle(0xA53716, 0.62);
@@ -315,67 +271,6 @@ export function renderEnemyAccent(
     graphics.lineTo(position.x, position.y + 13);
     graphics.strokePath();
   }
-}
-
-export function renderTowerGlyph(
-  graphics: Phaser.GameObjects.Graphics,
-  tower: TowerState,
-  position: RenderPoint,
-): void {
-  graphics.lineStyle(3, 0xFFF8D6, 0.92);
-
-  if (tower.emitterId === "water") {
-    graphics.beginPath();
-    graphics.moveTo(position.x - 15, position.y - 5);
-    graphics.lineTo(position.x - 8, position.y - 11);
-    graphics.lineTo(position.x - 1, position.y - 5);
-    graphics.lineTo(position.x + 6, position.y + 1);
-    graphics.lineTo(position.x + 15, position.y - 5);
-    graphics.moveTo(position.x - 15, position.y + 8);
-    graphics.lineTo(position.x - 7, position.y + 2);
-    graphics.lineTo(position.x + 1, position.y + 8);
-    graphics.lineTo(position.x + 8, position.y + 14);
-    graphics.lineTo(position.x + 15, position.y + 8);
-    graphics.strokePath();
-    return;
-  }
-
-  if (tower.emitterId === "oil") {
-    graphics.fillStyle(0x0D0B08, 0.82);
-    graphics.beginPath();
-    graphics.moveTo(position.x, position.y - 15);
-    graphics.lineTo(position.x + 11, position.y - 2);
-    graphics.lineTo(position.x + 9, position.y + 11);
-    graphics.lineTo(position.x, position.y + 16);
-    graphics.lineTo(position.x - 10, position.y + 10);
-    graphics.lineTo(position.x - 11, position.y - 2);
-    graphics.closePath();
-    graphics.fillPath();
-    return;
-  }
-
-  if (tower.emitterId === "spark") {
-    graphics.beginPath();
-    graphics.moveTo(position.x + 2, position.y - 16);
-    graphics.lineTo(position.x - 8, position.y + 1);
-    graphics.lineTo(position.x + 2, position.y + 1);
-    graphics.lineTo(position.x - 3, position.y + 16);
-    graphics.lineTo(position.x + 12, position.y - 4);
-    graphics.lineTo(position.x + 2, position.y - 4);
-    graphics.closePath();
-    graphics.strokePath();
-    return;
-  }
-
-  graphics.fillStyle(0xFFE0A0, 0.86);
-  graphics.beginPath();
-  graphics.moveTo(position.x - 10, position.y + 13);
-  graphics.lineTo(position.x - 3, position.y - 15);
-  graphics.lineTo(position.x + 5, position.y + 2);
-  graphics.lineTo(position.x + 12, position.y - 8);
-  graphics.lineTo(position.x + 10, position.y + 14);
-  graphics.closePath();
-  graphics.fillPath();
 }
 
 export function getActiveReactionLabel(reactions: readonly CellReactionState[]): string {

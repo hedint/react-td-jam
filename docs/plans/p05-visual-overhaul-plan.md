@@ -2,8 +2,8 @@
 
 ## Status
 
-- Current phase: Phase 3 - Board, Dynamic Куб, and Tower Visual Core
-- Overall status: Phase 0 complete; Phase 1 visual direction approved; Phase 2 complete; Phase 3 board/core slice in progress
+- Current phase: Phase 5 - HUD, Cards, Draft, and Result UI
+- Overall status: Phase 0 complete; Phase 1 visual direction approved; Phase 2 complete; Phase 3 complete; Phase 4 complete; Phase 5 next
 - Source docs: `docs/design.md`, `docs/setting.md`, `docs/plans/p0-implementation-plan.md`
 - Visual reference: user-provided `React TD` concept screenshot in the planning thread.
 - Goal: turn the completed P0 from a readable schematic prototype into a polished demo-facing visual slice without changing P0 gameplay rules.
@@ -343,10 +343,10 @@ Purpose: deliver the main 0.5a visual jump by replacing the schematic board and 
 - [x] Preserve the current logical path cell centers and slot centers.
 - [x] Replace path and slot schematic drawing with thematic ground markers that remain readable and tappable.
 - [x] Add mobile-first selection/valid-placement feedback that follows P0 placement rules; desktop hover is intentionally omitted.
-- [ ] Generate and integrate static tower sprites for Водомёт, Маслонасос, Разрядник, and Магмовый кран.
-- [ ] Ground tower sprites with shadows, bases, and lane-aware positioning so inner/outer slots remain readable.
-- [ ] Add procedural tower activation feedback: glow, recoil, small sparks/steam/heat pulses as appropriate.
-- [ ] Keep labels optional or reduced; the tower silhouette and card/tray context should do most of the work.
+- [x] Generate and integrate static tower sprites for Водомёт, Маслонасос, Разрядник, and Магмовый кран.
+- [x] Ground tower sprites with shadows, bases, and lane-aware positioning so inner/outer slots remain readable.
+- [x] Add procedural tower activation feedback: glow, recoil, small sparks/steam/heat pulses as appropriate.
+- [x] Keep labels optional or reduced; the tower silhouette and card/tray context should do most of the work.
 - [x] Keep the current P0 click/tap behavior unchanged.
 
 ### Acceptance Criteria
@@ -355,7 +355,7 @@ Purpose: deliver the main 0.5a visual jump by replacing the schematic board and 
 - [x] The Куб is a strong first-viewport visual anchor.
 - [x] The path, slots, gate/checkpoint, and Куб align pixel-accurately with existing gameplay coordinates.
 - [x] Куб visual state can change with core HP/phase without changing simulation state shape.
-- [ ] All four tower types are distinguishable at phone scale.
+- [x] All four tower types are distinguishable at phone scale.
 - [x] Slots remain understandable without tutorial text.
 - [x] Existing placement tests and interactions still pass.
 
@@ -368,7 +368,7 @@ Purpose: deliver the main 0.5a visual jump by replacing the schematic board and 
 
 - [x] `npm run typecheck`.
 - [x] `npm test`.
-- [ ] Manual browser check: new run, tower selection, live placement, pause-to-edit move/remove/swap.
+- [x] Manual browser check: new run, tower selection, live placement, pause-to-edit move/remove/swap.
 - [x] Screenshot: ready state with towers and empty/occupied slots.
 
 ### Phase notes
@@ -399,14 +399,41 @@ Purpose: deliver the main 0.5a visual jump by replacing the schematic board and 
     - Road/slot scale selected tower check: `output/playwright/phase3-road-scale-selection.png`.
     - Road/slot scale placed tower check: `output/playwright/phase3-road-scale-placed.png`.
   - Placement feedback browser check covered a fresh run and tower selection with no console/page errors.
-  - Remaining known gap in this phase: tower sprites, tower grounding, activation feedback, reduced/optional field labels, and the full pause-to-edit manual check are still open.
+  - Generated one approved tower source sheet with the built-in `imagegen` workflow, copied it into `public/assets/towers/source/phase3-tower-set-source-01.png`, then locally chroma-keyed/cropped it into transparent `192x192` runtime PNG stills:
+    - `public/assets/towers/water-cannon.png`;
+    - `public/assets/towers/oil-pump.png`;
+    - `public/assets/towers/spark-discharger.png`;
+    - `public/assets/towers/magma-crane.png`.
+  - Added the four tower stills to `src/shared/assets/manifest.ts` and Phaser preload through stable `towers.*` keys.
+  - Added `src/app/phaser/scenes/runSceneTowerRender.ts` for tower-specific sprite keys, phone-scale lane sizing, grounding shadows/bases, selected-tower ring, reduced selected-only field labels, and procedural activation feedback.
+  - `RunScene.ts` now pools Phaser `Image` objects for placed towers. Tower visuals remain view state only; no asset, DOM, or Phaser object enters serializable run state.
+  - Accepted activation-feedback tradeoff: P0 snapshots do not expose individual tower fire events, so Phase 3 uses bounded phase-driven procedural pulses during countdown/wave/boss. This gives readable water/oil/spark/heat identity without changing simulation shape.
+  - Tower labels are reduced to selected-tower context only. Normal field readability is carried by the sprite silhouette and HUD/tray text.
+  - Tower sprite browser screenshots:
+    - Ready/all four tower types: `output/playwright/phase3-tower-sprites-ready.png`.
+    - Live wave/activation feedback: `output/playwright/phase3-tower-sprites-live.png`.
+    - Pause remove: `output/playwright/phase3-tower-pause-remove.png`.
+    - Pause move: `output/playwright/phase3-tower-pause-move.png`.
+    - Pause swap: `output/playwright/phase3-tower-pause-swap.png`.
+    - Post-refactor smoke: `output/playwright/phase3-tower-sprites-ready-refactor-check.png`.
+  - Browser checks reported no page errors or asset-load errors. Chromium emitted `ReadPixels` WebGL performance warnings while screenshots were captured; this appears tied to Playwright screenshot capture rather than gameplay runtime.
 
 ### Phase completion summary
 
 - Implemented:
+  - Phase 3 board/core visuals, dynamic Куб, path/slot/gate rendering, placement feedback, and all four static tower sprites are integrated.
+  - Tower sprites now have runtime manifest entries, Phaser image pooling, lane-aware sizing, grounding shadows/bases, selected-only labels, and bounded procedural activation feedback.
 - Intentionally deferred:
+  - Card/tray reuse of tower art remains in Phase 5 with the full HUD/card redesign.
+  - Reaction decal/flipbook production remains in Phase 4.
 - Accepted deviations/tradeoffs:
+  - Tower assets were generated as one chroma-key sheet and locally cleaned into transparent PNGs instead of separately generated native-alpha files.
+  - Tower activation feedback is phase-driven view state rather than exact shot-timed animation because P0 exposes no per-tower firing event in `GameSnapshot`.
 - Tests/checks run:
+  - `npm run lint:fix` passed.
+  - `npm run typecheck` passed.
+  - `npm test` passed: 4 files, 71 tests.
+  - Playwright browser checks covered ready state, live wave, tower selection/readability, pause-to-edit remove, pause-to-edit move, and pause-to-edit swap.
 
 ## Phase 4 - Reaction VFX and Combat Readability
 
@@ -414,52 +441,81 @@ Purpose: make the core fantasy visible: reactions should feel like the board is 
 
 ### Tasks
 
-- [ ] Replace or augment current `Graphics` reaction drawings with decal/flipbook assets for all P0 reactions.
-- [ ] Implement Электролужа as a ground decal with water shape, electric arcs, and pulsing edge.
-- [ ] Implement Пар as an air-layer steam plume that does not obscure ground slots permanently.
-- [ ] Implement Пожар as a ground fire/oil burn decal with ember motion and dark scorch shape.
-- [ ] Implement Грозовое облако as an air-layer cloud with procedural lightning strikes.
-- [ ] Implement Огненный вихрь as an air-layer vortex with rotating fire form.
-- [ ] Implement Огненный Шторм as the T3 climax effect with strong but bounded screen presence.
-- [ ] Add rare field callouts for new reactions, T2/T3 creation, boss Reaction Break, and acute core danger.
-- [ ] Ensure callouts do not stack into unreadable noise.
-- [ ] Preserve colorblind-friendly duplication through shape, pattern, layer height, and motion.
-- [ ] Keep VFX performance bounded: no blur/post-processing dependency; avoid unbounded particles; reuse objects where practical.
-- [ ] Ensure enemies remain visible under VFX and HP/danger cues stay readable.
+- [x] Replace or augment current `Graphics` reaction drawings with decal/flipbook assets for all P0 reactions.
+- [x] Implement Электролужа as a ground decal with water shape, electric arcs, and pulsing edge.
+- [x] Implement Пар as an air-layer steam plume that does not obscure ground slots permanently.
+- [x] Implement Пожар as a ground fire/oil burn decal with ember motion and dark scorch shape.
+- [x] Implement Грозовое облако as an air-layer cloud with procedural lightning strikes.
+- [x] Implement Огненный вихрь as an air-layer vortex with rotating fire form.
+- [x] Implement Огненный Шторм as the T3 climax effect with strong but bounded screen presence.
+- [x] Add rare field callouts for new reactions, T2/T3 creation, boss Reaction Break, and acute core danger.
+- [x] Ensure callouts do not stack into unreadable noise.
+- [x] Preserve colorblind-friendly duplication through shape, pattern, layer height, and motion.
+- [x] Keep VFX performance bounded: no blur/post-processing dependency; avoid unbounded particles; reuse objects where practical.
+- [x] Ensure enemies remain visible under VFX and HP/danger cues stay readable.
 
 ### Acceptance Criteria
 
-- [ ] Wow #1, wow #2, and wow #3 read more clearly than in P0 screenshots.
-- [ ] Ground and air reactions are visually distinct.
-- [ ] T1, T2, and T3 feel progressively more powerful without obscuring gameplay.
-- [ ] Reaction VFX do not break mobile performance expectations.
+- [x] Wow #1, wow #2, and wow #3 read more clearly than in P0 screenshots.
+- [x] Ground and air reactions are visually distinct.
+- [x] T1, T2, and T3 feel progressively more powerful without obscuring gameplay.
+- [x] Reaction VFX do not break mobile performance expectations.
 
 ### Tests
 
-- [ ] Existing reaction simulation tests remain unchanged and passing.
-- [ ] Add a render-budget or asset-key test if the implementation introduces a dedicated VFX registry.
+- [x] Existing reaction simulation tests remain unchanged and passing.
+- [x] Add a render-budget or asset-key test if the implementation introduces a dedicated VFX registry.
 
 ### Verification
 
-- [ ] `npm run typecheck`.
-- [ ] `npm test`.
-- [ ] Manual browser check using fixtures or playthrough states for all six P0 reactions.
-- [ ] Screenshots: Электролужа, Грозовое облако, Огненный Шторм, boss vulnerable.
+- [x] `npm run typecheck`.
+- [x] `npm test`.
+- [x] Manual browser check using fixtures or playthrough states for all six P0 reactions.
+- [x] Screenshots: Электролужа, Грозовое облако, Огненный Шторм, boss vulnerable.
 
 ### Exit gate
 
-- [ ] **All P0 reactions have production-style visual coverage.**
+- [x] **All P0 reactions have production-style visual coverage.**
 
 ### Phase notes
 
 - Decisions/contradictions:
+  - Added six committed reaction identity assets under `public/assets/reactions/`: `electro-puddle.svg`, `steam-plume.svg`, `fire-decal.svg`, `storm-cloud.svg`, `fire-vortex.svg`, and `fire-storm.svg`.
+  - Added stable manifest entries for all six P0 reactions and a dedicated `reactionVfxRegistry` in `src/app/phaser/scenes/runSceneReactionRender.ts`.
+  - Added `src/app/phaser/scenes/runSceneReactionPresenter.ts` so `RunScene.ts` remains under the local line-count limit and continues to act as orchestration rather than a large VFX owner.
+  - Runtime VFX now use pooled Phaser `Image` objects for reaction decal/plume identity plus the existing procedural `Graphics` overlays for pulse, arcs, lightning, embers, vortex spin, and T3 energy accents.
+  - Ground reactions use lower path-aligned decal depths; air reactions use raised y-offsets and higher effect depth while still staying under enemies and HP/danger cues.
+  - Added a separate low-depth reagent projection layer in `src/app/phaser/scenes/runSceneReagentRender.ts`. It uses the existing pure `projectReagents` simulation helper to show одиночные Вода/Нефть/Искра/Жар effects on path tiles before they combine into reactions.
+  - Initial schematic `Graphics` reagent markers were rejected. The layer was replaced with pooled Phaser image overlays using committed material assets: `reagent-water-puddle.svg`, `reagent-oil-slick.svg`, `reagent-spark-charge.svg`, and `reagent-heat-scorch.svg`.
+  - Reagent visuals are intentionally quieter than reaction VFX but still material-specific: water reads as a puddle, oil as a dark slick, spark as a charged electric field, and heat as a scorch/glow patch. They stay under reaction decals and tower/enemy sprites.
+  - Added rare field callouts for first-seen reaction types, T2/T3 reactions, boss Reaction Break, and acute Куб danger. Callouts are capped at two visible labels and throttled to avoid stacking noise.
+  - Accepted 0.5a asset tradeoff: Phase 4 uses optimized SVG decal/plume assets rather than generated bitmap flipbook strips. This keeps the VFX slice lightweight and testable; motion-sensitive detail remains procedural. Full creature animation production is still deferred to 0.5b.
+  - Browser fixture state for all six reactions was generated under ignored output: `output/playwright/phase4-reaction-fixture-save.json`.
+  - Browser screenshots:
+    - All six P0 reactions: `output/playwright/phase4-reaction-vfx-all.png`.
+    - Boss vulnerable / Reaction Break: `output/playwright/phase4-reaction-vfx-boss-vulnerable.png`.
+  - Browser check result: `output/playwright/phase4-reaction-vfx-browser-check.json` recorded no console errors, page errors, or asset-load errors. All six reaction SVG assets were observed in browser resource timing.
 
 ### Phase completion summary
 
 - Implemented:
+  - All six P0 reactions now have production-style decal/plume asset coverage and procedural overlays for live readability.
+  - Reaction VFX are manifest-backed, pooled, and covered by a registry test that validates every configured reaction has a non-placeholder Phaser asset matching its simulation layer and tier.
+  - Oдиночные башни now visibly project their own asset-backed reagent/effect coverage onto path tiles, so players can understand tower contribution before a reaction is formed.
+  - Rare bounded field callouts cover new reactions, T2/T3 creation, boss Reaction Break, and low-core danger without changing serializable game state.
 - Intentionally deferred:
+  - Multi-frame flipbook/atlas production was deferred; the current Phase 4 slice uses still SVG identity assets plus procedural motion.
+  - HUD/card reuse of reaction/tower visual language remains in Phase 5.
 - Accepted deviations/tradeoffs:
+  - SVG decals were accepted for the 0.5a reaction slice instead of bitmap flipbooks to keep performance and integration risk bounded.
+  - The all-reaction browser fixture intentionally uses six towers and dense effects to verify coverage; it is not a normal-run composition target.
 - Tests/checks run:
+  - `npm run lint:fix` passed.
+  - `npm run typecheck` passed.
+  - `npm test` passed: 5 files, 73 tests.
+  - `npm run build` passed with Vite's existing large chunk warning for `dist/assets/index-*.js` over 500 kB.
+  - Playwright browser check on `540x960` captured all-reaction and boss-vulnerable screenshots with no browser issues and all six reaction assets loaded.
+  - Additional Playwright reagent checks captured `output/playwright/phase4-single-reagents.png` for the rejected schematic pass and `output/playwright/phase4-single-reagents-assets.png` for the asset-backed pass. The final asset-backed check had no browser issues; fixture had no active reactions but showed Вода, Нефть, Искра, and Жар projections.
 
 ## Phase 5 - HUD, Cards, Draft, and Result UI
 
@@ -501,6 +557,24 @@ Purpose: make the game interface match the new field quality while protecting th
 ### Phase notes
 
 - Decisions/contradictions:
+  - During Phase 5 visual review, board geometry was corrected before continuing HUD work:
+    - the 16-cell path now uses an explicit orthogonal 5x5 grid loop with one equal tile step between all neighboring path cells;
+    - `cell-0` is the lower-left entrance tile; the gate marker and enemy spawn point use this cell;
+    - `slot-0-outer` is intentionally omitted, so the entrance tile has no outside tower and no starting reaction coverage from an external tower;
+    - middle straight cells keep adjacent grid positions on the inside and outside of their path cell;
+    - adjacent-to-corner inner slots are collapsed into one physical inner-corner junction slot, avoiding two tower slots occupying the same point;
+    - the four inner-corner junction slots are `slot-0-inner`, `slot-4-inner`, `slot-8-inner`, and `slot-12-inner`; each affects the two straight path cells touching that inner corner and not the corner path tile itself;
+    - corner outer slots remain diagonal single-cell slots that affect only their own corner path tile, except the omitted entrance outer slot;
+    - `defaultBoardGeometryConfig.lockInnerCornerSlots` is currently `false` for the visual slice. The combat-intended feature flag exists and locks only the inner-corner junction slots when enabled;
+    - path reaction cells now render as explicit square red-outlined road tiles rather than ambiguous circular markers or a stadium-shaped path stroke;
+    - ground reaction and reagent sprites now share the same square path-tile presentation helper as the visible tile outlines.
+  - Accepted user-requested mechanics deviation from the original Phase 0.5 "presentation only" rule: the authored board geometry changed from 32 logical per-cell slots to 23 physical slots, including 4 inner-corner junction slots with two-cell influence and no outside entrance tower.
+  - Tower art follow-up: inner-corner junction towers need a dedicated visual state or generated corner variant because directional tower silhouettes such as Водомёт/Маслонасос must read as influencing two adjacent cells.
+  - Verification screenshots for this correction:
+    - first square-tile check: `output/playwright/p05-square-tiles-slot-grid.png`;
+    - current grid road check: `output/playwright/p05-grid-loop-square-road.png`.
+    - current inner-corner junction check: `output/playwright/p05-inner-corner-junction-slots.png`.
+    - lower-left entrance check without `slot-0-outer`: `output/playwright/p05-bottom-left-entrance.png`.
 
 ### Phase completion summary
 

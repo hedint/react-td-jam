@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160" fill="none">
+  <filter id="sparkGlow" x="-35%" y="-35%" width="170%" height="170%">
+    <feGaussianBlur stdDeviation="4" result="blur"/>
+    <feMerge>
+      <feMergeNode in="blur"/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+  </filter>
+  <path d="M42 54C60 37 96 37 118 57C132 70 130 94 113 108C94 123 62 120 43 104C27 90 27 68 42 54Z" fill="#0a3d44" fill-opacity=".34"/>
+  <path d="M43 61C61 45 93 45 113 62C126 73 123 91 110 102C92 116 63 112 46 99C33 88 32 72 43 61Z" stroke="#9ff7ff" stroke-opacity=".62" stroke-width="5" stroke-linecap="round" stroke-dasharray="20 14"/>
+  <path d="M79 43L62 76H79L69 111L99 69H82L94 43H79Z" fill="#d7ffff" fill-opacity=".86" filter="url(#sparkGlow)"/>
+  <path d="M47 83L31 72M112 82L132 72M66 113L57 131M94 113L105 130" stroke="#61d6d6" stroke-opacity=".66" stroke-width="4" stroke-linecap="round" filter="url(#sparkGlow)"/>
+</svg>

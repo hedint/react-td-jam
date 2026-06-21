@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="160" viewBox="0 0 192 160" fill="none">
+  <filter id="stormGlow" x="-30%" y="-30%" width="160%" height="160%">
+    <feGaussianBlur stdDeviation="4" result="blur"/>
+    <feMerge>
+      <feMergeNode in="blur"/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+  </filter>
+  <ellipse cx="96" cy="102" rx="56" ry="28" fill="#2a0d1c" fill-opacity=".58"/>
+  <path d="M96 24C119 38 140 58 141 82C143 116 114 136 84 128C58 121 43 99 52 73C59 51 74 39 96 24Z" fill="#4b183f" fill-opacity=".72"/>
+  <path d="M93 31C131 56 127 109 87 123C117 101 116 73 93 31Z" fill="#ff813d" fill-opacity=".76" filter="url(#stormGlow)"/>
+  <path d="M105 36C86 60 77 88 94 124C60 103 63 59 105 36Z" fill="#ffd36e" fill-opacity=".84"/>
+  <path d="M60 90C82 67 114 66 135 90M71 110C92 92 113 93 127 111" stroke="#ffcd62" stroke-width="7" stroke-linecap="round" filter="url(#stormGlow)"/>
+  <path d="M91 47L74 77L93 70L82 107M123 58L103 86L122 82L111 115" stroke="#d7ffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" filter="url(#stormGlow)"/>
+  <circle cx="96" cy="84" r="8" fill="#ffffff" fill-opacity=".92"/>
+</svg>

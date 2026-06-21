@@ -14,20 +14,24 @@ import {
   renderGreatCube,
   renderPlacementSlotFeedback,
 } from "./runSceneBoardRender";
+import { RunSceneReactionPresenter } from "./runSceneReactionPresenter";
+import { RunSceneReagentPresenter } from "./runSceneReagentRender";
 import {
   findSlotAtPoint,
   getActiveReactionLabel,
   getEnemyVisual,
-  getTowerColors,
-  getTowerFieldLabel,
-  renderAirReaction,
   renderEnemyAccent,
-  renderGroundReaction,
-  renderTowerGlyph,
   writeBossPosition,
   writeEnemyPosition,
   writeTowerPosition,
 } from "./runSceneRender";
+import {
+  getTowerFieldLabel,
+  getTowerSpriteKey,
+  getTowerSpriteSize,
+  renderTowerActivationFeedback,
+  renderTowerGrounding,
+} from "./runSceneTowerRender";
 
 const LOGICAL_WIDTH = 540;
 const LOGICAL_HEIGHT = 960;
@@ -52,6 +56,9 @@ export class RunScene extends Phaser.Scene {
   private bossLabel?: Phaser.GameObjects.Text;
   private enemyLabels: Phaser.GameObjects.Text[] = [];
   private towerLabels: Phaser.GameObjects.Text[] = [];
+  private towerSprites: Phaser.GameObjects.Image[] = [];
+  private reagentPresenter?: RunSceneReagentPresenter;
+  private reactionPresenter?: RunSceneReactionPresenter;
   private readonly bossPosition = { x: 0, y: 0 };
   private readonly enemyPosition = { x: 0, y: 0 };
   private readonly towerPosition = { x: 0, y: 0 };
@@ -76,6 +83,8 @@ export class RunScene extends Phaser.Scene {
     this.effectGraphics = this.add.graphics().setDepth(10);
     this.enemyGraphics = this.add.graphics().setDepth(20);
     this.placementGraphics = this.add.graphics().setDepth(35);
+    this.reagentPresenter = new RunSceneReagentPresenter(this);
+    this.reactionPresenter = new RunSceneReactionPresenter(this);
 
     this.titleText = this.add.text(LOGICAL_WIDTH / 2, 122, "Осадная галерея", {
       align: "center",
@@ -180,10 +189,11 @@ export class RunScene extends Phaser.Scene {
 
   private renderSnapshot(snapshot: GameSnapshot): void {
     this.renderBoard(snapshot);
+    this.renderReagents(snapshot);
     this.renderEffects(snapshot);
     this.renderEnemies(snapshot);
     this.renderBoss(snapshot);
-    this.renderTowers(snapshot.placedTowers, snapshot.board.slots, snapshot.selectedTowerId, this.time.now);
+    this.renderTowers(snapshot.placedTowers, snapshot.board.slots, snapshot.selectedTowerId, snapshot.phase, this.time.now);
     this.renderPlacementFeedback(snapshot);
 
     if (this.coreText) {
@@ -219,24 +229,11 @@ export class RunScene extends Phaser.Scene {
       return;
     }
 
-    graphics.clear();
+    this.reactionPresenter?.render(graphics, snapshot);
+  }
 
-    snapshot.activeReactions.forEach((reaction) => {
-      const cell = snapshot.board.pathCells[reaction.cellIndex];
-      if (!cell) {
-        return;
-      }
-
-      const pulse = 2 + Math.sin(snapshot.elapsedMs / 80 + reaction.cellIndex) * 2;
-
-      if (reaction.ground) {
-        renderGroundReaction(graphics, cell, reaction.ground, pulse);
-      }
-
-      if (reaction.air) {
-        renderAirReaction(graphics, cell, reaction.air, pulse, snapshot.elapsedMs);
-      }
-    });
+  private renderReagents(snapshot: GameSnapshot): void {
+    this.reagentPresenter?.render(snapshot);
   }
 
   private renderPlacementFeedback(snapshot: GameSnapshot): void {
@@ -382,6 +379,7 @@ export class RunScene extends Phaser.Scene {
     towers: readonly TowerState[],
     slots: readonly BoardSlot[],
     selectedTowerId: string | null,
+    phase: GameSnapshot["phase"],
     visualMs: number,
   ): void {
     while (this.towerLabels.length < towers.length) {
@@ -393,42 +391,53 @@ export class RunScene extends Phaser.Scene {
         fontStyle: "700",
       }).setOrigin(0.5).setDepth(42));
     }
+    while (this.towerSprites.length < towers.length) {
+      this.towerSprites.push(this.add.image(0, 0, assetGroups.towers.towerSpritePlaceholder.key)
+        .setOrigin(0.5, 0.68)
+        .setDepth(26));
+    }
 
     this.towerLabels.forEach((label, index) => {
       const tower = towers[index];
       if (!tower) {
         label.setVisible(false);
+        this.towerSprites[index]?.setVisible(false);
         return;
       }
 
       const position = writeTowerPosition(tower, slots, this.towerPosition);
-      label.setVisible(true);
-      label.setPosition(position.x, position.y - 33);
-      label.setText(getTowerFieldLabel(tower.emitterId));
+      const slot = slots.find(candidate => candidate.id === tower.slotId);
+      const isSelected = tower.id === selectedTowerId;
+      const sprite = this.towerSprites[index];
 
       const graphics = this.worldGraphics;
-      if (!graphics) {
+      if (!graphics || !slot || !sprite) {
+        label.setVisible(false);
+        sprite?.setVisible(false);
         return;
       }
 
-      const colors = getTowerColors(tower.emitterId);
-      const isSelected = tower.id === selectedTowerId;
-      const towerPulse = 2 + Math.sin(visualMs / 120 + index) * 2;
+      const active = (phase === "wave" || phase === "boss" || phase === "countdown") && visualMs % 900 < 420;
+      const spriteSize = getTowerSpriteSize(slot);
 
-      if (isSelected) {
-        graphics.fillStyle(0xF6E27A, 0.16);
-        graphics.fillCircle(position.x, position.y, 30 + towerPulse);
-        graphics.lineStyle(3, 0xF6E27A, 0.92);
-        graphics.strokeCircle(position.x, position.y, 28 + towerPulse);
-        graphics.lineStyle(1, 0xFFF8D6, 0.72);
-        graphics.strokeCircle(position.x, position.y, 34 + towerPulse);
-      }
+      renderTowerGrounding(graphics, tower, slot, position, isSelected, visualMs);
+      renderTowerActivationFeedback(graphics, tower, slot, position, active, visualMs);
 
-      graphics.fillStyle(colors.fill, 1);
-      graphics.fillCircle(position.x, position.y, 21);
-      graphics.lineStyle(3, colors.stroke, 0.95);
-      graphics.strokeCircle(position.x, position.y, 21);
-      renderTowerGlyph(graphics, tower, position);
+      sprite
+        .setVisible(true)
+        .setTexture(getTowerSpriteKey(tower.emitterId))
+        .setPosition(position.x, position.y)
+        .setDisplaySize(spriteSize, spriteSize)
+        .setDepth(26 + position.y / 10000);
+      sprite.setAlpha(isSelected ? 1 : 0.96);
+
+      label.setVisible(isSelected);
+      label.setPosition(position.x, position.y - spriteSize * 0.52);
+      label.setText(getTowerFieldLabel(tower.emitterId));
+    });
+
+    this.towerSprites.slice(towers.length).forEach((sprite) => {
+      sprite.setVisible(false);
     });
   }
 

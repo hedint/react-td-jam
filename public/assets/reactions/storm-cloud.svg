@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="128" viewBox="0 0 160 128" fill="none">
+  <filter id="cloudGlow" x="-25%" y="-25%" width="150%" height="150%">
+    <feGaussianBlur stdDeviation="2.5" result="blur"/>
+    <feMerge>
+      <feMergeNode in="blur"/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+  </filter>
+  <ellipse cx="82" cy="101" rx="49" ry="14" fill="#14262f" fill-opacity=".34"/>
+  <circle cx="48" cy="56" r="25" fill="#284e64" fill-opacity=".86"/>
+  <circle cx="77" cy="43" r="33" fill="#315b72" fill-opacity=".9"/>
+  <circle cx="109" cy="57" r="25" fill="#24485c" fill-opacity=".88"/>
+  <path d="M35 68C50 85 99 87 122 70" stroke="#c4ecff" stroke-opacity=".48" stroke-width="4" stroke-linecap="round"/>
+  <path d="M69 66L53 95L73 88L61 118" stroke="#9ff7ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" filter="url(#cloudGlow)"/>
+  <path d="M102 66L91 91L106 86L98 108" stroke="#d7ffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" filter="url(#cloudGlow)"/>
+  <path d="M47 82L41 104M119 78L115 99" stroke="#c4ecff" stroke-opacity=".56" stroke-width="3" stroke-linecap="round"/>
+</svg>

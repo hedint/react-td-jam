@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="128" viewBox="0 0 160 128" fill="none">
+  <filter id="vortexGlow" x="-25%" y="-25%" width="150%" height="150%">
+    <feGaussianBlur stdDeviation="3" result="blur"/>
+    <feMerge>
+      <feMergeNode in="blur"/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+  </filter>
+  <ellipse cx="80" cy="96" rx="45" ry="18" fill="#2b0d08" fill-opacity=".58"/>
+  <path d="M78 17C111 35 115 66 96 97C83 88 76 77 79 62C84 42 76 32 78 17Z" fill="#ff813d" fill-opacity=".82" filter="url(#vortexGlow)"/>
+  <path d="M83 20C54 38 51 67 70 98C78 87 85 77 82 62C78 43 86 32 83 20Z" fill="#7a2418" fill-opacity=".76"/>
+  <path d="M58 46C80 36 106 45 112 65C92 57 67 58 52 77" stroke="#ffe0a0" stroke-width="7" stroke-linecap="round" filter="url(#vortexGlow)"/>
+  <path d="M105 82C86 94 63 87 52 72C70 77 93 75 112 58" stroke="#ffb15e" stroke-width="6" stroke-linecap="round"/>
+  <path d="M69 99C75 79 74 58 63 36M92 99C85 78 87 54 98 34" stroke="#45140d" stroke-opacity=".72" stroke-width="4" stroke-linecap="round"/>
+</svg>

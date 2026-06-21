@@ -2,6 +2,7 @@ import type { BoardSlot, GameSnapshot } from "@entities/game-session/model/types
 import type { SlotFeedback } from "./slotPlacementFeedback";
 import { gameConfig } from "@entities/game-session/model/config";
 import Phaser from "phaser";
+import { drawPathTile, getPathTilePresentation } from "./runScenePathTiles";
 import { getSlotFeedback } from "./slotPlacementFeedback";
 
 const LOGICAL_WIDTH = 540;
@@ -19,35 +20,29 @@ export function renderBoardFrame(graphics: Phaser.GameObjects.Graphics): void {
 export function renderDynamicPath(
   graphics: Phaser.GameObjects.Graphics,
   cells: GameSnapshot["board"]["pathCells"],
-  elapsedMs: number,
+  _elapsedMs: number,
 ): void {
   if (cells.length === 0) {
     return;
   }
 
-  graphics.lineStyle(62, 0x050505, 0.38);
-  strokeClosedPath(graphics, cells);
-  graphics.lineStyle(52, 0x241F1A, 1);
-  strokeClosedPath(graphics, cells);
-  graphics.lineStyle(42, 0x574738, 0.94);
-  strokeClosedPath(graphics, cells);
-  graphics.lineStyle(24, 0x312922, 0.56);
-  strokeClosedPath(graphics, cells);
-
   cells.forEach((cell) => {
-    const pulse = 0.5 + Math.sin(elapsedMs / 260 + cell.index) * 0.5;
+    const tile = getPathTilePresentation(cells, cell);
 
-    graphics.fillStyle(0x1B1713, 0.58);
-    graphics.fillCircle(cell.x, cell.y, cell.isCorner ? 15 : 9);
-    graphics.lineStyle(2, 0xC8A76A, cell.isCorner ? 0.72 : 0.3);
-    graphics.strokeCircle(cell.x, cell.y, cell.isCorner ? 18 : 11);
-    graphics.fillStyle(cell.isCorner ? 0xF0B85B : 0x80684E, cell.isCorner ? 0.62 : 0.26);
-    graphics.fillCircle(cell.x, cell.y, cell.isCorner ? 5 + pulse : 2.5);
-
-    if (cell.isCorner) {
-      graphics.lineStyle(3, 0xB66F3B, 0.72);
-      graphics.strokeCircle(cell.x, cell.y, 22);
-    }
+    drawPathTile(graphics, tile, {
+      fillColor: 0x241F1A,
+      fillAlpha: 0.98,
+      strokeColor: 0x5A4636,
+      strokeAlpha: 0.7,
+      strokeWidth: 4,
+    });
+    drawPathTile(graphics, tile, {
+      fillColor: 0x3F3429,
+      fillAlpha: cell.isCorner ? 0.78 : 0.68,
+      strokeColor: 0xE05240,
+      strokeAlpha: cell.isCorner ? 0.96 : 0.78,
+      strokeWidth: cell.isCorner ? 2 : 1,
+    });
   });
 }
 
@@ -245,14 +240,6 @@ export function renderGreatCube(graphics: Phaser.GameObjects.Graphics, snapshot:
     graphics.lineTo(center.x + 9, center.y + 38);
     graphics.strokePath();
   }
-}
-
-function strokeClosedPath(graphics: Phaser.GameObjects.Graphics, cells: GameSnapshot["board"]["pathCells"]): void {
-  graphics.beginPath();
-  graphics.moveTo(cells[0]?.x ?? 0, cells[0]?.y ?? 0);
-  cells.slice(1).forEach(cell => graphics.lineTo(cell.x, cell.y));
-  graphics.closePath();
-  graphics.strokePath();
 }
 
 function getBoardCenter(cells: GameSnapshot["board"]["pathCells"]): { readonly x: number, readonly y: number } {

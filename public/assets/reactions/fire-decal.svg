@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="96" viewBox="0 0 160 96" fill="none">
+  <filter id="emberGlow" x="-20%" y="-30%" width="140%" height="160%">
+    <feGaussianBlur stdDeviation="2.5" result="blur"/>
+    <feMerge>
+      <feMergeNode in="blur"/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+  </filter>
+  <path d="M19 64C28 42 47 43 64 49C82 56 90 38 112 44C130 49 143 58 139 72C136 84 113 83 96 78C78 73 66 85 45 80C28 76 15 73 19 64Z" fill="#3a130c" fill-opacity=".78"/>
+  <path d="M24 58C38 43 52 47 66 52C80 58 94 43 113 48C129 52 140 61 135 70C130 80 107 76 94 72C77 67 64 80 46 75C31 71 18 66 24 58Z" fill="#a53716" fill-opacity=".74" stroke="#ffb15e" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M51 70C54 55 63 49 66 34C73 46 77 54 77 70C82 58 91 50 93 38C103 51 111 60 108 74C93 81 66 82 51 70Z" fill="#ff813d" filter="url(#emberGlow)"/>
+  <path d="M63 70C65 58 72 55 75 42C82 54 85 60 84 72C90 61 96 57 98 48C106 61 108 68 104 76C91 80 73 80 63 70Z" fill="#ffdf7a" fill-opacity=".92"/>
+  <path d="M36 67L53 62L70 70L93 61L120 68" stroke="#1a0905" stroke-opacity=".76" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="41" cy="51" r="3" fill="#ffdf7a"/>
+  <circle cx="119" cy="57" r="2.5" fill="#ffdf7a"/>
+  <circle cx="100" cy="40" r="2" fill="#ffb15e"/>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160" fill="none">
+  <filter id="heatGlow" x="-25%" y="-25%" width="150%" height="150%">
+    <feGaussianBlur stdDeviation="3.5" result="blur"/>
+    <feMerge>
+      <feMergeNode in="blur"/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+  </filter>
+  <path d="M27 91C20 68 39 49 64 55C80 59 89 45 111 54C134 63 140 84 125 103C111 121 91 113 73 118C50 124 33 111 27 91Z" fill="#2a0d08" fill-opacity=".58"/>
+  <path d="M37 86C32 69 48 61 66 64C81 67 91 56 108 63C124 70 128 86 116 98C104 111 87 101 73 107C57 114 42 101 37 86Z" fill="#7a2418" fill-opacity=".5"/>
+  <path d="M59 105C55 90 62 79 65 61C76 75 80 88 78 108C84 92 95 81 99 64C111 82 115 95 107 112C93 120 70 118 59 105Z" fill="#f08a28" fill-opacity=".36" filter="url(#heatGlow)"/>
+  <path d="M67 103C67 91 72 84 75 73C83 84 86 93 84 106C91 96 97 90 100 79C107 94 108 102 103 111C92 116 75 115 67 103Z" fill="#ffcf75" fill-opacity=".42"/>
+  <path d="M44 92C61 86 77 96 94 89C104 85 113 88 121 94" stroke="#ffb05b" stroke-opacity=".4" stroke-width="4" stroke-linecap="round"/>
+</svg>
