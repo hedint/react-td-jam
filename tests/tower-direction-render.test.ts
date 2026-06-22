@@ -48,10 +48,11 @@ describe("tower directional rendering", () => {
     expect(config.directions.map(direction => getTowerDirectionRotation(direction))).toEqual([Math.PI, -Math.PI / 2]);
   });
 
-  it("maps outer corner slots to the two path-side directions instead of a diagonal", () => {
+  it("maps outer corner slots to a single diagonal direction aimed at the corner", () => {
     const slot = getSlot("slot-5-outer");
 
-    expect(getTowerDirections(slot, gameConfig.board.pathCells)).toEqual(["down", "right"]);
+    expect(getTowerDirections(slot, gameConfig.board.pathCells)).toEqual(["downRight"]);
+    expect(getTowerDirectionRotation("downRight")).toBeCloseTo(Math.PI / 4);
   });
 
   it("keeps idle head sway subtle and animated", () => {

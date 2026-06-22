@@ -10,6 +10,8 @@ import { gameConfig } from "./config";
 import { nextRandom } from "./rng";
 import { createTower } from "./towerFactory";
 
+const SKIP_UPGRADE_SELECTION_DRAFT_STEP = true;
+
 export function createDraftState(state: RunState, config: GameConfig = gameConfig): { readonly draft: NonNullable<RunState["draft"]>, readonly rng: RngState } {
   const towerOffers = generateTowerOffers(state, state.rng, config);
   const upgradeOffers = generateUpgradeOffers(state, towerOffers.rng, config);
@@ -52,10 +54,18 @@ export function chooseDraftTower(state: RunState, emitterId: EmitterId, config: 
   }
 
   const tower = createTower(`tower-${emitterId}-${state.waveIndex}-${state.tick}`, emitterId, null, config);
-
-  return {
+  const stateWithTower = {
     ...state,
     bench: [...state.bench, tower],
+  };
+
+  // Temporary feature flag: skip the upgrade selection screen while draft pacing is being tuned.
+  if (SKIP_UPGRADE_SELECTION_DRAFT_STEP) {
+    return advanceAfterDraft(stateWithTower, config);
+  }
+
+  return {
+    ...stateWithTower,
     draft: {
       ...state.draft,
       step: "upgrade",

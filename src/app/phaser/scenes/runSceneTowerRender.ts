@@ -3,7 +3,7 @@ import type Phaser from "phaser";
 import type { RenderPoint } from "./runSceneRender";
 import { assetGroups } from "@shared/assets/manifest";
 
-export type TowerDirection = "up" | "right" | "down" | "left";
+export type TowerDirection = "up" | "upRight" | "right" | "downRight" | "down" | "downLeft" | "left" | "upLeft";
 
 export interface TowerSpriteRenderConfig {
   readonly baseKey: string
@@ -22,10 +22,14 @@ const TOWER_HEAD_ORIGIN_X: Record<TowerState["emitterId"], number> = {
 };
 
 const DIRECTION_ROTATION: Record<TowerDirection, number> = {
-  right: 0,
-  down: Math.PI / 2,
-  left: Math.PI,
   up: -Math.PI / 2,
+  upRight: -Math.PI / 4,
+  right: 0,
+  downRight: Math.PI / 4,
+  down: Math.PI / 2,
+  downLeft: Math.PI * 3 / 4,
+  left: Math.PI,
+  upLeft: -Math.PI * 3 / 4,
 };
 const TOWER_HEAD_SWAY_AMPLITUDE = 0.055;
 
@@ -152,7 +156,11 @@ export function renderTowerGrounding(
 
 function getCornerTowerDirections(slot: BoardSlot, cells: readonly PathCell[]): readonly TowerDirection[] {
   if (slot.cellIndexes.length > 1) {
-    return uniqueDirections(slot.cellIndexes.map(cellIndex => getDirectionFromSlotToCell(slot, cells[cellIndex])));
+    return uniqueDirections(slot.cellIndexes.map(cellIndex => getCardinalDirectionFromSlotToCell(slot, cells[cellIndex])));
+  }
+
+  if (slot.lane === "outer") {
+    return [getDirectionFromSlotToCell(slot, cells[slot.cellIndexes[0] ?? 0])];
   }
 
   const cornerCellIndex = slot.cellIndexes[0] ?? 0;
@@ -175,6 +183,14 @@ function getDirectionFromSlotToCell(slot: BoardSlot, cell: PathCell | undefined)
     return "right";
   }
 
+  return getCompassDirection(cell.x - slot.x, cell.y - slot.y);
+}
+
+function getCardinalDirectionFromSlotToCell(slot: BoardSlot, cell: PathCell | undefined): TowerDirection {
+  if (!cell) {
+    return "right";
+  }
+
   return getCardinalDirection(cell.x - slot.x, cell.y - slot.y);
 }
 
@@ -184,6 +200,17 @@ function getCardinalDirection(x: number, y: number): TowerDirection {
   }
 
   return y < 0 ? "up" : "down";
+}
+
+function getCompassDirection(x: number, y: number): TowerDirection {
+  const horizontal = Math.abs(x) > 0 ? x < 0 ? "left" : "right" : "";
+  const vertical = Math.abs(y) > 0 ? y < 0 ? "up" : "down" : "";
+
+  if (horizontal && vertical) {
+    return `${vertical}${capitalizeDirectionPart(horizontal)}` as TowerDirection;
+  }
+
+  return (horizontal || vertical || "right") as TowerDirection;
 }
 
 function uniqueDirections(directions: readonly TowerDirection[]): readonly TowerDirection[] {
@@ -196,15 +223,27 @@ function rotateDirection(direction: TowerDirection): TowerDirection {
   switch (direction) {
     case "up":
       return "right";
+    case "upRight":
+      return "downRight";
     case "right":
       return "down";
+    case "downRight":
+      return "downLeft";
     case "down":
       return "left";
+    case "downLeft":
+      return "upLeft";
     case "left":
       return "up";
+    case "upLeft":
+      return "upRight";
     default:
       return direction satisfies never;
   }
+}
+
+function capitalizeDirectionPart(part: "left" | "right"): "Left" | "Right" {
+  return part === "left" ? "Left" : "Right";
 }
 
 function getTowerColors(emitterId: TowerState["emitterId"]): { readonly fill: number, readonly stroke: number } {

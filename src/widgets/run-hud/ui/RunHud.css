@@ -209,8 +209,15 @@ dd {
   gap: 7px;
   padding: 8px;
   overflow-x: auto;
+  scroll-padding-inline: 8px;
+  scroll-snap-type: x mandatory;
   pointer-events: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.run-hud__bench::-webkit-scrollbar {
+  display: none;
 }
 
 .run-hud__tower,
@@ -254,6 +261,7 @@ dd {
   min-width: 124px;
   min-height: 96px;
   padding: 9px 8px 10px;
+  scroll-snap-align: start;
   color: inherit;
   text-align: center;
   cursor: pointer;
@@ -377,10 +385,6 @@ dd {
   padding: 18px;
   pointer-events: auto;
   background: radial-gradient(circle at 50% 44%, rgb(32 23 16 / 34%), rgb(0 0 0 / 54%));
-}
-
-.run-hud__scrim:not(.run-hud__scrim--blocking) {
-  pointer-events: none;
 }
 
 .run-hud__scrim--blocking {

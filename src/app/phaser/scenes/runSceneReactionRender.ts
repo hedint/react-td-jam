@@ -156,14 +156,14 @@ export function getReactionSpritePresentation(
   cells: readonly PathCell[],
   cell: PathCell,
   reactionId: ReactionLayer,
-  elapsedMs: number,
+  visualMs: number,
 ): ReactionSpritePresentation {
   const definition = getReactionVfxDefinition(reactionId);
-  const frame = getReactionFrame(definition, elapsedMs);
-  const wave = frame === null ? Math.sin(elapsedMs / 145 + cell.index * 0.9) : 0;
+  const frame = getReactionFrame(definition, visualMs);
+  const wave = frame === null ? Math.sin(visualMs / 145 + cell.index * 0.9) : 0;
   const scale = frame === null ? 1 + wave * definition.pulseScale : 1;
   const bob = frame === null && definition.layer === "air"
-    ? Math.sin(elapsedMs / 220 + cell.index) * 3
+    ? Math.sin(visualMs / 220 + cell.index) * 3
     : 0;
   const tile = definition.layer === "ground" ? getPathTilePresentation(cells, cell) : null;
   const width = tile ? tile.effectSize * definition.tileScale : definition.width;
@@ -178,7 +178,7 @@ export function getReactionSpritePresentation(
     height: height * scale,
     alpha: frame === null ? clamp(definition.baseAlpha + wave * 0.08, 0.42, 0.92) : definition.baseAlpha,
     rotation: frame === null
-      ? rotation + elapsedMs * definition.rotationSpeed + Math.sin(elapsedMs / 240 + cell.index) * definition.rotationAmplitude
+      ? rotation + visualMs * definition.rotationSpeed + Math.sin(visualMs / 240 + cell.index) * definition.rotationAmplitude
       : rotation,
     depth: definition.depth + cell.y / 10000,
     frame,
@@ -194,10 +194,10 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-function getReactionFrame(definition: ReactionVfxDefinition, elapsedMs: number): number | null {
+function getReactionFrame(definition: ReactionVfxDefinition, visualMs: number): number | null {
   if (!definition.frameCount || !definition.frameDurationMs) {
     return null;
   }
 
-  return Math.floor(elapsedMs / definition.frameDurationMs) % definition.frameCount;
+  return Math.floor(visualMs / definition.frameDurationMs) % definition.frameCount;
 }

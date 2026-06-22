@@ -433,12 +433,9 @@ function getEnemyResistanceMultiplier(enemy: EnemyDefinition, damageFamily: Dama
 }
 
 function createStartingTowers(config: GameConfig): readonly TowerState[] {
-  const copiesPerEmitter = 3;
-  const copySuffixes = ["a", "b", "c"] as const;
-
-  return config.emitters.flatMap(emitter =>
-    copySuffixes.slice(0, copiesPerEmitter).map(suffix =>
-      createTower(`tower-${emitter.id}-${suffix}`, emitter.id, null, config),
-    ),
-  );
+  return [
+    createTower("tower-water-a", "water", null, config),
+    createTower("tower-water-b", "water", null, config),
+    createTower("tower-spark-a", "spark", null, config),
+  ];
 }

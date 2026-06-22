@@ -30,7 +30,7 @@ export class RunSceneReactionPresenter {
 
   constructor(private readonly scene: Phaser.Scene) {}
 
-  render(graphics: Phaser.GameObjects.Graphics, snapshot: GameSnapshot): void {
+  render(graphics: Phaser.GameObjects.Graphics, snapshot: GameSnapshot, visualMs: number): void {
     graphics.clear();
 
     let spriteIndex = 0;
@@ -42,12 +42,12 @@ export class RunSceneReactionPresenter {
       }
 
       if (reaction.ground) {
-        this.renderReactionSprite(spriteIndex, snapshot.board.pathCells, cell, reaction.ground, snapshot.elapsedMs);
+        this.renderReactionSprite(spriteIndex, snapshot.board.pathCells, cell, reaction.ground, visualMs);
         spriteIndex += 1;
       }
 
       if (reaction.air) {
-        this.renderReactionSprite(spriteIndex, snapshot.board.pathCells, cell, reaction.air, snapshot.elapsedMs);
+        this.renderReactionSprite(spriteIndex, snapshot.board.pathCells, cell, reaction.air, visualMs);
         spriteIndex += 1;
       }
     });
@@ -64,7 +64,7 @@ export class RunSceneReactionPresenter {
     cells: readonly PathCell[],
     cell: PathCell,
     reactionId: ReactionId,
-    elapsedMs: number,
+    visualMs: number,
   ): void {
     while (this.reactionSprites.length <= index) {
       this.reactionSprites.push(this.scene.add.image(0, 0, assetGroups.reactions.reactionDecalPlaceholder.key)
@@ -73,7 +73,7 @@ export class RunSceneReactionPresenter {
     }
 
     const sprite = this.reactionSprites[index];
-    const presentation = getReactionSpritePresentation(cells, cell, reactionId, elapsedMs);
+    const presentation = getReactionSpritePresentation(cells, cell, reactionId, visualMs);
 
     if (!sprite) {
       return;

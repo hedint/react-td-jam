@@ -20,7 +20,7 @@ export class RunSceneReagentPresenter {
 
   constructor(private readonly scene: Phaser.Scene) {}
 
-  render(snapshot: GameSnapshot): void {
+  render(snapshot: GameSnapshot, visualMs: number): void {
     const projections = projectReagents(snapshot.board, snapshot.placedTowers, snapshot.upgrades);
     const reactionsByCellIndex = new Map(snapshot.activeReactions.map(reaction => [reaction.cellIndex, reaction]));
     let spriteIndex = 0;
@@ -34,7 +34,7 @@ export class RunSceneReagentPresenter {
       }
 
       emitterIds.forEach((emitterId, index) => {
-        this.renderSprite(spriteIndex, snapshot.board.pathCells, cell, emitterId, index, emitterIds.length, snapshot.elapsedMs);
+        this.renderSprite(spriteIndex, snapshot.board.pathCells, cell, emitterId, index, emitterIds.length, visualMs);
         spriteIndex += 1;
       });
     });
@@ -51,7 +51,7 @@ export class RunSceneReagentPresenter {
     emitterId: EmitterId,
     overlapIndex: number,
     overlapCount: number,
-    elapsedMs: number,
+    visualMs: number,
   ): void {
     while (this.sprites.length <= index) {
       this.sprites.push(this.scene.add.image(0, 0, assetGroups.reactions.reagentWaterPuddle.key)
@@ -61,10 +61,10 @@ export class RunSceneReagentPresenter {
 
     const visual = getReagentAssetVisual(emitterId);
     const tile = getPathTilePresentation(cells, cell);
-    const pulse = getReagentPulse(emitterId, elapsedMs, cell.index, overlapIndex);
+    const pulse = getReagentPulse(emitterId, visualMs, cell.index, overlapIndex);
     const offset = overlapCount > 1 ? (overlapIndex - (overlapCount - 1) / 2) * visual.jitter : 0;
     const sprite = this.sprites[index];
-    const frame = getReagentFrame(visual, elapsedMs);
+    const frame = getReagentFrame(visual, visualMs);
 
     if (!sprite) {
       return;
@@ -80,7 +80,7 @@ export class RunSceneReagentPresenter {
       .setPosition(cell.x + Math.cos(tile.rotation + Math.PI / 2) * offset, cell.y + Math.sin(tile.rotation + Math.PI / 2) * offset)
       .setDisplaySize(tile.effectSize * visual.scale * (1 + pulse), tile.effectSize * visual.scale * (1 + pulse))
       .setAlpha(visual.alpha + pulse)
-      .setRotation(tile.rotation + getReagentRotationOffset(emitterId, elapsedMs, cell.index))
+      .setRotation(tile.rotation + getReagentRotationOffset(emitterId, visualMs, cell.index))
       .setDepth(visual.depth + cell.y / 10000);
   }
 }
@@ -150,18 +150,18 @@ export function getReagentAssetVisual(emitterId: EmitterId): ReagentAssetVisual 
 
 function getReagentFrame(
   visual: ReagentAssetVisual,
-  elapsedMs: number,
+  visualMs: number,
 ): number | null {
   if (!visual.frameCount || !visual.frameDurationMs) {
     return null;
   }
 
-  return Math.floor(elapsedMs / visual.frameDurationMs) % visual.frameCount;
+  return Math.floor(visualMs / visual.frameDurationMs) % visual.frameCount;
 }
 
 function getReagentPulse(
   emitterId: EmitterId,
-  elapsedMs: number,
+  visualMs: number,
   cellIndex: number,
   overlapIndex: number,
 ): number {
@@ -169,13 +169,13 @@ function getReagentPulse(
     return 0;
   }
 
-  return Math.sin(elapsedMs / 260 + cellIndex + overlapIndex) * 0.035;
+  return Math.sin(visualMs / 260 + cellIndex + overlapIndex) * 0.035;
 }
 
-function getReagentRotationOffset(emitterId: EmitterId, elapsedMs: number, cellIndex: number): number {
+function getReagentRotationOffset(emitterId: EmitterId, visualMs: number, cellIndex: number): number {
   if (emitterId === "water" || emitterId === "oil" || emitterId === "spark" || emitterId === "heat") {
     return 0;
   }
 
-  return Math.sin(elapsedMs / 480 + cellIndex) * 0.035;
+  return Math.sin(visualMs / 480 + cellIndex) * 0.035;
 }

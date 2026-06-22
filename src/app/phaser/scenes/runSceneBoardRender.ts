@@ -1,6 +1,6 @@
 import type { BoardSlot, GameSnapshot } from "@entities/game-session/model/types";
+import type Phaser from "phaser";
 import type { SlotFeedback } from "./slotPlacementFeedback";
-import Phaser from "phaser";
 import { getSlotFeedback } from "./slotPlacementFeedback";
 
 const LOGICAL_WIDTH = 540;

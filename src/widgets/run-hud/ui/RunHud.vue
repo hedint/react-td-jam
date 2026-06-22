@@ -229,48 +229,6 @@
         </div>
       </section>
     </div>
-
-    <div
-      v-else-if="session.paused"
-      class="run-hud__scrim"
-    >
-      <section class="run-hud__modal">
-        <h2>Пауза</h2>
-        <dl>
-          <div>
-            <dt>Seed</dt>
-            <dd>{{ session.seed }}</dd>
-          </div>
-          <div>
-            <dt>Урон</dt>
-            <dd>{{ session.damageLabel }}</dd>
-          </div>
-        </dl>
-        <div class="run-hud__modal-actions">
-          <button
-            class="run-hud__button run-hud__button--primary"
-            type="button"
-            @click="resumeRun"
-          >
-            Продолжить
-          </button>
-          <button
-            class="run-hud__button"
-            type="button"
-            @click="toggleSpeed"
-          >
-            x{{ nextSpeed }}
-          </button>
-          <button
-            class="run-hud__button"
-            type="button"
-            @click="restartRun"
-          >
-            Рестарт
-          </button>
-        </div>
-      </section>
-    </div>
   </div>
 </template>
 
@@ -287,7 +245,6 @@ useGameSessionBridge();
 const session = useGameSessionStore();
 const resumePromptVisible = ref(false);
 const savedSeed = ref<number | null>(null);
-const nextSpeed = computed(() => session.speed === 1 ? 2 : 1);
 const reserveTowerStacks = computed(() => {
   const stacks = new Map<EmitterId, { emitterId: EmitterId, label: string, ids: string[] }>();
 
@@ -407,14 +364,6 @@ function chooseDraftTower(emitterId: EmitterId): void {
 
 function chooseDraftUpgrade(upgradeId: UpgradeId): void {
   gameEvents.emit("run:action", { type: "chooseDraftUpgrade", upgradeId });
-}
-
-function resumeRun(): void {
-  gameEvents.emit("run:action", { type: "resume" });
-}
-
-function toggleSpeed(): void {
-  gameEvents.emit("run:action", { type: "setSpeed", speed: nextSpeed.value });
 }
 
 function restartRun(): void {

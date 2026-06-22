@@ -1,7 +1,6 @@
 import type { BoardSlot, GameSnapshot, TowerState } from "@entities/game-session/model/types";
 import type { Unsubscribe } from "@shared/lib/event-bus/createTypedEventBus";
 import { createFixedStepDriver } from "@entities/game-session/model/fixedStepDriver";
-import { gameConfig } from "@entities/game-session/model/config";
 import { hasSavedRun, saveRun } from "@entities/game-session/model/persistence";
 import { applyAction, createRun, createSnapshot, stepRun } from "@entities/game-session/model/simulation";
 import { assetGroups } from "@shared/assets/manifest";
@@ -9,10 +8,10 @@ import { gameEvents } from "@shared/lib/event-bus/gameEvents";
 import Phaser from "phaser";
 import { RunSceneBoardArtPresenter } from "./runSceneBoardArt";
 import {
-  getBoardCenter,
   renderBoardSlots,
   renderPlacementSlotFeedback,
 } from "./runSceneBoardRender";
+import { renderCore } from "./runSceneCoreRender";
 import { RunSceneEntryIntro } from "./runSceneEntryIntro";
 import { renderSceneGrounding } from "./runSceneGround";
 import { LOGICAL_HEIGHT, LOGICAL_WIDTH } from "./runSceneLayout";
@@ -39,9 +38,6 @@ import {
   renderTowerGrounding,
   TOWER_HEAD_ORIGIN_Y,
 } from "./runSceneTowerRender";
-
-const CORE_DISPLAY_SIZE = 204;
-const CORE_LIQUID_MIN_FILL = 0.14;
 
 export class RunScene extends Phaser.Scene {
   private readonly driver = createFixedStepDriver({
@@ -97,7 +93,6 @@ export class RunScene extends Phaser.Scene {
 
     this.coreSprite = this.add.image(0, 0, assetGroups.board.greatStillCore.key)
       .setOrigin(0.5)
-      .setDisplaySize(CORE_DISPLAY_SIZE, CORE_DISPLAY_SIZE)
       .setDepth(8);
     this.coreLiquidGraphics = this.add.graphics().setDepth(7.9);
 
@@ -187,21 +182,23 @@ export class RunScene extends Phaser.Scene {
   }
 
   private renderSnapshot(snapshot: GameSnapshot): void {
-    this.renderBoard(snapshot);
-    this.renderReagents(snapshot);
-    this.renderEffects(snapshot);
+    const visualMs = this.time.now;
+
+    this.renderBoard(snapshot, visualMs);
+    this.renderReagents(snapshot, visualMs);
+    this.renderEffects(snapshot, visualMs);
     this.renderEnemies(snapshot);
-    this.renderBoss(snapshot);
-    this.renderTowers(snapshot.placedTowers, snapshot.board.slots, snapshot.board.pathCells, snapshot.selectedTowerId, this.time.now);
+    this.renderBoss(snapshot, visualMs);
+    this.renderTowers(snapshot.placedTowers, snapshot.board.slots, snapshot.board.pathCells, snapshot.selectedTowerId, visualMs);
     this.renderPlacementFeedback(snapshot);
 
     if (this.reactionText) {
       this.reactionText.setText(getActiveReactionLabel(snapshot.activeReactions));
-      this.reactionText.setAlpha(0.82 + Math.sin(snapshot.elapsedMs / 120) * 0.18);
+      this.reactionText.setAlpha(0.82 + Math.sin(visualMs / 120) * 0.18);
     }
   }
 
-  private renderBoard(snapshot: GameSnapshot): void {
+  private renderBoard(snapshot: GameSnapshot, visualMs: number): void {
     const graphics = this.worldGraphics;
     if (!graphics) {
       return;
@@ -210,75 +207,27 @@ export class RunScene extends Phaser.Scene {
     graphics.clear();
 
     this.boardArtPresenter?.render(snapshot);
-    renderPathFlow(graphics, snapshot, this.time.now);
-    this.renderCore(snapshot);
+    renderPathFlow(graphics, snapshot, visualMs);
+    renderCore({
+      coreSprite: this.coreSprite,
+      liquidGraphics: this.coreLiquidGraphics,
+      snapshot,
+      visualMs,
+    });
     renderBoardSlots(graphics, snapshot);
   }
 
-  private renderCore(snapshot: GameSnapshot): void {
-    const center = getBoardCenter(snapshot.board.pathCells);
-
-    this.coreSprite
-      ?.setVisible(true)
-      .setTexture(assetGroups.board.greatStillCore.key)
-      .setPosition(center.x, center.y)
-      .setDisplaySize(CORE_DISPLAY_SIZE, CORE_DISPLAY_SIZE);
-    this.renderCoreLiquid(snapshot, center);
-  }
-
-  private renderCoreLiquid(
-    snapshot: GameSnapshot,
-    center: { readonly x: number, readonly y: number },
-  ): void {
-    const graphics = this.coreLiquidGraphics;
-    if (!graphics) {
-      return;
-    }
-
-    graphics.clear();
-
-    const fillRatio = getCoreLiquidFillRatio(snapshot);
-    const chamberTop = center.y - 29;
-    const chamberBottom = center.y + 27;
-    const chamberHalfTop = 33;
-    const chamberHalfBottom = 44;
-    const liquidTop = chamberBottom - (chamberBottom - chamberTop) * fillRatio;
-    const topWave = Math.sin(snapshot.elapsedMs / 260) * 2;
-    const topHalfWidth = Phaser.Math.Linear(chamberHalfTop, chamberHalfBottom, fillRatio);
-
-    graphics.fillStyle(0x20130D, 0.56);
-    graphics.fillRoundedRect(center.x - chamberHalfBottom, chamberTop, chamberHalfBottom * 2, chamberBottom - chamberTop, 10);
-
-    graphics.fillStyle(0x8E2D12, 0.76);
-    graphics.beginPath();
-    graphics.moveTo(center.x - chamberHalfBottom, chamberBottom);
-    graphics.lineTo(center.x + chamberHalfBottom, chamberBottom);
-    graphics.lineTo(center.x + topHalfWidth, liquidTop + topWave);
-    graphics.lineTo(center.x, liquidTop - 2 - topWave);
-    graphics.lineTo(center.x - topHalfWidth, liquidTop + topWave);
-    graphics.closePath();
-    graphics.fillPath();
-
-    graphics.fillStyle(0xF07824, 0.7);
-    graphics.fillEllipse(center.x, liquidTop + topWave, topHalfWidth * 1.82, 11);
-    graphics.lineStyle(2, 0xFFB15E, 0.58);
-    graphics.strokeEllipse(center.x, liquidTop + topWave, topHalfWidth * 1.78, 10);
-
-    graphics.fillStyle(0xFFB15E, 0.28);
-    graphics.fillEllipse(center.x - topHalfWidth * 0.28, (liquidTop + chamberBottom) / 2, topHalfWidth * 0.72, chamberBottom - liquidTop);
-  }
-
-  private renderEffects(snapshot: GameSnapshot): void {
+  private renderEffects(snapshot: GameSnapshot, visualMs: number): void {
     const graphics = this.effectGraphics;
     if (!graphics) {
       return;
     }
 
-    this.reactionPresenter?.render(graphics, snapshot);
+    this.reactionPresenter?.render(graphics, snapshot, visualMs);
   }
 
-  private renderReagents(snapshot: GameSnapshot): void {
-    this.reagentPresenter?.render(snapshot);
+  private renderReagents(snapshot: GameSnapshot, visualMs: number): void {
+    this.reagentPresenter?.render(snapshot, visualMs);
   }
 
   private renderPlacementFeedback(snapshot: GameSnapshot): void {
@@ -362,7 +311,7 @@ export class RunScene extends Phaser.Scene {
     });
   }
 
-  private renderBoss(snapshot: GameSnapshot): void {
+  private renderBoss(snapshot: GameSnapshot, visualMs: number): void {
     const graphics = this.enemyGraphics;
     if (!graphics || !snapshot.boss || snapshot.phase !== "boss") {
       this.bossLabel?.setVisible(false);
@@ -376,7 +325,7 @@ export class RunScene extends Phaser.Scene {
       : writeBossPosition(snapshot.board.pathCells, snapshot.boss, this.bossPosition);
     const hpRatio = snapshot.boss.hp / snapshot.boss.maxHp;
     const vulnerable = snapshot.boss.vulnerableMs > 0;
-    const pulse = 3 + Math.sin(snapshot.elapsedMs / 90) * 3;
+    const pulse = 3 + Math.sin(visualMs / 90) * 3;
 
     if (vulnerable) {
       graphics.fillStyle(0xFFF2A8, 0.2);
@@ -534,15 +483,4 @@ export class RunScene extends Phaser.Scene {
 
     saveRun(this.driver.state);
   }
-}
-
-function getCoreLiquidFillRatio(snapshot: GameSnapshot): number {
-  if (snapshot.phase === "boss" || snapshot.phase === "victory") {
-    return 1;
-  }
-
-  const finalWaveIndex = Math.max(1, gameConfig.waves.length - 1);
-  const waveProgress = Phaser.Math.Clamp(snapshot.waveIndex / finalWaveIndex, 0, 1);
-
-  return Phaser.Math.Linear(CORE_LIQUID_MIN_FILL, 1, waveProgress);
 }
