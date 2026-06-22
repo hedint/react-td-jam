@@ -2,6 +2,11 @@ import type { GameSnapshot, PathCell, ReactionId } from "@entities/game-session/
 import type Phaser from "phaser";
 import { assetGroups } from "@shared/assets/manifest";
 import {
+  drawReactionPoolUnderlay,
+  getReactionConnectedPools,
+  getSupportedReactionPoolUnderlayIds,
+} from "./runSceneReactionPoolUnderlay";
+import {
   getReactionDisplayName,
   getReactionSpritePresentation,
   getReactionVfxDefinition,
@@ -21,6 +26,7 @@ interface FieldCallout {
 
 export class RunSceneReactionPresenter {
   private reactionSprites: Phaser.GameObjects.Image[] = [];
+  private readonly airUnderlayGraphics: Phaser.GameObjects.Graphics;
   private fieldCallouts: FieldCallout[] = [];
   private readonly announcedReactionIds = new Set<ReactionId>();
   private readonly bossPosition = { x: 0, y: 0 };
@@ -28,10 +34,14 @@ export class RunSceneReactionPresenter {
   private lastCalloutAt = Number.NEGATIVE_INFINITY;
   private lastCoreDangerAt = Number.NEGATIVE_INFINITY;
 
-  constructor(private readonly scene: Phaser.Scene) {}
+  constructor(private readonly scene: Phaser.Scene) {
+    this.airUnderlayGraphics = scene.add.graphics().setDepth(17.4);
+  }
 
   render(graphics: Phaser.GameObjects.Graphics, snapshot: GameSnapshot, visualMs: number): void {
     graphics.clear();
+    this.airUnderlayGraphics.clear();
+    this.renderReactionPoolUnderlays(graphics, snapshot, visualMs);
 
     let spriteIndex = 0;
 
@@ -57,6 +67,21 @@ export class RunSceneReactionPresenter {
     });
 
     this.renderFieldCallouts(snapshot);
+  }
+
+  private renderReactionPoolUnderlays(
+    groundGraphics: Phaser.GameObjects.Graphics,
+    snapshot: GameSnapshot,
+    visualMs: number,
+  ): void {
+    getSupportedReactionPoolUnderlayIds().forEach((reactionId) => {
+      const definition = getReactionVfxDefinition(reactionId);
+      const targetGraphics = definition.layer === "air" ? this.airUnderlayGraphics : groundGraphics;
+
+      getReactionConnectedPools(snapshot.activeReactions, snapshot.board.pathCells.length, reactionId, definition.layer)
+        .filter(pool => pool.length > 1)
+        .forEach(pool => drawReactionPoolUnderlay(targetGraphics, snapshot.board.pathCells, pool, reactionId, visualMs));
+    });
   }
 
   private renderReactionSprite(

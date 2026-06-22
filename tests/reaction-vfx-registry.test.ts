@@ -1,6 +1,16 @@
+import type { CellReactionState, EmitterId, ReactionId } from "@entities/game-session/model/types";
 import { getPathTilePresentation } from "@app/phaser/scenes/runScenePathTiles";
-import { getReactionSpritePresentation, reactionVfxRegistry } from "@app/phaser/scenes/runSceneReactionRender";
-import { getVisibleReagentEmitterIds } from "@app/phaser/scenes/runSceneReagentRender";
+import {
+  getElectroPuddlePoolUnderlayPresentation,
+  getReactionConnectedPools,
+  getReactionPoolUnderlayPresentation,
+  getSupportedReactionPoolUnderlayIds,
+} from "@app/phaser/scenes/runSceneReactionPoolUnderlay";
+import {
+  getReactionSpritePresentation,
+  reactionVfxRegistry,
+} from "@app/phaser/scenes/runSceneReactionRender";
+import { getVisibleReagentConnectedPools, getVisibleReagentEmitterIds } from "@app/phaser/scenes/runSceneReagentRender";
 import { gameConfig } from "@entities/game-session/model/config";
 import { describe, expect, it } from "vitest";
 
@@ -42,6 +52,72 @@ describe("reaction VFX registry", () => {
       expect(tile.width).toBe(tile.height);
       expect(tile.effectSize).toBe(tile.width);
     });
+  });
+
+  it("groups connected ground reactions without merging singleton pools", () => {
+    const reactions = createReactionCells({
+      1: "electroPuddle",
+      2: "electroPuddle",
+      5: "electroPuddle",
+    });
+
+    expect(getReactionConnectedPools(reactions, gameConfig.board.pathCells.length, "electroPuddle", "ground")).toEqual([[1, 2], [5]]);
+  });
+
+  it("groups connected ground reactions across the path ring seam", () => {
+    const lastCellIndex = gameConfig.board.pathCells.length - 1;
+    const reactions = createReactionCells({
+      0: "electroPuddle",
+      [lastCellIndex]: "electroPuddle",
+    });
+
+    expect(getReactionConnectedPools(reactions, gameConfig.board.pathCells.length, "electroPuddle", "ground")).toEqual([[0, lastCellIndex]]);
+  });
+
+  it("ignores air reactions and other ground reactions when grouping electro puddles", () => {
+    const reactions = createReactionCells({
+      1: "electroPuddle",
+      2: "fire",
+    }).map(reaction => reaction.cellIndex === 3
+      ? { ...reaction, air: "electroPuddle" as ReactionId }
+      : reaction);
+
+    expect(getReactionConnectedPools(reactions, gameConfig.board.pathCells.length, "electroPuddle", "ground")).toEqual([[1]]);
+  });
+
+  it("presents electro puddle underlay bridges below the main ground reaction sprite", () => {
+    const presentation = getElectroPuddlePoolUnderlayPresentation(gameConfig.board.pathCells, [1, 2], 120);
+
+    expect(presentation.depth).toBeLessThan(reactionVfxRegistry.electroPuddle.depth);
+    expect(presentation.links).toHaveLength(1);
+    expect(presentation.links[0]?.outerAlpha).toBe(1);
+    expect(presentation.links[0]?.innerAlpha).toBe(1);
+    expect(presentation.bridges.length).toBeGreaterThanOrEqual(1);
+    expect(presentation.bridges[0]?.points).toHaveLength(4);
+  });
+
+  it("supports only the requested multi-cell reaction underlays", () => {
+    expect(getSupportedReactionPoolUnderlayIds()).toEqual(["electroPuddle", "fire", "steam", "stormCloud", "fireVortex"]);
+
+    getSupportedReactionPoolUnderlayIds().forEach((reactionId) => {
+      const presentation = getReactionPoolUnderlayPresentation(gameConfig.board.pathCells, [1, 2], reactionId, 120);
+
+      expect(presentation?.reactionId).toBe(reactionId);
+      expect(presentation?.links).toHaveLength(1);
+    });
+    expect(getReactionPoolUnderlayPresentation(gameConfig.board.pathCells, [1, 2], "fireStorm", 120)).toBeNull();
+  });
+
+  it("groups only visible water and oil reagent pools", () => {
+    const visibleEmitterIdsByCell = createVisibleEmitterCells({
+      0: ["water"],
+      1: ["water", "oil"],
+      2: ["oil"],
+      4: ["spark"],
+    });
+
+    expect(getVisibleReagentConnectedPools(visibleEmitterIdsByCell, gameConfig.board.pathCells.length, "water")).toEqual([[0, 1]]);
+    expect(getVisibleReagentConnectedPools(visibleEmitterIdsByCell, gameConfig.board.pathCells.length, "oil")).toEqual([[1, 2]]);
   });
 
   it("keeps non-input ground reagents visible under air reactions", () => {
@@ -92,3 +168,18 @@ describe("reaction VFX registry", () => {
     expect(getVisibleReagentEmitterIds(projection, { cellIndex: 1, ground: "electroPuddle", air: "steam" })).toEqual([]);
   });
 });
+
+function createReactionCells(groundByCellIndex: Record<number, ReactionId>): readonly CellReactionState[] {
+  return gameConfig.board.pathCells.map(cell => ({
+    cellIndex: cell.index,
+    ground: groundByCellIndex[cell.index] ?? null,
+    air: null,
+  }));
+}
+
+function createVisibleEmitterCells(emitterIdsByCellIndex: Record<number, readonly EmitterId[]>): readonly { readonly cellIndex: number, readonly emitterIds: readonly EmitterId[] }[] {
+  return gameConfig.board.pathCells.map(cell => ({
+    cellIndex: cell.index,
+    emitterIds: emitterIdsByCellIndex[cell.index] ?? [],
+  }));
+}

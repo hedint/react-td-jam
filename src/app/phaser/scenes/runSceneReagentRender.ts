@@ -1,9 +1,35 @@
 import type { CellReactionState, CellReagentProjection, EmitterId, GameSnapshot, PathCell } from "@entities/game-session/model/types";
 import type Phaser from "phaser";
 import { gameConfig } from "@entities/game-session/model/config";
-import { getAirReactionConsumedEmitterIds, projectReagents } from "@entities/game-session/model/reactions";
+import { collectConnectedPools, getAirReactionConsumedEmitterIds, projectReagents } from "@entities/game-session/model/reactions";
 import { assetGroups } from "@shared/assets/manifest";
 import { getPathTilePresentation } from "./runScenePathTiles";
+
+export type ReagentPoolUnderlayEmitterId = Extract<EmitterId, "water" | "oil">;
+
+const REAGENT_POOL_UNDERLAY_DEPTH = 5.6;
+const reagentPoolUnderlayStyles = {
+  water: {
+    color: 0x0B779C,
+    alpha: 1,
+    outerWidthScale: 0.48,
+    innerWidthScale: 0.26,
+    widthPulseScale: 0.03,
+  },
+  oil: {
+    color: 0x2C2319,
+    alpha: 0.92,
+    outerWidthScale: 0.5,
+    innerWidthScale: 0.28,
+    widthPulseScale: 0.025,
+  },
+} as const satisfies Record<ReagentPoolUnderlayEmitterId, {
+  readonly color: number
+  readonly alpha: number
+  readonly outerWidthScale: number
+  readonly innerWidthScale: number
+  readonly widthPulseScale: number
+}>;
 
 export interface ReagentAssetVisual {
   readonly key: string
@@ -17,17 +43,27 @@ export interface ReagentAssetVisual {
 
 export class RunSceneReagentPresenter {
   private sprites: Phaser.GameObjects.Image[] = [];
+  private readonly underlayGraphics: Phaser.GameObjects.Graphics;
 
-  constructor(private readonly scene: Phaser.Scene) {}
+  constructor(private readonly scene: Phaser.Scene) {
+    this.underlayGraphics = scene.add.graphics().setDepth(REAGENT_POOL_UNDERLAY_DEPTH);
+  }
 
   render(snapshot: GameSnapshot, visualMs: number): void {
     const projections = projectReagents(snapshot.board, snapshot.placedTowers, snapshot.upgrades);
     const reactionsByCellIndex = new Map(snapshot.activeReactions.map(reaction => [reaction.cellIndex, reaction]));
+    const visibleEmitterIdsByCell = projections.map(projection => ({
+      cellIndex: projection.cellIndex,
+      emitterIds: getVisibleReagentEmitterIds(projection, reactionsByCellIndex.get(projection.cellIndex)),
+    }));
     let spriteIndex = 0;
+
+    this.underlayGraphics.clear();
+    renderReagentPoolUnderlays(this.underlayGraphics, snapshot.board.pathCells, visibleEmitterIdsByCell, visualMs);
 
     projections.forEach((projection) => {
       const cell = snapshot.board.pathCells[projection.cellIndex];
-      const emitterIds = getVisibleReagentEmitterIds(projection, reactionsByCellIndex.get(projection.cellIndex));
+      const emitterIds = visibleEmitterIdsByCell[projection.cellIndex]?.emitterIds ?? [];
 
       if (!cell || emitterIds.length === 0) {
         return;
@@ -83,6 +119,20 @@ export class RunSceneReagentPresenter {
       .setRotation(tile.rotation + getReagentRotationOffset(emitterId, visualMs, cell.index))
       .setDepth(visual.depth + cell.y / 10000);
   }
+}
+
+export function getVisibleReagentConnectedPools(
+  visibleEmitterIdsByCell: readonly { readonly cellIndex: number, readonly emitterIds: readonly EmitterId[] }[],
+  pathCellCount: number,
+  emitterId: ReagentPoolUnderlayEmitterId,
+): readonly (readonly number[])[] {
+  const matchingCellIndexes = new Set(
+    visibleEmitterIdsByCell
+      .filter(cell => cell.emitterIds.includes(emitterId))
+      .map(cell => cell.cellIndex),
+  );
+
+  return collectConnectedPools(pathCellCount, matchingCellIndexes);
 }
 
 export function getVisibleReagentEmitterIds(
@@ -146,6 +196,80 @@ export function getReagentAssetVisual(emitterId: EmitterId): ReagentAssetVisual 
     default:
       return emitterId satisfies never;
   }
+}
+
+function renderReagentPoolUnderlays(
+  graphics: Phaser.GameObjects.Graphics,
+  cells: readonly PathCell[],
+  visibleEmitterIdsByCell: readonly { readonly cellIndex: number, readonly emitterIds: readonly EmitterId[] }[],
+  visualMs: number,
+): void {
+  (Object.keys(reagentPoolUnderlayStyles) as ReagentPoolUnderlayEmitterId[]).forEach((emitterId) => {
+    getVisibleReagentConnectedPools(visibleEmitterIdsByCell, cells.length, emitterId)
+      .filter(pool => pool.length > 1)
+      .forEach(pool => drawReagentPoolUnderlay(graphics, cells, pool, emitterId, visualMs));
+  });
+}
+
+function drawReagentPoolUnderlay(
+  graphics: Phaser.GameObjects.Graphics,
+  cells: readonly PathCell[],
+  pool: readonly number[],
+  emitterId: ReagentPoolUnderlayEmitterId,
+  visualMs: number,
+): void {
+  const style = reagentPoolUnderlayStyles[emitterId];
+  const poolIndexes = new Set(pool);
+
+  graphics.setDepth(REAGENT_POOL_UNDERLAY_DEPTH);
+  [...poolIndexes]
+    .sort((left, right) => left - right)
+    .forEach((cellIndex) => {
+      const nextCellIndex = (cellIndex + 1) % cells.length;
+      const fromCell = cells[cellIndex];
+      const toCell = cells[nextCellIndex];
+
+      if (!poolIndexes.has(nextCellIndex) || !fromCell || !toCell) {
+        return;
+      }
+
+      const fromTile = getPathTilePresentation(cells, fromCell);
+      const toTile = getPathTilePresentation(cells, toCell);
+      const bridgeSize = Math.min(fromTile.effectSize, toTile.effectSize);
+      const pulse = Math.sin(visualMs / 210 + cellIndex * 0.61 + nextCellIndex * 0.37);
+      const from = { x: fromCell.x, y: fromCell.y };
+      const to = { x: toCell.x, y: toCell.y };
+
+      drawCapsule(graphics, from, to, bridgeSize * (style.outerWidthScale + pulse * style.widthPulseScale), style.color, style.alpha);
+      drawCapsule(graphics, from, to, bridgeSize * (style.innerWidthScale + pulse * style.widthPulseScale * 0.66), style.color, style.alpha);
+    });
+}
+
+function drawCapsule(
+  graphics: Phaser.GameObjects.Graphics,
+  from: { readonly x: number, readonly y: number },
+  to: { readonly x: number, readonly y: number },
+  width: number,
+  color: number,
+  alpha: number,
+): void {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const distance = Math.max(1, Math.hypot(dx, dy));
+  const radius = width / 2;
+  const normalX = -dy / distance * radius;
+  const normalY = dx / distance * radius;
+
+  graphics.fillStyle(color, alpha);
+  graphics.fillCircle(from.x, from.y, radius);
+  graphics.fillCircle(to.x, to.y, radius);
+  graphics.beginPath();
+  graphics.moveTo(from.x + normalX, from.y + normalY);
+  graphics.lineTo(to.x + normalX, to.y + normalY);
+  graphics.lineTo(to.x - normalX, to.y - normalY);
+  graphics.lineTo(from.x - normalX, from.y - normalY);
+  graphics.closePath();
+  graphics.fillPath();
 }
 
 function getReagentFrame(

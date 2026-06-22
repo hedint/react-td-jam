@@ -2,8 +2,8 @@
 
 ## Status
 
-- Current phase: Phase 5 - HUD, Cards, Draft, and Result UI
-- Overall status: Phase 0 complete; Phase 1 visual direction approved; Phase 2 complete; Phase 3 complete; Phase 4 complete; Phase 5 next
+- Current phase: Phase 7 - Creature and Boss Seed Frames
+- Overall status: Phase 0 complete; Phase 1 visual direction approved; Phase 2 complete; Phase 3 complete; Phase 4 complete; Phase 5 complete; Phase 6 QA complete; Phase 6A board/field readability accepted; Phase 7 next
 - Source docs: `docs/design.md`, `docs/setting.md`, `docs/plans/p0-implementation-plan.md`
 - Visual reference: user-provided `React TD` concept screenshot in the planning thread.
 - Goal: turn the completed P0 from a readable schematic prototype into a polished demo-facing visual slice without changing P0 gameplay rules.
@@ -699,7 +699,7 @@ Purpose: harden the visual core before committing to full creature animation pro
 - [x] Verify no new visual layer breaks pointer targeting.
 - [x] Compare new screenshots against P0 baseline screenshots and record the improvement.
 - [x] Tune colors, contrast, shadow strength, and effect opacity based on screenshots.
-- [ ] Rework board readability so the road, tower slots, monster entrance, and monster exit match the approved/reference field language.
+- [x] Rework board readability so the road, tower slots, monster entrance, and monster exit match the approved/reference field language.
 - [ ] Get user approval that 0.5a visual core is good enough to proceed to creature animation.
 
 ### Phase 6A - Board Field Readability Rework
@@ -710,32 +710,32 @@ User review on 2026-06-22 rejected the current board/field as not good enough fo
 
 #### Tasks
 
-- [ ] Produce or generate dedicated 2D board assets for the road, tower slot sockets, monster entrance, and monster exit instead of relying on debug-like procedural rectangles/circles.
-- [ ] Keep the road dynamic and geometry-driven: do not bake the path into the static background; compose road art from runtime board path cells, segment/corner/cap pieces, or equivalent geometry-aware sprites.
-- [ ] Rework the road to read as a physical monster route like the reference: raised stone/metal walkway, beveled edges, rivets/plates, soot wear, and strong separation from surrounding cavern floor.
-- [ ] Rework tower slots to read as empty build sockets/pads like the reference: brass/iron circular mounts, clear empty/valid/selected/occupied states, and exact alignment with existing hit targets.
-- [ ] Add a clear monster entrance marker at the path start: gate, tunnel mouth, hatch, warning marker, or industrial portal that visually explains where enemies spawn.
-- [ ] Add a clear monster exit / Куб danger marker at the path end: drain, gate, spill channel, or breach indicator that visually explains how leaks damage the Куб.
-- [ ] Ensure entrance and exit are distinct from ordinary path cells and from tower slots at mobile scale.
-- [ ] Ensure reaction decals and reagent sprites still align to path cells after the road art changes.
-- [ ] Ensure tower sprites still sit on slots and never appear to stand on the road unless the underlying slot geometry says so.
-- [ ] Add the new board assets to the asset manifest and BootScene loading path, with stable keys and documented asset specs/prompts.
-- [ ] Capture refreshed ready, placement-selected, live wave, reaction-heavy, boss, and draft-overlay screenshots after the board rework.
+- [x] Produce or generate dedicated 2D board assets for the road, tower slot sockets, monster entrance, and monster exit instead of relying on debug-like procedural rectangles/circles.
+- [x] Keep the road dynamic and geometry-driven: do not bake the path into the static background; compose road art from runtime board path cells, segment/corner/cap pieces, or equivalent geometry-aware sprites.
+- [x] Rework the road to read as a physical monster route like the reference: raised stone/metal walkway, beveled edges, rivets/plates, soot wear, and strong separation from surrounding cavern floor.
+- [x] Rework tower slots to read as empty build sockets/pads like the reference: brass/iron circular mounts, clear empty/valid/selected/occupied states, and exact alignment with existing hit targets.
+- [x] Add a clear monster entrance marker at the path start: gate, tunnel mouth, hatch, warning marker, or industrial portal that visually explains where enemies spawn.
+- [x] Add a clear monster exit / Куб danger marker at the path end: drain, gate, spill channel, or breach indicator that visually explains how leaks damage the Куб.
+- [x] Ensure entrance and exit are distinct from ordinary path cells and from tower slots at mobile scale.
+- [x] Ensure reaction decals and reagent sprites still align to path cells after the road art changes.
+- [x] Ensure tower sprites still sit on slots and never appear to stand on the road unless the underlying slot geometry says so.
+- [x] Add the new board assets to the asset manifest and BootScene loading path, with stable keys and documented asset specs/prompts.
+- [x] Capture refreshed ready, placement-selected, live wave, reaction-heavy, boss, and draft-overlay screenshots after the board rework.
 
 #### Acceptance Criteria
 
-- [ ] At 390x844 and 540x960, a new player can identify the monster road, buildable tower sockets, spawn entrance, and leak/exit point without debug labels.
-- [ ] Road, slots, entrance, and exit look like the same industrial fortress material family as the provided reference and the Phase 1 approved style direction.
-- [ ] The static background remains decorative only; gameplay-significant path, slots, entrance, exit, and Куб stay runtime-aligned dynamic layers.
-- [ ] Pointer targeting and placement behavior are unchanged.
-- [ ] The user approves the field/board readability before 0.5a approval can pass.
+- [x] At 390x844 and 540x960, a new player can identify the monster road, buildable tower sockets, spawn entrance, and leak/exit point without debug labels.
+- [x] Road, slots, entrance, and exit look like the same industrial fortress material family as the provided reference and the Phase 1 approved style direction.
+- [x] The static background remains decorative only; gameplay-significant path, slots, entrance, exit, and Куб stay runtime-aligned dynamic layers.
+- [x] Pointer targeting and placement behavior are unchanged.
+- [x] The user approves the field/board readability before 0.5a approval can pass.
 
 #### Verification
 
-- [ ] Browser screenshots for board-ready, placement-selected, live wave, reaction-heavy, boss, and draft-overlay states.
-- [ ] Mobile and desktop phone-frame visual review.
-- [ ] Pointer placement smoke test against at least one outer slot and one inner slot.
-- [ ] Console checked for asset load errors.
+- [x] Browser screenshots for board-ready, placement-selected, live wave, reaction-heavy, boss, and draft-overlay states.
+- [x] Mobile and desktop phone-frame visual review.
+- [x] Pointer placement smoke test against at least one outer slot and one inner slot.
+- [x] Console checked for asset load errors.
 
 ### Acceptance Criteria
 
@@ -789,7 +789,7 @@ User review on 2026-06-22 rejected the current board/field as not good enough fo
     - this fixed desktop text wrapping where upgrade names/descriptions collapsed into near-vertical text and removed the panel overlap with the lower tray.
   - Remaining 0.5a approval caveat:
     - full "all three wow moments" review is accepted as QA-complete for this slice because the user explicitly waived the dedicated T3 `Огненный шторм` capture for now on 2026-06-22.
-    - board/field readability is not approved: road, tower slots, monster entrance, and monster exit must be reworked to be closer to the user-provided reference before 0.5a approval.
+    - board/field readability was accepted by the user on 2026-06-22 as "more or less normal" for the current slice: road, tower slots, monster entrance, and monster exit no longer block 0.5a progress.
   - Known remaining visual gaps for 0.5b:
     - enemies and Бочкоед are still procedural shapes/text labels pending Phase 7-9 creature seed frames, animation strips, and runtime integration;
     - dense late-game tower overlap on the left rail is acceptable for 0.5a but should be re-evaluated once creature sprites replace procedural enemies.
@@ -799,8 +799,9 @@ User review on 2026-06-22 rejected the current board/field as not good enough fo
 - Implemented:
   - Phase 6 browser QA coverage for mobile and desktop phone-frame.
   - One targeted readability fix for upgrade draft layout.
+  - Phase 6A board/field readability rework accepted for the current slice: physical road art, socket markers, entrance, exit, and geometry-aligned dynamic field layers are good enough to proceed.
 - Intentionally deferred:
-  - User approval gate remains open.
+  - Full 0.5a approval still depends on the remaining non-field polish decisions, especially top/bottom HUD finalization.
   - Dedicated T3 `Огненный шторм` wow capture is intentionally skipped for this slice and may be revisited in final polish if needed.
   - Creature/boss sprite production remains deferred to 0.5b.
 - Accepted deviations/tradeoffs:
