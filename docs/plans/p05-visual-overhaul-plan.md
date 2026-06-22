@@ -523,36 +523,36 @@ Purpose: make the game interface match the new field quality while protecting th
 
 ### Tasks
 
-- [ ] Redesign top HUD as compact iron/brass control panels with clear priority: Куб HP, wave/phase, threat, speed, pause/start.
-- [ ] Redesign lower tray as a workshop/card rail that supports tower selection and placed/reserve state.
-- [ ] Reuse tower art for tower cards and lower tray items.
-- [ ] Add element/type icon treatment for Вода, Нефть, Искра, and Жар.
-- [ ] Redesign draft overlay with thematic card frames, role labels, upgrade stack info, and reroll state.
-- [ ] Redesign pause overlay in the same material language without covering unnecessary context.
-- [ ] Redesign victory/defeat result screen with readable stats and reaction damage list.
-- [ ] Preserve all existing actions and keyboard/pointer behavior.
-- [ ] Keep text fitting within panels on mobile and desktop phone-frame sizes.
-- [ ] Keep debug HUD excluded from player-facing polish unless it visually conflicts when enabled.
+- [x] Redesign top HUD as compact iron/brass control panels with clear priority: Куб HP, wave/phase, threat, speed, pause/start.
+- [x] Redesign lower tray as a workshop/card rail that supports tower selection and placed/reserve state.
+- [x] Reuse tower art for tower cards and lower tray items.
+- [x] Add element/type icon treatment for Вода, Нефть, Искра, and Жар.
+- [x] Redesign draft overlay with thematic card frames, role labels, upgrade stack info, and reroll state.
+- [x] Redesign pause overlay in the same material language without covering unnecessary context.
+- [x] Redesign victory/defeat result screen with readable stats and reaction damage list.
+- [x] Preserve all existing actions and keyboard/pointer behavior.
+- [x] Keep text fitting within panels on mobile and desktop phone-frame sizes.
+- [x] Keep debug HUD excluded from player-facing polish unless it visually conflicts when enabled.
 
 ### Acceptance Criteria
 
-- [ ] UI no longer looks like a generic web app overlay.
-- [ ] The field remains the hero during normal play.
-- [ ] Draft and result screens feel like the same game as the board.
-- [ ] No text clips or overlaps at mobile widths.
-- [ ] Existing run lifecycle actions still work.
+- [x] UI no longer looks like a generic web app overlay.
+- [x] The field remains the hero during normal play.
+- [x] Draft and result screens feel like the same game as the board.
+- [x] No text clips or overlaps at mobile widths.
+- [x] Existing run lifecycle actions still work.
 
 ### Tests
 
-- [ ] Existing store/action tests remain passing.
-- [ ] Add UI behavior tests only if component logic changes.
+- [x] Existing store/action tests remain passing.
+- [x] Add UI behavior tests only if component logic changes.
 
 ### Verification
 
-- [ ] `npm run typecheck`.
-- [ ] `npm test`.
-- [ ] Manual browser check: start wave, pause/resume, speed, tower selection, draft reroll, upgrade pick, result restart/new run.
-- [ ] Screenshots: normal HUD, tower draft, upgrade draft, pause, victory/defeat result.
+- [x] `npm run typecheck`.
+- [x] `npm test`.
+- [x] Manual browser check: start wave, pause/resume, speed, tower selection, draft reroll, upgrade pick, result restart/new run.
+- [x] Screenshots: normal HUD, tower draft, upgrade draft, pause, victory/defeat result.
 
 ### Phase notes
 
@@ -612,13 +612,79 @@ Purpose: make the game interface match the new field quality while protecting th
     - reaction-over-source suppression browser result: `output/playwright/p05-animated-reactions-hide-source-reagents-check.json`.
     - centered air reaction check: `output/playwright/p05-air-reactions-centered.png`.
     - centered air reaction browser result: `output/playwright/p05-air-reactions-centered-check.json`.
+  - Phase 5 HUD/UI slice implemented:
+    - top HUD now uses compact iron/brass control chips for Куб HP, phase/wave, threat, speed, and start/pause;
+    - lower tray is now a workshop rail with tower art, selected/placed state, and element badges for Вода, Нефть, Искра, and Жар;
+    - tower draft cards reuse tower art and show role labels plus element badges;
+    - upgrade draft cards show stack count and element-themed treatment;
+    - pause and result overlays now share the riveted iron/brass modal language and keep more field context visible;
+    - victory/defeat result stats and reaction damage rows now use compact stat cells and reaction color markers.
+  - Implementation note:
+    - no store/action contract was changed; the new Vue helper functions derive visual classes from existing tower ids, labels, draft offer ids, upgrade ids, and damage source ids;
+    - no UI behavior tests were added because action/event behavior was not changed.
+  - Phase 5 browser screenshots:
+    - normal HUD and tower selection: `output/playwright/p05-phase5-normal-hud.png`;
+    - pause overlay: `output/playwright/p05-phase5-pause-overlay.png`;
+    - tower draft: `output/playwright/p05-phase5-tower-draft.png`;
+    - upgrade draft: `output/playwright/p05-phase5-upgrade-draft.png`;
+    - victory result: `output/playwright/p05-phase5-result-victory.png`.
+  - Browser verification detail:
+    - start wave, pause, speed toggle, resume, and tower selection were checked through the live running game;
+    - draft and result surfaces were checked with Vite-served Pinia UI snapshot fixtures so the real Vue component, CSS, and click handlers were exercised without playing a full run;
+    - full end-to-end lifecycle coverage for all surfaces remains part of Phase 6 browser QA.
+  - Correction after user review:
+    - the initial Phase 5 lower tray presentation was rejected because it still looked visually noisy, showed already placed towers, exposed redundant `резерв`/`на поле` status text, and compressed tower names/art too aggressively;
+    - lower tray now renders only reserve towers, leaving placed tower control to the field itself;
+    - lower tray is hidden entirely when there are no reserve towers;
+    - lower tray tower cards were changed to a taller vertical format: tower name in a dedicated top row and tower art below;
+    - element badges were removed from lower tray tower cards for now;
+    - new verification screenshot: `output/playwright/p05-phase5-normal-hud-reserve-only.png`;
+    - Playwright check for this correction found 3 reserve cards, no placed `Водомёт`, and no measured overflow in tower names, top HUD chips, or buttons.
+  - Tower draft correction after user review:
+    - removed element badges from tower selection cards because the tower art already communicates the emitter family;
+    - removed draft role labels and their icons (`связка`, `запас`, `поворот`) from tower selection cards;
+    - tower selection cards now show only tower art and tower name;
+    - removed the element-colored decorative dot from draft card backgrounds;
+    - adjusted draft header line height after browser overflow check;
+    - new verification screenshot: `output/playwright/p05-phase5-tower-draft-simple.png`;
+    - Playwright check for this correction found badge count 0, meta count 0, card texts only `Водомёт`, `Магмовый кран`, `Маслонасос`, and no measured text overflow.
+  - Draft window layout correction after user review:
+    - replaced the temporary fixed-height draft panel sizing with padding-driven layout, so the panel opens just below the top HUD and runs almost to the lower hand tray;
+    - mobile portrait padding is now `60px 12px 134px`, tuned from the user's `34px 12px 112px` experiment to avoid overlap with the current HUD/tray heights;
+    - desktop/wide phone-frame padding is now `70px 18px 148px`;
+    - new verification screenshots: `output/playwright/p05-phase5-tower-draft-window-tuned.png` and `output/playwright/p05-phase5-tower-draft-window-tuned-540.png`;
+    - Playwright geometry check: 390px viewport has 6px gap after top HUD and 4px before lower tray; 540px viewport has 12px gaps on both sides; no measured text overflow.
+  - Upgrade draft readability correction after user review:
+    - renamed the upgrade draft heading from `Настройка контрапций` to `Выберите усиление`;
+    - removed the diagonal pseudo-icon, element badge, and technical `стек` label from upgrade cards;
+    - upgrade cards now show upgrade name, a short effect description, and a clear `Уровень current/max` chip;
+    - added explicit descriptions for all P0 upgrades in the Vue presentation layer;
+    - new verification screenshot: `output/playwright/p05-phase5-upgrade-draft-readable.png`;
+    - Playwright check found title `Выберите усиление`, badge count 0, meta count 0, visible upgrade art count 0, no `стек` text, and no measured overflow.
+  - Draft overlay lower-tray interaction correction after user review:
+    - reserve tower buttons remain visible under both tower and upgrade draft overlays, but are disabled while any draft step is open;
+    - lower tray selected styling is suppressed during draft, even if a tower was selected before the overlay opened;
+    - `selectTower` now guards against draft state before emitting a run action;
+    - hover/focus border effects no longer apply to disabled reserve tower cards;
+    - Playwright behavior check found all visible reserve cards disabled during draft, selected visual count 0, and programmatic click did not change tower selection.
 
 ### Phase completion summary
 
 - Implemented:
+  - The Phase 5 DOM HUD, tower rail, draft overlay, pause overlay, and result overlay now share the Phase 0.5 iron/brass visual language and use existing tower art and shared skin tokens.
+  - Element badges and reaction markers were added for the four P0 emitter families and result damage rows.
 - Intentionally deferred:
+  - No new UI behavior tests were added because this slice did not change action semantics.
+  - Full end-to-end browser lifecycle QA across all normal play surfaces remains in Phase 6.
 - Accepted deviations/tradeoffs:
+  - Draft/result screenshots were produced from UI snapshot fixtures rather than a full played run, to verify the visual surfaces without spending Phase 5 on complete run automation.
+  - The first Phase 5 pass was not accepted as visually ready; the lower tray was corrected after review and should be evaluated again in Phase 6 visual-core QA.
 - Tests/checks run:
+  - `npm run lint:fix` passed.
+  - `npm run typecheck` passed.
+  - `npm test` passed: 6 test files, 95 tests.
+  - `npm run build` passed with Vite's existing large chunk warning for the Phaser bundle.
+  - Playwright browser smoke passed with no page errors and no measured text overflow; Chromium logged only expected WebGL `ReadPixels` screenshot warnings.
 
 ## Phase 6 - 0.5a Browser QA and Visual-Core Approval
 

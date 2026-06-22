@@ -33,7 +33,7 @@ export const useGameSessionStore = defineStore("game-session", () => {
   const bossVulnerableMs = ref(0);
   const reactionStats = ref<Array<{ readonly sourceId: DamageSourceId, readonly label: string, readonly damage: number }>>([]);
   const selectedTowerId = ref<string | null>(null);
-  const towerItems = ref<Array<{ readonly id: string, readonly label: string, readonly placed: boolean }>>([]);
+  const towerItems = ref<Array<{ readonly id: string, readonly emitterId: EmitterId, readonly label: string, readonly placed: boolean }>>([]);
   const draftStep = ref<DraftStep | null>(null);
   const draftTowerOffers = ref<Array<{ readonly emitterId: EmitterId, readonly label: string, readonly role: DraftRole, readonly roleLabel: string }>>([]);
   const draftUpgradeOffers = ref<Array<{ readonly upgradeId: UpgradeId, readonly label: string, readonly stacks: number, readonly maxStacks: number }>>([]);
@@ -117,11 +117,13 @@ export const useGameSessionStore = defineStore("game-session", () => {
     towerItems.value = [
       ...snapshot.placedTowers.map(tower => ({
         id: tower.id,
+        emitterId: tower.emitterId,
         label: tower.displayName,
         placed: true,
       })),
       ...snapshot.bench.map(tower => ({
         id: tower.id,
+        emitterId: tower.emitterId,
         label: tower.displayName,
         placed: false,
       })),

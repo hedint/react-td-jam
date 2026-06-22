@@ -125,7 +125,7 @@ export function stepRun(state: RunState, deltaMs: number, config: GameConfig = g
 
     const enemyDefinition = getEnemyDefinition(enemy.enemyId, config);
     const currentCellIndex = getCurrentPathCellIndex(enemy.pathProgress, state.board.pathCells.length);
-    const speedMultiplier = getCellSpeedMultiplier(reagentProjection[currentCellIndex], state.upgrades, config, reactions[currentCellIndex]);
+    const speedMultiplier = getEnemySpeedMultiplier(enemyDefinition, reagentProjection[currentCellIndex], state.upgrades, config, reactions[currentCellIndex]);
     const pathProgress = enemy.pathProgress + (enemyDefinition?.speedCellsPerSecond ?? 1) * speedMultiplier * scaledDeltaMs / 1000;
 
     if (pathProgress >= state.board.pathCells.length) {
@@ -414,6 +414,18 @@ function getEnemyDefinition(enemyId: EnemyId, config: GameConfig): EnemyDefiniti
 
 function isEnemyAffectedByReaction(enemy: EnemyDefinition, layer: "ground" | "air"): boolean {
   return !enemy.traits?.includes("flying") || layer === "air";
+}
+
+function getEnemySpeedMultiplier(
+  enemy: EnemyDefinition,
+  projection: Parameters<typeof getCellSpeedMultiplier>[0],
+  upgrades: Parameters<typeof getCellSpeedMultiplier>[1],
+  config: GameConfig,
+  reaction: Parameters<typeof getCellSpeedMultiplier>[3],
+): number {
+  return enemy.traits?.includes("flying")
+    ? 1
+    : getCellSpeedMultiplier(projection, upgrades, config, reaction);
 }
 
 function getEnemyResistanceMultiplier(enemy: EnemyDefinition, damageFamily: DamageFamily): number {

@@ -539,6 +539,30 @@ describe("run simulation", () => {
     expect(stepRun(airReaction, 100).enemies[0]?.hp).toBeLessThan(24);
   });
 
+  it("does not slow flying enemies with ground substances or reactions", () => {
+    const groundSubstances = createRun(1, {
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-1-outer"),
+        createTower("tower-oil-a", "oil", "slot-1-outer"),
+      ],
+      enemies: [
+        createEnemy("enemy-flyer-a", "flyer", { pathProgress: 1 }),
+      ],
+    });
+    const groundReaction = createRun(1, {
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-1-outer"),
+        createTower("tower-spark-a", "spark", "slot-1-outer"),
+      ],
+      enemies: [
+        createEnemy("enemy-flyer-a", "flyer", { pathProgress: 1 }),
+      ],
+    });
+
+    expect(stepRun(groundSubstances, 1000).enemies[0]?.pathProgress).toBeCloseTo(2.12);
+    expect(stepRun(groundReaction, 1000).enemies[0]?.pathProgress).toBeCloseTo(2.12);
+  });
+
   it("does not damage flying enemies with raw ground energy", () => {
     const state = createRun(1, {
       placedTowers: [
@@ -1373,18 +1397,18 @@ describe("game session store", () => {
     expect(store.livingEnemyCount).toBe(0);
     expect(store.waveThreatEnemyId).toBe("grunt");
     expect(store.towerItems).toEqual([
-      { id: "tower-water-a", label: "Водомёт", placed: false },
-      { id: "tower-water-b", label: "Водомёт", placed: false },
-      { id: "tower-water-c", label: "Водомёт", placed: false },
-      { id: "tower-oil-a", label: "Маслонасос", placed: false },
-      { id: "tower-oil-b", label: "Маслонасос", placed: false },
-      { id: "tower-oil-c", label: "Маслонасос", placed: false },
-      { id: "tower-spark-a", label: "Разрядник", placed: false },
-      { id: "tower-spark-b", label: "Разрядник", placed: false },
-      { id: "tower-spark-c", label: "Разрядник", placed: false },
-      { id: "tower-heat-a", label: "Магмовый кран", placed: false },
-      { id: "tower-heat-b", label: "Магмовый кран", placed: false },
-      { id: "tower-heat-c", label: "Магмовый кран", placed: false },
+      { id: "tower-water-a", emitterId: "water", label: "Водомёт", placed: false },
+      { id: "tower-water-b", emitterId: "water", label: "Водомёт", placed: false },
+      { id: "tower-water-c", emitterId: "water", label: "Водомёт", placed: false },
+      { id: "tower-oil-a", emitterId: "oil", label: "Маслонасос", placed: false },
+      { id: "tower-oil-b", emitterId: "oil", label: "Маслонасос", placed: false },
+      { id: "tower-oil-c", emitterId: "oil", label: "Маслонасос", placed: false },
+      { id: "tower-spark-a", emitterId: "spark", label: "Разрядник", placed: false },
+      { id: "tower-spark-b", emitterId: "spark", label: "Разрядник", placed: false },
+      { id: "tower-spark-c", emitterId: "spark", label: "Разрядник", placed: false },
+      { id: "tower-heat-a", emitterId: "heat", label: "Магмовый кран", placed: false },
+      { id: "tower-heat-b", emitterId: "heat", label: "Магмовый кран", placed: false },
+      { id: "tower-heat-c", emitterId: "heat", label: "Магмовый кран", placed: false },
     ]);
     expect(store.lastTapLabel).toBe("120, 240");
   });
