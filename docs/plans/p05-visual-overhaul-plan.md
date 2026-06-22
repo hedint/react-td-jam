@@ -692,33 +692,69 @@ Purpose: harden the visual core before committing to full creature animation pro
 
 ### Tasks
 
-- [ ] Run browser QA on mobile portrait and desktop phone-frame.
-- [ ] Verify all normal play surfaces: ready, wave, placement, pause edit, draft, countdown, boss, victory, defeat.
-- [ ] Verify all three wow moments from `docs/design.md`.
-- [ ] Verify no UI element blocks critical tower placement or core/path reading.
-- [ ] Verify no new visual layer breaks pointer targeting.
-- [ ] Compare new screenshots against P0 baseline screenshots and record the improvement.
-- [ ] Tune colors, contrast, shadow strength, and effect opacity based on screenshots.
+- [x] Run browser QA on mobile portrait and desktop phone-frame.
+- [x] Verify all normal play surfaces: ready, wave, placement, pause edit, draft, countdown, boss, victory, defeat.
+- [x] Verify or explicitly waive all three wow moments from `docs/design.md`.
+- [x] Verify no UI element blocks critical tower placement or core/path reading.
+- [x] Verify no new visual layer breaks pointer targeting.
+- [x] Compare new screenshots against P0 baseline screenshots and record the improvement.
+- [x] Tune colors, contrast, shadow strength, and effect opacity based on screenshots.
+- [ ] Rework board readability so the road, tower slots, monster entrance, and monster exit match the approved/reference field language.
 - [ ] Get user approval that 0.5a visual core is good enough to proceed to creature animation.
+
+### Phase 6A - Board Field Readability Rework
+
+Purpose: replace the current schematic field treatment with a reference-like top-down industrial board layer before 0.5a approval.
+
+User review on 2026-06-22 rejected the current board/field as not good enough for approval. The road, tower slots, monster entrance, and monster exit must move closer to the provided reference: heavy stone/iron walkway, brass-rimmed tower sockets, clear gate/portal language, and readable industrial dungeon materials.
+
+#### Tasks
+
+- [ ] Produce or generate dedicated 2D board assets for the road, tower slot sockets, monster entrance, and monster exit instead of relying on debug-like procedural rectangles/circles.
+- [ ] Keep the road dynamic and geometry-driven: do not bake the path into the static background; compose road art from runtime board path cells, segment/corner/cap pieces, or equivalent geometry-aware sprites.
+- [ ] Rework the road to read as a physical monster route like the reference: raised stone/metal walkway, beveled edges, rivets/plates, soot wear, and strong separation from surrounding cavern floor.
+- [ ] Rework tower slots to read as empty build sockets/pads like the reference: brass/iron circular mounts, clear empty/valid/selected/occupied states, and exact alignment with existing hit targets.
+- [ ] Add a clear monster entrance marker at the path start: gate, tunnel mouth, hatch, warning marker, or industrial portal that visually explains where enemies spawn.
+- [ ] Add a clear monster exit / Куб danger marker at the path end: drain, gate, spill channel, or breach indicator that visually explains how leaks damage the Куб.
+- [ ] Ensure entrance and exit are distinct from ordinary path cells and from tower slots at mobile scale.
+- [ ] Ensure reaction decals and reagent sprites still align to path cells after the road art changes.
+- [ ] Ensure tower sprites still sit on slots and never appear to stand on the road unless the underlying slot geometry says so.
+- [ ] Add the new board assets to the asset manifest and BootScene loading path, with stable keys and documented asset specs/prompts.
+- [ ] Capture refreshed ready, placement-selected, live wave, reaction-heavy, boss, and draft-overlay screenshots after the board rework.
+
+#### Acceptance Criteria
+
+- [ ] At 390x844 and 540x960, a new player can identify the monster road, buildable tower sockets, spawn entrance, and leak/exit point without debug labels.
+- [ ] Road, slots, entrance, and exit look like the same industrial fortress material family as the provided reference and the Phase 1 approved style direction.
+- [ ] The static background remains decorative only; gameplay-significant path, slots, entrance, exit, and Куб stay runtime-aligned dynamic layers.
+- [ ] Pointer targeting and placement behavior are unchanged.
+- [ ] The user approves the field/board readability before 0.5a approval can pass.
+
+#### Verification
+
+- [ ] Browser screenshots for board-ready, placement-selected, live wave, reaction-heavy, boss, and draft-overlay states.
+- [ ] Mobile and desktop phone-frame visual review.
+- [ ] Pointer placement smoke test against at least one outer slot and one inner slot.
+- [ ] Console checked for asset load errors.
 
 ### Acceptance Criteria
 
 - [ ] The game is visually demoable before full creature animation is complete.
 - [ ] The user approves the visual core direction.
-- [ ] Known remaining visual gaps are explicitly listed for 0.5b.
+- [x] Known remaining visual gaps are explicitly listed for 0.5b.
 
 ### Tests
 
-- [ ] `npm run lint:fix`.
-- [ ] `npm run typecheck`.
-- [ ] `npm test`.
-- [ ] `npm run build`.
+- [x] `npm run lint:fix`.
+- [x] `npm run typecheck`.
+- [x] `npm test`.
+- [x] `npm run build`.
 
 ### Verification
 
-- [ ] Browser screenshots saved for the required surfaces.
-- [ ] Console checked for asset load errors.
-- [ ] Mobile frame checked for text fitting and touch target readability.
+- [x] Browser screenshots saved for the required surfaces.
+- [x] Console checked for asset load errors.
+- [x] Mobile frame checked for text fitting and touch target readability.
 
 ### Exit gate
 
@@ -727,13 +763,54 @@ Purpose: harden the visual core before committing to full creature animation pro
 ### Phase notes
 
 - Decisions/contradictions:
+  - Ran Phase 6 browser QA on 390x844 mobile portrait and 900x1000 desktop phone-frame through Vite-served real Vue + Phaser surfaces.
+  - Captured required normal-play screenshots:
+    - ready: `output/playwright/p05-phase6-ready-mobile.png` and `output/playwright/p05-phase6-ready-desktop.png`;
+    - wave/live combat: `output/playwright/p05-phase6-wave-mobile.png` and `output/playwright/p05-phase6-wave-desktop.png`;
+    - placement pointer check: `output/playwright/p05-phase6-placement-pointer-mobile.png` and `output/playwright/p05-phase6-placement-pointer-desktop.png`;
+    - pause edit: `output/playwright/p05-phase6-pause-edit-mobile.png` and `output/playwright/p05-phase6-pause-edit-desktop.png`;
+    - tower draft: `output/playwright/p05-phase6-draft-tower-mobile.png` and `output/playwright/p05-phase6-draft-tower-desktop.png`;
+    - upgrade draft after readability tune: `output/playwright/p05-phase6-draft-upgrade-readable-mobile.png` and `output/playwright/p05-phase6-draft-upgrade-readable-desktop.png`;
+    - countdown: `output/playwright/p05-phase6-countdown-mobile.png` and `output/playwright/p05-phase6-countdown-desktop.png`;
+    - boss: `output/playwright/p05-phase6-boss-mobile.png` and `output/playwright/p05-phase6-boss-desktop.png`;
+    - boss vulnerable / Reaction Break: `output/playwright/p05-phase6-boss-vulnerable-mobile.png` and `output/playwright/p05-phase6-boss-vulnerable-desktop.png`;
+    - victory: `output/playwright/p05-phase6-victory-mobile.png` and `output/playwright/p05-phase6-victory-desktop.png`;
+    - defeat: `output/playwright/p05-phase6-defeat-mobile.png` and `output/playwright/p05-phase6-defeat-desktop.png`.
+  - Browser automation report: `output/playwright/p05-phase6-qa-report.json`; focused upgrade retest report: `output/playwright/p05-phase6-draft-upgrade-readable-report.json`.
+  - Browser QA found no console errors, page errors, or failed asset requests.
+  - Pointer targeting was checked by selecting reserve `Водомёт` through the DOM and clicking the real `slot-1-outer` logical coordinate; the tower placed on the expected field slot.
+  - The post-Phase 5 lower tray correction held up: reserve tower buttons stay visible, disabled, and unselected during draft overlays.
+  - Visual comparison against P0 baseline:
+    - ready/wave/boss surfaces now use the layered cavern frame, dynamic board/path, tower sprites, reaction art, and the dynamic Куб instead of the earlier schematic grid and plain glyphs;
+    - HUD, draft, pause, and result surfaces now share the iron/brass skin instead of the generic dark dashboard styling;
+    - boss vulnerable/Reaction Break is visually obvious through field callouts and the vulnerable boss ring.
+  - Tuning performed in this phase:
+    - upgrade draft cards now use a single-column list on desktop as well as mobile;
+    - this fixed desktop text wrapping where upgrade names/descriptions collapsed into near-vertical text and removed the panel overlap with the lower tray.
+  - Remaining 0.5a approval caveat:
+    - full "all three wow moments" review is accepted as QA-complete for this slice because the user explicitly waived the dedicated T3 `Огненный шторм` capture for now on 2026-06-22.
+    - board/field readability is not approved: road, tower slots, monster entrance, and monster exit must be reworked to be closer to the user-provided reference before 0.5a approval.
+  - Known remaining visual gaps for 0.5b:
+    - enemies and Бочкоед are still procedural shapes/text labels pending Phase 7-9 creature seed frames, animation strips, and runtime integration;
+    - dense late-game tower overlap on the left rail is acceptable for 0.5a but should be re-evaluated once creature sprites replace procedural enemies.
 
 ### Phase completion summary
 
 - Implemented:
+  - Phase 6 browser QA coverage for mobile and desktop phone-frame.
+  - One targeted readability fix for upgrade draft layout.
 - Intentionally deferred:
+  - User approval gate remains open.
+  - Dedicated T3 `Огненный шторм` wow capture is intentionally skipped for this slice and may be revisited in final polish if needed.
+  - Creature/boss sprite production remains deferred to 0.5b.
 - Accepted deviations/tradeoffs:
+  - Boss, victory, and defeat screenshots were loaded from deterministic simulation states through the live app event bridge rather than waiting through a full manual browser run.
 - Tests/checks run:
+  - `npm run lint:fix` passed.
+  - `npm run typecheck` passed.
+  - `npm test` passed: 6 test files, 96 tests.
+  - `npm run build` passed with Vite's existing large chunk warning for `PhaserCanvas-*.js`.
+  - Phase 6 Playwright browser QA passed with no console errors, page errors, or failed asset requests.
 
 ## Phase 7 - Creature and Boss Seed Frames
 

@@ -10,3 +10,4 @@ node_modules/.tmp/
 .codex-*.log
 .playwright-mcp/
 output/
+.idea

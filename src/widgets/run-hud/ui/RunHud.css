@@ -532,6 +532,10 @@ dd {
   gap: 10px;
 }
 
+.run-hud__draft-grid--upgrade {
+  grid-template-columns: 1fr;
+}
+
 .run-hud__draft-card {
   position: relative;
   display: grid;

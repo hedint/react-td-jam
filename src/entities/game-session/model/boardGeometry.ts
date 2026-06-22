@@ -105,16 +105,20 @@ function createBoardSlots(cells: readonly PathCell[], config: BoardGeometryConfi
     const outerSlots = cell.index === 0 ? [] : [outerSlot];
 
     if (cell.isCorner) {
+      const innerSlots = cell.index === 0
+        ? []
+        : [{
+            cellIndexes: getInnerCornerCellIndexes(cells.length, cell),
+            locked: config.lockInnerCornerSlots,
+            isCorner: true,
+            id: `slot-${cell.index}-inner`,
+            lane: "inner" as const,
+            x: Math.round(cell.x + innerDirection.x * config.slotOffset),
+            y: Math.round(cell.y + innerDirection.y * config.slotOffset),
+          }];
+
       return [
-        {
-          cellIndexes: getInnerCornerCellIndexes(cells.length, cell),
-          locked: config.lockInnerCornerSlots,
-          isCorner: true,
-          id: `slot-${cell.index}-inner`,
-          lane: "inner" as const,
-          x: Math.round(cell.x + innerDirection.x * config.slotOffset),
-          y: Math.round(cell.y + innerDirection.y * config.slotOffset),
-        },
+        ...innerSlots,
         ...outerSlots,
       ];
     }

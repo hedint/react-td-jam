@@ -1,6 +1,7 @@
 import type { BoardSlot, BossState, CellReactionState, EnemyState, PathCell, ReactionId, TowerState } from "@entities/game-session/model/types";
+import type Phaser from "phaser";
 import { gameConfig } from "@entities/game-session/model/config";
-import Phaser from "phaser";
+import { getEntranceMarkerPresentation } from "./runSceneBoardArt";
 
 export interface RenderPoint {
   x: number
@@ -14,8 +15,8 @@ export function writeEnemyPosition(cells: readonly PathCell[], enemy: EnemyState
   const next = cells[nextIndex] ?? current;
   const amount = enemy.pathProgress - Math.floor(enemy.pathProgress);
 
-  out.x = Phaser.Math.Linear(current.x, next.x, amount);
-  out.y = Phaser.Math.Linear(current.y, next.y, amount);
+  out.x = linear(current.x, next.x, amount);
+  out.y = linear(current.y, next.y, amount);
 
   return out;
 }
@@ -28,10 +29,32 @@ export function writeBossPosition(cells: readonly PathCell[], boss: BossState, o
   const next = cells[nextIndex] ?? current;
   const amount = pathProgress - Math.floor(pathProgress);
 
-  out.x = Phaser.Math.Linear(current.x, next.x, amount);
-  out.y = Phaser.Math.Linear(current.y, next.y, amount);
+  out.x = linear(current.x, next.x, amount);
+  out.y = linear(current.y, next.y, amount);
 
   return out;
+}
+
+export function writeEnemyIntroPosition(
+  cells: readonly PathCell[],
+  enemy: EnemyState,
+  introProgress: number,
+  out: RenderPoint,
+): RenderPoint {
+  writeEnemyPosition(cells, enemy, out);
+
+  return writeIntroPosition(cells, introProgress, out);
+}
+
+export function writeBossIntroPosition(
+  cells: readonly PathCell[],
+  boss: BossState,
+  introProgress: number,
+  out: RenderPoint,
+): RenderPoint {
+  writeBossPosition(cells, boss, out);
+
+  return writeIntroPosition(cells, introProgress, out);
 }
 
 export function writeTowerPosition(tower: TowerState, slots: readonly BoardSlot[], out: RenderPoint): RenderPoint {
@@ -43,8 +66,41 @@ export function writeTowerPosition(tower: TowerState, slots: readonly BoardSlot[
   return out;
 }
 
+function writeIntroPosition(cells: readonly PathCell[], introProgress: number, out: RenderPoint): RenderPoint {
+  const entrance = getEntranceMarkerPresentation(cells);
+
+  if (!entrance) {
+    return out;
+  }
+
+  const targetX = out.x;
+  const targetY = out.y;
+  const easedProgress = sineOut(clamp(introProgress, 0, 1));
+
+  out.x = linear(entrance.x, targetX, easedProgress);
+  out.y = linear(entrance.y, targetY, easedProgress);
+
+  return out;
+}
+
 export function findSlotAtPoint(slots: readonly BoardSlot[], x: number, y: number): BoardSlot | undefined {
-  return slots.find(slot => Phaser.Math.Distance.Between(slot.x, slot.y, x, y) <= 24);
+  return slots.find(slot => distanceBetween(slot.x, slot.y, x, y) <= 24);
+}
+
+function linear(start: number, end: number, amount: number): number {
+  return start + (end - start) * amount;
+}
+
+function distanceBetween(leftX: number, leftY: number, rightX: number, rightY: number): number {
+  return Math.hypot(rightX - leftX, rightY - leftY);
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function sineOut(value: number): number {
+  return Math.sin(value * Math.PI / 2);
 }
 
 export function getEnemyVisual(enemyId: EnemyState["enemyId"]): {

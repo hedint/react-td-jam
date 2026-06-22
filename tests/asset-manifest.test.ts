@@ -8,7 +8,7 @@ const publicAssets = import.meta.glob("../public/assets/**/*", {
 
 describe("asset manifest", () => {
   it("declares every Phase 0.5 asset category", () => {
-    expect(Object.keys(assetGroups).sort()).toEqual(["enemies", "reactions", "scene", "towers", "ui"]);
+    expect(Object.keys(assetGroups).sort()).toEqual(["board", "enemies", "reactions", "scene", "towers", "ui"]);
   });
 
   it("keeps load keys unique and stable-looking", () => {

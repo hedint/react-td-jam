@@ -33,7 +33,7 @@ describe("tower directional rendering", () => {
   });
 
   it("uses corner assets for inner junction slots with two affected cells", () => {
-    const slot = getSlot("slot-0-inner");
+    const slot = getSlot("slot-4-inner");
     const config = getTowerSpriteRenderConfig(
       createTower("tower-spark-a", "spark", slot.id),
       slot,
@@ -43,9 +43,9 @@ describe("tower directional rendering", () => {
     expect(config).toMatchObject({
       baseKey: assetGroups.towers.sparkDischargerBase.key,
       headKey: assetGroups.towers.sparkDischargerHead.key,
-      directions: ["left", "down"],
+      directions: ["left", "up"],
     });
-    expect(config.directions.map(direction => getTowerDirectionRotation(direction))).toEqual([Math.PI, Math.PI / 2]);
+    expect(config.directions.map(direction => getTowerDirectionRotation(direction))).toEqual([Math.PI, -Math.PI / 2]);
   });
 
   it("maps outer corner slots to the two path-side directions instead of a diagonal", () => {

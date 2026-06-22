@@ -141,7 +141,7 @@
 
         <div
           v-else
-          class="run-hud__draft-grid"
+          class="run-hud__draft-grid run-hud__draft-grid--upgrade"
         >
           <button
             v-for="offer in session.draftUpgradeOffers"

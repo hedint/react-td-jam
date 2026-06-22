@@ -6,14 +6,14 @@ import { applyAction, createRun, createSnapshot, stepRun } from "@entities/game-
 import { assetGroups } from "@shared/assets/manifest";
 import { gameEvents } from "@shared/lib/event-bus/gameEvents";
 import Phaser from "phaser";
+import { RunSceneBoardArtPresenter } from "./runSceneBoardArt";
 import {
-  renderBoardFrame,
   renderBoardSlots,
-  renderDynamicPath,
-  renderGateMarker,
   renderGreatCube,
   renderPlacementSlotFeedback,
 } from "./runSceneBoardRender";
+import { RunSceneEntryIntro } from "./runSceneEntryIntro";
+import { LOGICAL_HEIGHT, LOGICAL_WIDTH } from "./runSceneLayout";
 import { RunSceneReactionPresenter } from "./runSceneReactionPresenter";
 import { RunSceneReagentPresenter } from "./runSceneReagentRender";
 import {
@@ -21,7 +21,9 @@ import {
   getActiveReactionLabel,
   getEnemyVisual,
   renderEnemyAccent,
+  writeBossIntroPosition,
   writeBossPosition,
+  writeEnemyIntroPosition,
   writeEnemyPosition,
   writeTowerPosition,
 } from "./runSceneRender";
@@ -35,14 +37,10 @@ import {
   TOWER_HEAD_ORIGIN_Y,
 } from "./runSceneTowerRender";
 
-const LOGICAL_WIDTH = 540;
-const LOGICAL_HEIGHT = 960;
-const TICK_STEP_MS = 1000 / 30;
-
 export class RunScene extends Phaser.Scene {
   private readonly driver = createFixedStepDriver({
     initialState: createRun(),
-    stepMs: TICK_STEP_MS,
+    stepMs: 1000 / 30,
     step: stepRun,
   });
 
@@ -51,8 +49,6 @@ export class RunScene extends Phaser.Scene {
   private enemyGraphics?: Phaser.GameObjects.Graphics;
   private placementGraphics?: Phaser.GameObjects.Graphics;
   private backdropFloor?: Phaser.GameObjects.Image;
-  private backdropAtmosphere?: Phaser.GameObjects.Image;
-  private titleText?: Phaser.GameObjects.Text;
   private coreText?: Phaser.GameObjects.Text;
   private reactionText?: Phaser.GameObjects.Text;
   private bossLabel?: Phaser.GameObjects.Text;
@@ -60,11 +56,13 @@ export class RunScene extends Phaser.Scene {
   private towerLabels: Phaser.GameObjects.Text[] = [];
   private towerSprites: Phaser.GameObjects.Image[] = [];
   private towerHeadSprites: Phaser.GameObjects.Image[] = [];
+  private boardArtPresenter?: RunSceneBoardArtPresenter;
   private reagentPresenter?: RunSceneReagentPresenter;
   private reactionPresenter?: RunSceneReactionPresenter;
   private readonly bossPosition = { x: 0, y: 0 };
   private readonly enemyPosition = { x: 0, y: 0 };
   private readonly towerPosition = { x: 0, y: 0 };
+  private readonly entryIntro = new RunSceneEntryIntro();
   private unsubscribeAction?: Unsubscribe;
   private unsubscribeLoad?: Unsubscribe;
   private autosaveMs = 0;
@@ -79,23 +77,13 @@ export class RunScene extends Phaser.Scene {
     this.backdropFloor = this.add.image(0, 0, assetGroups.scene.cavernFortressFloor.key)
       .setOrigin(0)
       .setDepth(-30);
-    this.backdropAtmosphere = this.add.image(0, 0, assetGroups.scene.cavernFortressAtmosphere.key)
-      .setOrigin(0)
-      .setDepth(-20);
-    this.worldGraphics = this.add.graphics().setDepth(0);
+    this.worldGraphics = this.add.graphics().setDepth(5);
     this.effectGraphics = this.add.graphics().setDepth(10);
     this.enemyGraphics = this.add.graphics().setDepth(20);
     this.placementGraphics = this.add.graphics().setDepth(35);
+    this.boardArtPresenter = new RunSceneBoardArtPresenter(this);
     this.reagentPresenter = new RunSceneReagentPresenter(this);
     this.reactionPresenter = new RunSceneReactionPresenter(this);
-
-    this.titleText = this.add.text(LOGICAL_WIDTH / 2, 122, "Осадная галерея", {
-      align: "center",
-      color: "#f3ead8",
-      fontFamily: "Arial, sans-serif",
-      fontSize: "24px",
-      fontStyle: "700",
-    }).setOrigin(0.5).setDepth(40);
 
     this.coreText = this.add.text(LOGICAL_WIDTH / 2, 480, "", {
       align: "center",
@@ -217,11 +205,7 @@ export class RunScene extends Phaser.Scene {
 
     graphics.clear();
 
-    const cells = snapshot.board.pathCells;
-    this.backdropAtmosphere?.setAlpha(getAtmosphereAlpha(snapshot));
-    renderBoardFrame(graphics);
-    renderDynamicPath(graphics, cells, snapshot.elapsedMs);
-    renderGateMarker(graphics, cells, snapshot.elapsedMs);
+    this.boardArtPresenter?.render(snapshot);
     renderGreatCube(graphics, snapshot);
     renderBoardSlots(graphics, snapshot);
   }
@@ -267,8 +251,13 @@ export class RunScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(42));
     }
 
+    this.entryIntro.pruneEnemies(snapshot.livingEnemies);
+
     snapshot.livingEnemies.forEach((enemy, index) => {
-      const position = writeEnemyPosition(snapshot.board.pathCells, enemy, this.enemyPosition);
+      const introProgress = this.entryIntro.getEnemyProgress(enemy.id, this.time.now);
+      const position = introProgress < 1
+        ? writeEnemyIntroPosition(snapshot.board.pathCells, enemy, introProgress, this.enemyPosition)
+        : writeEnemyPosition(snapshot.board.pathCells, enemy, this.enemyPosition);
       const hpRatio = enemy.hp / enemy.maxHp;
       const label = this.enemyLabels[index];
       const visual = getEnemyVisual(enemy.enemyId);
@@ -319,10 +308,14 @@ export class RunScene extends Phaser.Scene {
     const graphics = this.enemyGraphics;
     if (!graphics || !snapshot.boss || snapshot.phase !== "boss") {
       this.bossLabel?.setVisible(false);
+      this.entryIntro.clearBoss();
       return;
     }
 
-    const position = writeBossPosition(snapshot.board.pathCells, snapshot.boss, this.bossPosition);
+    const introProgress = this.entryIntro.getBossProgress(this.time.now);
+    const position = introProgress < 1
+      ? writeBossIntroPosition(snapshot.board.pathCells, snapshot.boss, introProgress, this.bossPosition)
+      : writeBossPosition(snapshot.board.pathCells, snapshot.boss, this.bossPosition);
     const hpRatio = snapshot.boss.hp / snapshot.boss.maxHp;
     const vulnerable = snapshot.boss.vulnerableMs > 0;
     const pulse = 3 + Math.sin(snapshot.elapsedMs / 90) * 3;
@@ -483,14 +476,4 @@ export class RunScene extends Phaser.Scene {
 
     saveRun(this.driver.state);
   }
-}
-
-function getAtmosphereAlpha(snapshot: GameSnapshot): number {
-  const phaseAlpha = snapshot.phase === "boss"
-    ? 0.96
-    : snapshot.phase === "wave"
-      ? 0.88
-      : 0.78;
-
-  return phaseAlpha + Math.sin(snapshot.elapsedMs / 720) * 0.04;
 }

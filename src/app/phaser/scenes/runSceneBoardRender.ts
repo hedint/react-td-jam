@@ -2,77 +2,10 @@ import type { BoardSlot, GameSnapshot } from "@entities/game-session/model/types
 import type { SlotFeedback } from "./slotPlacementFeedback";
 import { gameConfig } from "@entities/game-session/model/config";
 import Phaser from "phaser";
-import { drawPathTile, getPathTilePresentation } from "./runScenePathTiles";
 import { getSlotFeedback } from "./slotPlacementFeedback";
 
 const LOGICAL_WIDTH = 540;
 const LOGICAL_HEIGHT = 960;
-
-export function renderBoardFrame(graphics: Phaser.GameObjects.Graphics): void {
-  graphics.fillStyle(0x050505, 0.28);
-  graphics.fillRoundedRect(58, 106, 424, 752, 24);
-  graphics.lineStyle(3, 0x6D5944, 0.56);
-  graphics.strokeRoundedRect(64, 112, 412, 740, 20);
-  graphics.lineStyle(1, 0xC8A76A, 0.28);
-  graphics.strokeRoundedRect(76, 126, 388, 712, 16);
-}
-
-export function renderDynamicPath(
-  graphics: Phaser.GameObjects.Graphics,
-  cells: GameSnapshot["board"]["pathCells"],
-  _elapsedMs: number,
-): void {
-  if (cells.length === 0) {
-    return;
-  }
-
-  cells.forEach((cell) => {
-    const tile = getPathTilePresentation(cells, cell);
-
-    drawPathTile(graphics, tile, {
-      fillColor: 0x241F1A,
-      fillAlpha: 0.98,
-      strokeColor: 0x5A4636,
-      strokeAlpha: 0.7,
-      strokeWidth: 4,
-    });
-    drawPathTile(graphics, tile, {
-      fillColor: 0x3F3429,
-      fillAlpha: cell.isCorner ? 0.78 : 0.68,
-      strokeColor: 0xE05240,
-      strokeAlpha: cell.isCorner ? 0.96 : 0.78,
-      strokeWidth: cell.isCorner ? 2 : 1,
-    });
-  });
-}
-
-export function renderGateMarker(
-  graphics: Phaser.GameObjects.Graphics,
-  cells: GameSnapshot["board"]["pathCells"],
-  elapsedMs: number,
-): void {
-  const gate = cells[0];
-
-  if (!gate) {
-    return;
-  }
-
-  const pulse = 0.7 + Math.sin(elapsedMs / 180) * 0.3;
-
-  graphics.fillStyle(0x070809, 0.58);
-  graphics.fillRoundedRect(gate.x - 42, gate.y - 34, 84, 38, 8);
-  graphics.lineStyle(3, 0x6D5944, 0.95);
-  graphics.strokeRoundedRect(gate.x - 42, gate.y - 34, 84, 38, 8);
-  graphics.lineStyle(2, 0xF0B85B, 0.64 + pulse * 0.24);
-  graphics.beginPath();
-  graphics.moveTo(gate.x - 30, gate.y - 18);
-  graphics.lineTo(gate.x - 16, gate.y - 28);
-  graphics.lineTo(gate.x + 16, gate.y - 28);
-  graphics.lineTo(gate.x + 30, gate.y - 18);
-  graphics.moveTo(gate.x - 22, gate.y - 8);
-  graphics.lineTo(gate.x + 22, gate.y - 8);
-  graphics.strokePath();
-}
 
 export function renderBoardSlots(
   graphics: Phaser.GameObjects.Graphics,
@@ -97,42 +30,43 @@ export function renderBoardSlots(
       isValidTarget,
       slot,
     });
+    const isEmptyValidTarget = feedback === "valid" && !isOccupied;
 
-    const slotRadius = slot.isCorner ? 14 : 12;
-    const platformRadius = slot.isCorner ? 19 : 16;
+    const slotRadius = slot.isCorner ? 26 : 22;
+    const shouldDrawStateRing = isSelectedSlot || isOccupied || isEmptyValidTarget || slot.locked;
 
-    graphics.fillStyle(0x070809, 0.42);
-    graphics.fillEllipse(slot.x, slot.y + 7, platformRadius * 2.1, platformRadius * 1.1);
-    graphics.fillStyle(
-      slot.locked ? 0x2B2E35 : isValidTarget ? 0x1B2927 : 0x171A1E,
-      slot.locked ? 0.55 : isValidTarget ? 0.72 : 0.88,
-    );
-    graphics.fillCircle(slot.x, slot.y, slotRadius);
-    graphics.lineStyle(2, 0x2F2923, 0.72);
-    graphics.strokeCircle(slot.x, slot.y, slotRadius + 4);
+    if (slot.locked) {
+      graphics.fillStyle(0x070809, 0.46);
+      graphics.fillCircle(slot.x, slot.y, slotRadius);
+    }
+
+    if (!shouldDrawStateRing) {
+      return;
+    }
+
+    if (isEmptyValidTarget && !isSelectedSlot) {
+      return;
+    }
+
     graphics.lineStyle(
       isSelectedSlot ? 4 : isOccupied ? 3 : 2,
-      getSlotRingColor(feedback, isValidTarget, isOccupied),
-      getSlotRingAlpha(feedback, isValidTarget, isOccupied, isSelectedSlot),
+      getSlotRingColor(feedback, isOccupied),
+      getSlotRingAlpha(feedback, isOccupied, isSelectedSlot),
     );
-    graphics.strokeCircle(slot.x, slot.y, slotRadius + 2);
+    graphics.strokeCircle(slot.x, slot.y, slotRadius);
 
-    graphics.lineStyle(1, slot.lane === "inner" ? 0xC8A76A : 0x6D5944, slot.locked ? 0.2 : 0.56);
-    graphics.beginPath();
-    graphics.moveTo(slot.x - 8, slot.y - 2);
-    graphics.lineTo(slot.x, slot.y - 8);
-    graphics.lineTo(slot.x + 8, slot.y - 2);
-    graphics.moveTo(slot.x - 7, slot.y + 6);
-    graphics.lineTo(slot.x + 7, slot.y + 6);
-    graphics.strokePath();
+    if (isOccupied) {
+      graphics.fillStyle(0xC8A76A, 0.18);
+      graphics.fillCircle(slot.x, slot.y, slot.isCorner ? 9 : 7);
+    }
 
     if (slot.isCorner) {
-      graphics.lineStyle(2, isValidTarget ? 0x6AA99C : 0xC79A55, isValidTarget ? 0.34 : 0.82);
+      graphics.lineStyle(2, isValidTarget ? 0x6AA99C : 0xC79A55, isValidTarget ? 0.42 : 0.72);
       graphics.beginPath();
-      graphics.moveTo(slot.x - 7, slot.y);
-      graphics.lineTo(slot.x, slot.y - 7);
-      graphics.lineTo(slot.x + 7, slot.y);
-      graphics.lineTo(slot.x, slot.y + 7);
+      graphics.moveTo(slot.x - 13, slot.y);
+      graphics.lineTo(slot.x, slot.y - 13);
+      graphics.lineTo(slot.x + 13, slot.y);
+      graphics.lineTo(slot.x, slot.y + 13);
       graphics.closePath();
       graphics.strokePath();
     }
@@ -164,7 +98,7 @@ export function renderPlacementSlotFeedback(
       slot,
     });
 
-    renderSlotFeedback(graphics, slot, feedback, visualMs);
+    renderSlotFeedback(graphics, slot, isOccupied && feedback === "valid" ? "idle" : feedback, visualMs);
   });
 }
 
@@ -290,14 +224,18 @@ function getPhaseIntensity(phase: GameSnapshot["phase"]): number {
   }
 }
 
-function getSlotRingColor(feedback: SlotFeedback, isValidTarget: boolean, isOccupied: boolean): number {
+function getSlotRingColor(feedback: SlotFeedback, isOccupied: boolean): number {
+  if (isOccupied && feedback !== "selected") {
+    return 0xD8C18E;
+  }
+
   switch (feedback) {
     case "selected":
       return 0xF6E27A;
     case "valid":
-      return 0x61D6B5;
+      return 0xE6B65A;
     case "idle":
-      return isValidTarget ? 0x61D6B5 : isOccupied ? 0xD8C18E : 0x5F6874;
+      return 0x5F6874;
     default:
       return feedback satisfies never;
   }
@@ -305,19 +243,18 @@ function getSlotRingColor(feedback: SlotFeedback, isValidTarget: boolean, isOccu
 
 function getSlotRingAlpha(
   feedback: SlotFeedback,
-  isValidTarget: boolean,
   isOccupied: boolean,
   isSelectedSlot: boolean,
 ): number {
-  if (feedback === "valid") {
-    return 0.34;
+  if (feedback === "valid" && !isOccupied) {
+    return 0.42;
   }
 
   if (feedback !== "idle" || isOccupied || isSelectedSlot) {
     return 0.95;
   }
 
-  return isValidTarget ? 0.34 : 0.62;
+  return 0.62;
 }
 
 function renderSlotFeedback(
@@ -335,10 +272,7 @@ function renderSlotFeedback(
   const lineAlpha = 0.76 + pulse * 0.18;
 
   if (feedback === "valid") {
-    graphics.fillStyle(0x61D6B5, 0.035);
-    graphics.fillCircle(slot.x, slot.y, slot.isCorner ? 22 : 18);
-    graphics.lineStyle(1, 0x9FEFE0, 0.2);
-    graphics.strokeCircle(slot.x, slot.y, slot.isCorner ? 23 : 19);
+    renderValidSlotGlow(graphics, slot);
     return;
   }
 
@@ -359,4 +293,11 @@ function renderSlotFeedback(
   graphics.moveTo(slot.x, slot.y + radius + 4);
   graphics.lineTo(slot.x, slot.y + radius - 6);
   graphics.strokePath();
+}
+
+function renderValidSlotGlow(graphics: Phaser.GameObjects.Graphics, slot: BoardSlot): void {
+  const radius = slot.isCorner ? 24 : 20;
+
+  graphics.fillStyle(0xF0B85B, 0.14);
+  graphics.fillCircle(slot.x, slot.y, radius);
 }

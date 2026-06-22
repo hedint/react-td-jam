@@ -1,4 +1,4 @@
-export type AssetGroup = "scene" | "towers" | "enemies" | "reactions" | "ui";
+export type AssetGroup = "scene" | "board" | "towers" | "enemies" | "reactions" | "ui";
 export type AssetUsage = "phaser" | "css" | "both";
 
 interface BaseAsset {
@@ -43,21 +43,10 @@ type ManifestGroups = {
 export const assetGroups = {
   scene: {
     cavernFortressFloor: {
-      type: "svg",
+      type: "image",
       group: "scene",
       key: "scene.cavern-fortress.floor",
-      src: "/assets/scene/cavern-fortress-floor.svg",
-      width: 540,
-      height: 960,
-      usage: "phaser",
-    },
-    cavernFortressAtmosphere: {
-      type: "svg",
-      group: "scene",
-      key: "scene.cavern-fortress.atmosphere",
-      src: "/assets/scene/cavern-fortress-atmosphere.svg",
-      width: 540,
-      height: 960,
+      src: "/assets/scene/cavern-fortress-backdrop-v1.png",
       usage: "phaser",
     },
     cavernBackdropPlaceholder: {
@@ -69,6 +58,50 @@ export const assetGroups = {
       height: 960,
       usage: "phaser",
       placeholder: true,
+    },
+  },
+  board: {
+    roadStraight: {
+      type: "image",
+      group: "board",
+      key: "board.road.straight",
+      src: "/assets/board/road-straight.png",
+      usage: "phaser",
+    },
+    roadCorner: {
+      type: "image",
+      group: "board",
+      key: "board.road.corner",
+      src: "/assets/board/road-corner.png",
+      usage: "phaser",
+    },
+    slotSocket: {
+      type: "image",
+      group: "board",
+      key: "board.slot.socket",
+      src: "/assets/board/slot-socket.png",
+      usage: "phaser",
+    },
+    slotSocketCorner: {
+      type: "image",
+      group: "board",
+      key: "board.slot.socket-corner",
+      src: "/assets/board/slot-socket-corner.png",
+      usage: "phaser",
+    },
+    markerEntrance: {
+      type: "image",
+      group: "board",
+      key: "board.marker.entrance",
+      src: "/assets/board/marker-entrance.png",
+      usage: "phaser",
+    },
+    markerExit: {
+      type: "image",
+      group: "board",
+      key: "board.marker.exit",
+      src: "/assets/board/marker-exit.png",
+      usage: "phaser",
     },
   },
   towers: {
@@ -353,8 +386,13 @@ export const assetGroups = {
 
 export const loadableAssets = [
   assetGroups.scene.cavernFortressFloor,
-  assetGroups.scene.cavernFortressAtmosphere,
   assetGroups.scene.cavernBackdropPlaceholder,
+  assetGroups.board.roadStraight,
+  assetGroups.board.roadCorner,
+  assetGroups.board.slotSocket,
+  assetGroups.board.slotSocketCorner,
+  assetGroups.board.markerEntrance,
+  assetGroups.board.markerExit,
   assetGroups.towers.waterCannonBase,
   assetGroups.towers.waterCannonHead,
   assetGroups.towers.oilPumpBase,

@@ -7,7 +7,7 @@ const board = createStadiumLoopBoard(defaultBoardGeometryConfig);
 
 export const gameConfig: GameConfig = {
   balance: {
-    schemaVersion: 4,
+    schemaVersion: 5,
     pathCellCount: 16,
     coreHp: 15,
     leakDamage: 1,
