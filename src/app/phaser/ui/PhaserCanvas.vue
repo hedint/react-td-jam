@@ -6,9 +6,16 @@
 </template>
 
 <script setup lang="ts">
+import type { PhaserTargetScene } from "@app/phaser/runtime/createPhaserGame";
 import type Phaser from "phaser";
 import { createPhaserGame } from "@app/phaser/runtime/createPhaserGame";
 import { onBeforeUnmount, onMounted, ref } from "vue";
+
+const props = withDefaults(defineProps<{
+  readonly targetScene?: PhaserTargetScene
+}>(), {
+  targetScene: "RunScene",
+});
 
 const containerRef = ref<HTMLDivElement | null>(null);
 let game: Phaser.Game | null = null;
@@ -18,7 +25,7 @@ onMounted(() => {
     return;
   }
 
-  game = createPhaserGame(containerRef.value);
+  game = createPhaserGame(containerRef.value, props.targetScene);
 });
 
 onBeforeUnmount(() => {

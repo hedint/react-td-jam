@@ -6,16 +6,17 @@ import type {
   GameAction,
   GameConfig,
   GameSnapshot,
-  ReactionId,
   RunState,
   TowerState,
   WaveRuntimeState,
 } from "./types";
 import { createBossState, stepBoss } from "./boss";
 import { gameConfig } from "./config";
+import { getCellDamageEntries } from "./damage";
 import { chooseDraftTower, chooseDraftUpgrade, createDraftState, rerollDraft } from "./draft";
-import { getCellSpeedMultiplier, getReactionDamageEntries, projectReagents, resolveReactions } from "./reactions";
+import { getCellSpeedMultiplier, projectReagents, resolveReactions } from "./reactions";
 import { createRng } from "./rng";
+import { ensureWaveStats, getDamageBySource, normalizeRunStateStats, updateWaveStats } from "./stats";
 import { createTower } from "./towerFactory";
 import { placeSelectedTower, selectTower, tapSlot } from "./towerPlacement";
 
@@ -68,6 +69,7 @@ export function createRun(seed = 1, options: CreateRunOptions = {}): RunState {
       kills: 0,
       bossBreaks: 0,
       totalDamage: 0,
+      damageBySource: {},
       damageByReaction: {},
       waveStats: [],
     },
@@ -113,6 +115,7 @@ export function stepRun(state: RunState, deltaMs: number, config: GameConfig = g
   let leaks = state.stats.leaks;
   let kills = state.stats.kills;
   let totalDamage = state.stats.totalDamage;
+  const damageBySource = { ...getDamageBySource(state.stats) };
   const damageByReaction = { ...state.stats.damageByReaction };
   let waveStats: RunState["stats"]["waveStats"] = [...state.stats.waveStats];
   const enemies = activeEnemies.flatMap((enemy) => {
@@ -122,7 +125,7 @@ export function stepRun(state: RunState, deltaMs: number, config: GameConfig = g
 
     const enemyDefinition = getEnemyDefinition(enemy.enemyId, config);
     const currentCellIndex = getCurrentPathCellIndex(enemy.pathProgress, state.board.pathCells.length);
-    const speedMultiplier = getCellSpeedMultiplier(reagentProjection[currentCellIndex], state.upgrades, config);
+    const speedMultiplier = getCellSpeedMultiplier(reagentProjection[currentCellIndex], state.upgrades, config, reactions[currentCellIndex]);
     const pathProgress = enemy.pathProgress + (enemyDefinition?.speedCellsPerSecond ?? 1) * speedMultiplier * scaledDeltaMs / 1000;
 
     if (pathProgress >= state.board.pathCells.length) {
@@ -134,7 +137,7 @@ export function stepRun(state: RunState, deltaMs: number, config: GameConfig = g
     }
 
     const cellIndex = getCurrentPathCellIndex(pathProgress, state.board.pathCells.length);
-    const damageEntries = getReactionDamageEntries(reactions[cellIndex]!, scaledDeltaMs, state.upgrades, config);
+    const damageEntries = getCellDamageEntries(reactions[cellIndex]!, reagentProjection[cellIndex], scaledDeltaMs, state.upgrades, config);
     let hp = enemy.hp;
 
     damageEntries.forEach((entry) => {
@@ -153,12 +156,22 @@ export function stepRun(state: RunState, deltaMs: number, config: GameConfig = g
 
       hp = Math.max(0, hp - appliedDamage);
       totalDamage += appliedDamage;
-      damageByReaction[entry.reactionId] = (damageByReaction[entry.reactionId] ?? 0) + appliedDamage;
+      damageBySource[entry.sourceId] = (damageBySource[entry.sourceId] ?? 0) + appliedDamage;
+
+      if (entry.reactionId) {
+        damageByReaction[entry.reactionId] = (damageByReaction[entry.reactionId] ?? 0) + appliedDamage;
+      }
+
       waveStats = updateWaveStats(waveStats, spawned.waveId, {
         damage: appliedDamage,
-        damageByReaction: {
-          [entry.reactionId]: appliedDamage,
+        damageBySource: {
+          [entry.sourceId]: appliedDamage,
         },
+        damageByReaction: entry.reactionId
+          ? {
+              [entry.reactionId]: appliedDamage,
+            }
+          : undefined,
       });
     });
 
@@ -211,6 +224,7 @@ export function stepRun(state: RunState, deltaMs: number, config: GameConfig = g
       leaks,
       kills,
       totalDamage,
+      damageBySource,
       damageByReaction,
       waveStats,
     },
@@ -274,9 +288,11 @@ export function deserializeRun(payload: string | SerializedRunPayload, config: G
     throw new Error(`Unsupported run schema version: ${parsed.schemaVersion}`);
   }
 
+  const state = normalizeRunStateStats(parsed.state);
+
   return {
-    ...parsed.state,
-    reactions: resolveReactions(parsed.state.board, parsed.state.placedTowers, parsed.state.upgrades, config),
+    ...state,
+    reactions: resolveReactions(state.board, state.placedTowers, state.upgrades, config),
   };
 }
 
@@ -405,72 +421,12 @@ function getEnemyResistanceMultiplier(enemy: EnemyDefinition, damageFamily: Dama
 }
 
 function createStartingTowers(config: GameConfig): readonly TowerState[] {
-  return [
-    createTower("tower-water-a", "water", null, config),
-    createTower("tower-water-b", "water", null, config),
-    createTower("tower-spark-a", "spark", null, config),
-  ];
-}
+  const copiesPerEmitter = 3;
+  const copySuffixes = ["a", "b", "c"] as const;
 
-function ensureWaveStats(stats: RunState["stats"], waveId: string): RunState["stats"] {
-  if (stats.waveStats.some(wave => wave.waveId === waveId)) {
-    return stats;
-  }
-
-  return {
-    ...stats,
-    waveStats: [
-      ...stats.waveStats,
-      {
-        waveId,
-        damage: 0,
-        leaks: 0,
-        kills: 0,
-        damageByReaction: {},
-      },
-    ],
-  };
-}
-
-function updateWaveStats(
-  waveStats: RunState["stats"]["waveStats"],
-  waveId: string | null,
-  delta: Partial<Pick<RunState["stats"]["waveStats"][number], "damage" | "leaks" | "kills">> & {
-    readonly damageByReaction?: Partial<Record<ReactionId, number>>
-  },
-): RunState["stats"]["waveStats"] {
-  if (!waveId) {
-    return waveStats;
-  }
-
-  const stats = waveStats.some(wave => wave.waveId === waveId)
-    ? waveStats
-    : ensureWaveStats({
-      leaks: 0,
-      kills: 0,
-      bossBreaks: 0,
-      totalDamage: 0,
-      damageByReaction: {},
-      waveStats,
-    }, waveId).waveStats;
-
-  return stats.map((wave) => {
-    if (wave.waveId !== waveId) {
-      return wave;
-    }
-
-    const damageByReaction = { ...wave.damageByReaction };
-
-    Object.entries(delta.damageByReaction ?? {}).forEach(([reactionId, amount]) => {
-      damageByReaction[reactionId as ReactionId] = (damageByReaction[reactionId as ReactionId] ?? 0) + (amount ?? 0);
-    });
-
-    return {
-      ...wave,
-      damage: wave.damage + (delta.damage ?? 0),
-      leaks: wave.leaks + (delta.leaks ?? 0),
-      kills: wave.kills + (delta.kills ?? 0),
-      damageByReaction,
-    };
-  });
+  return config.emitters.flatMap(emitter =>
+    copySuffixes.slice(0, copiesPerEmitter).map(suffix =>
+      createTower(`tower-${emitter.id}-${suffix}`, emitter.id, null, config),
+    ),
+  );
 }

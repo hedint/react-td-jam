@@ -18,6 +18,7 @@ export type DraftRole = "support" | "generic" | "pivot";
 export type EnemyTrait = "flying";
 export type DamageFamily = "electric" | "fire" | "steam" | "storm";
 export type ReactionInputId = EmitterId | ReactionId;
+export type DamageSourceId = ReactionId | "rawSpark" | "rawHeat";
 
 export interface RngState {
   readonly seed: number
@@ -125,6 +126,7 @@ export interface WaveStats {
   readonly damage: number
   readonly leaks: number
   readonly kills: number
+  readonly damageBySource: Partial<Record<DamageSourceId, number>>
   readonly damageByReaction: Partial<Record<ReactionId, number>>
 }
 
@@ -133,6 +135,7 @@ export interface RunStats {
   readonly kills: number
   readonly bossBreaks: number
   readonly totalDamage: number
+  readonly damageBySource: Partial<Record<DamageSourceId, number>>
   readonly damageByReaction: Partial<Record<ReactionId, number>>
   readonly waveStats: readonly WaveStats[]
 }
@@ -207,6 +210,8 @@ export interface EmitterDefinition {
   readonly family: "substance" | "energy"
   readonly energyCapacity?: number
   readonly speedMultiplier?: number
+  readonly rawDps?: number
+  readonly rawDamageFamily?: DamageFamily
 }
 
 export interface ReactionDefinition {

@@ -26,11 +26,13 @@ import {
   writeTowerPosition,
 } from "./runSceneRender";
 import {
+  getTowerDirectionRotation,
   getTowerFieldLabel,
-  getTowerSpriteKey,
+  getTowerHeadSwayRotation,
+  getTowerSpriteRenderConfig,
   getTowerSpriteSize,
-  renderTowerActivationFeedback,
   renderTowerGrounding,
+  TOWER_HEAD_ORIGIN_Y,
 } from "./runSceneTowerRender";
 
 const LOGICAL_WIDTH = 540;
@@ -57,6 +59,7 @@ export class RunScene extends Phaser.Scene {
   private enemyLabels: Phaser.GameObjects.Text[] = [];
   private towerLabels: Phaser.GameObjects.Text[] = [];
   private towerSprites: Phaser.GameObjects.Image[] = [];
+  private towerHeadSprites: Phaser.GameObjects.Image[] = [];
   private reagentPresenter?: RunSceneReagentPresenter;
   private reactionPresenter?: RunSceneReactionPresenter;
   private readonly bossPosition = { x: 0, y: 0 };
@@ -193,7 +196,7 @@ export class RunScene extends Phaser.Scene {
     this.renderEffects(snapshot);
     this.renderEnemies(snapshot);
     this.renderBoss(snapshot);
-    this.renderTowers(snapshot.placedTowers, snapshot.board.slots, snapshot.selectedTowerId, snapshot.phase, this.time.now);
+    this.renderTowers(snapshot.placedTowers, snapshot.board.slots, snapshot.board.pathCells, snapshot.selectedTowerId, this.time.now);
     this.renderPlacementFeedback(snapshot);
 
     if (this.coreText) {
@@ -378,8 +381,8 @@ export class RunScene extends Phaser.Scene {
   private renderTowers(
     towers: readonly TowerState[],
     slots: readonly BoardSlot[],
+    cells: GameSnapshot["board"]["pathCells"],
     selectedTowerId: string | null,
-    phase: GameSnapshot["phase"],
     visualMs: number,
   ): void {
     while (this.towerLabels.length < towers.length) {
@@ -393,8 +396,11 @@ export class RunScene extends Phaser.Scene {
     }
     while (this.towerSprites.length < towers.length) {
       this.towerSprites.push(this.add.image(0, 0, assetGroups.towers.towerSpritePlaceholder.key)
-        .setOrigin(0.5, 0.68)
+        .setOrigin(0.5)
         .setDepth(26));
+    }
+    while (this.towerHeadSprites.length < towers.length * 2) {
+      this.towerHeadSprites.push(this.add.image(0, 0, assetGroups.towers.towerSpritePlaceholder.key).setOrigin(0.31, TOWER_HEAD_ORIGIN_Y).setDepth(27));
     }
 
     this.towerLabels.forEach((label, index) => {
@@ -417,28 +423,46 @@ export class RunScene extends Phaser.Scene {
         return;
       }
 
-      const active = (phase === "wave" || phase === "boss" || phase === "countdown") && visualMs % 900 < 420;
       const spriteSize = getTowerSpriteSize(slot);
+      const headSize = spriteSize * 1.14;
+      const renderConfig = getTowerSpriteRenderConfig(tower, slot, cells);
 
       renderTowerGrounding(graphics, tower, slot, position, isSelected, visualMs);
-      renderTowerActivationFeedback(graphics, tower, slot, position, active, visualMs);
-
       sprite
         .setVisible(true)
-        .setTexture(getTowerSpriteKey(tower.emitterId))
+        .setTexture(renderConfig.baseKey)
         .setPosition(position.x, position.y)
         .setDisplaySize(spriteSize, spriteSize)
+        .setRotation(0)
         .setDepth(26 + position.y / 10000);
       sprite.setAlpha(isSelected ? 1 : 0.96);
+      for (let directionIndex = 0; directionIndex < 2; directionIndex += 1) {
+        const headSprite = this.towerHeadSprites[index * 2 + directionIndex];
+        const direction = renderConfig.directions[directionIndex];
+
+        if (!headSprite || !direction) {
+          headSprite?.setVisible(false);
+          continue;
+        }
+
+        headSprite
+          .setVisible(true)
+          .setTexture(renderConfig.headKey)
+          .setOrigin(renderConfig.headOriginX, TOWER_HEAD_ORIGIN_Y)
+          .setPosition(position.x, position.y)
+          .setDisplaySize(headSize, headSize)
+          .setRotation(getTowerDirectionRotation(direction) + getTowerHeadSwayRotation(tower, slot, directionIndex, visualMs))
+          .setDepth(27 + position.y / 10000)
+          .setAlpha(isSelected ? 1 : 0.98);
+      }
 
       label.setVisible(isSelected);
       label.setPosition(position.x, position.y - spriteSize * 0.52);
       label.setText(getTowerFieldLabel(tower.emitterId));
     });
 
-    this.towerSprites.slice(towers.length).forEach((sprite) => {
-      sprite.setVisible(false);
-    });
+    this.towerSprites.slice(towers.length).forEach(sprite => sprite.setVisible(false));
+    this.towerHeadSprites.slice(towers.length * 2).forEach(sprite => sprite.setVisible(false));
   }
 
   private publishSnapshot(snapshot = createSnapshot(this.driver.state)): void {

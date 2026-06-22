@@ -560,6 +560,7 @@ Purpose: make the game interface match the new field quality while protecting th
   - During Phase 5 visual review, board geometry was corrected before continuing HUD work:
     - the 16-cell path now uses an explicit orthogonal 5x5 grid loop with one equal tile step between all neighboring path cells;
     - `cell-0` is the lower-left entrance tile; the gate marker and enemy spawn point use this cell;
+    - path order now moves clockwise from the lower-left entrance: up the left side, right across the top, down the right side, then left along the bottom; enemy movement and next-cell effect propagation share this order;
     - `slot-0-outer` is intentionally omitted, so the entrance tile has no outside tower and no starting reaction coverage from an external tower;
     - middle straight cells keep adjacent grid positions on the inside and outside of their path cell;
     - adjacent-to-corner inner slots are collapsed into one physical inner-corner junction slot, avoiding two tower slots occupying the same point;
@@ -569,12 +570,48 @@ Purpose: make the game interface match the new field quality while protecting th
     - path reaction cells now render as explicit square red-outlined road tiles rather than ambiguous circular markers or a stadium-shaped path stroke;
     - ground reaction and reagent sprites now share the same square path-tile presentation helper as the visible tile outlines.
   - Accepted user-requested mechanics deviation from the original Phase 0.5 "presentation only" rule: the authored board geometry changed from 32 logical per-cell slots to 23 physical slots, including 4 inner-corner junction slots with two-cell influence and no outside entrance tower.
+  - Accepted user-requested mechanics deviation for steam: `Вода + Жар` now creates `Пар` on the source path cell and the next path cell, so both cells deal steam damage and can feed higher-tier air reactions.
   - Tower art follow-up: inner-corner junction towers need a dedicated visual state or generated corner variant because directional tower silhouettes such as Водомёт/Маслонасос must read as influencing two adjacent cells.
+  - Directional tower asset follow-up implemented:
+    - generated a new layered PNG tower source sheet at `public/assets/towers/source/phase5-layered-tower-set-source-01.png`;
+    - sliced and cleaned eight transparent 192x192 runtime PNGs under `public/assets/towers/`: `*-base.png` and `*-head.png` for Водомёт, Маслонасос, Разрядник, and Магмовый кран;
+    - `base` assets stay unrotated and centered on slots, while `head` assets use a base direction pointing right and rotate around their mounting hub;
+    - straight slots render one head, while corner slots render two heads on one base;
+    - Phaser now derives tower render directions from `BoardSlot.cellIndexes` plus `PathCell` centers and uses the same directions for activation feedback;
+    - no direction field was added to `TowerState`, save data, or simulation rules.
+  - Reaction/reagent follow-up after tower regeneration:
+    - generated the first animated reagent sprite sheet for Вода as a looped 8-frame 4x2 bitmap sheet;
+    - source and cleaned files are under `public/assets/reactions/source/`: `reagent-water-ripple-source-01.png`, `reagent-water-ripple-alpha-01.png`, and `reagent-water-ripple-preview-01.png`;
+    - runtime sheet is `public/assets/reactions/reagent-water-ripple-sheet.png`, loaded as a manifest spritesheet with 192x192 frames;
+    - `RunSceneReagentPresenter` now uses the animated water sheet with an elapsed-time frame loop, without adding animation state to `RunState`;
+    - Нефть, Искра, Жар, and combined reaction decals remain on the previous still-asset plus procedural-pulse path until the water pass is reviewed.
+  - Follow-up tuning after reviewing the water pass:
+    - water reagent playback was tuned to 500 ms per frame;
+    - water reagent playback now uses one shared frame clock with no per-cell phase offset, pulse, or rotation drift;
+    - procedural directional activation overlays were removed from tower rendering because the tower sprites and cell reagents already communicate coverage clearly enough;
+    - tower head rotation/sway remains enabled.
+  - Extended the animated bitmap-sheet approach from Вода to the remaining reagent/reaction surfaces:
+    - generated and normalized 8-frame 4x2 sheets for Нефть, Искра, Жар, Электролужа, Пар, Пожар, Грозовое облако, Огненный вихрь, and Огненный Шторм;
+    - all runtime sheets use 192x192 frames, manifest-backed `spritesheet` loading, and one shared 500 ms frame clock;
+    - related effects intentionally share visual language: Вода/Электролужа, Нефть/Пожар, Искра/Грозовое облако, and Жар/Пожар/Огненный вихрь/Огненный Шторм;
+    - old procedural reaction pulse/rotation/bob overlays are disabled for the new sheets so frame playback stays visually synchronized.
+    - base tower reagent projections are hidden on cells that already have a ground or air reaction, so the more expensive reaction animation does not overlap with its source effects.
+    - air reaction sheets are centered on their path cells instead of floating above them to preserve board readability.
   - Verification screenshots for this correction:
     - first square-tile check: `output/playwright/p05-square-tiles-slot-grid.png`;
     - current grid road check: `output/playwright/p05-grid-loop-square-road.png`.
     - current inner-corner junction check: `output/playwright/p05-inner-corner-junction-slots.png`.
     - lower-left entrance check without `slot-0-outer`: `output/playwright/p05-bottom-left-entrance.png`.
+    - rejected whole-sprite rotation checks: `output/playwright/p05-tower-directional-assets.png` and `output/playwright/p05-tower-directional-assets-centered-origin.png`.
+    - current layered base/head tower check: `output/playwright/p05-tower-layered-base-head.png`.
+    - animated water reagent check: `output/playwright/p05-water-reagent-animated-field-a.png` and `output/playwright/p05-water-reagent-animated-field-b.png`.
+    - animated water reagent browser result: `output/playwright/p05-water-reagent-animated-field-check.json`.
+    - all animated reaction/reagent sheets stress check: `output/playwright/p05-animated-reactions-all.png`.
+    - all animated reaction/reagent sheets browser result: `output/playwright/p05-animated-reactions-all-check.json`.
+    - reaction-over-source suppression check: `output/playwright/p05-animated-reactions-hide-source-reagents.png`.
+    - reaction-over-source suppression browser result: `output/playwright/p05-animated-reactions-hide-source-reagents-check.json`.
+    - centered air reaction check: `output/playwright/p05-air-reactions-centered.png`.
+    - centered air reaction browser result: `output/playwright/p05-air-reactions-centered-check.json`.
 
 ### Phase completion summary
 

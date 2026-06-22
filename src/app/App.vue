@@ -1,7 +1,7 @@
 <template>
-  <GamePage />
+  <RouterView />
 </template>
 
 <script setup lang="ts">
-import GamePage from "@pages/game/ui/GamePage.vue";
+import { RouterView } from "vue-router";
 </script>

@@ -3,7 +3,7 @@ import { phaserPreloadAssets } from "@shared/assets/manifest";
 import Phaser from "phaser";
 
 export class BootScene extends Phaser.Scene {
-  constructor() {
+  constructor(private readonly targetScene = "RunScene") {
     super("BootScene");
   }
 
@@ -12,7 +12,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.scene.start("RunScene");
+    this.scene.start(this.targetScene);
   }
 }
 

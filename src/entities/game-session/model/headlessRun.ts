@@ -1,4 +1,4 @@
-import type { EmitterId, GameAction, GameConfig, ReactionId, RunPhase, RunState, UpgradeId } from "./types";
+import type { DamageSourceId, EmitterId, GameAction, GameConfig, ReactionId, RunPhase, RunState, UpgradeId } from "./types";
 import { gameConfig } from "./config";
 import { applyAction, createRun, stepRun } from "./simulation";
 
@@ -43,6 +43,8 @@ export interface HeadlessStrategySummary {
   readonly bossBreaks: number
   readonly totalDamage: number
   readonly topReaction: ReactionId | null
+  readonly topSource: DamageSourceId | null
+  readonly damageBySource: Partial<Record<DamageSourceId, number>>
   readonly damageByReaction: Partial<Record<ReactionId, number>>
 }
 
@@ -126,8 +128,11 @@ export function runHeadlessStrategy(
 }
 
 export function createHeadlessStrategySummary(strategyId: string, state: RunState): HeadlessStrategySummary {
-  const damageEntries = Object.entries(state.stats.damageByReaction) as Array<[ReactionId, number]>;
-  const topReaction = damageEntries
+  const reactionDamageEntries = Object.entries(state.stats.damageByReaction) as Array<[ReactionId, number]>;
+  const sourceDamageEntries = Object.entries(state.stats.damageBySource) as Array<[DamageSourceId, number]>;
+  const topReaction = reactionDamageEntries
+    .sort((left, right) => right[1] - left[1])[0]?.[0] ?? null;
+  const topSource = sourceDamageEntries
     .sort((left, right) => right[1] - left[1])[0]?.[0] ?? null;
 
   return {
@@ -140,6 +145,8 @@ export function createHeadlessStrategySummary(strategyId: string, state: RunStat
     bossBreaks: state.stats.bossBreaks,
     totalDamage: state.stats.totalDamage,
     topReaction,
+    topSource,
+    damageBySource: state.stats.damageBySource,
     damageByReaction: state.stats.damageByReaction,
   };
 }

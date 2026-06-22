@@ -186,7 +186,7 @@
         <div class="run-hud__reaction-list">
           <div
             v-for="reaction in session.reactionStats"
-            :key="reaction.reactionId"
+            :key="reaction.sourceId"
           >
             <span>{{ reaction.label }}</span>
             <strong>{{ reaction.damage }}</strong>

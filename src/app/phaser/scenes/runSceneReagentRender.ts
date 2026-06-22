@@ -1,15 +1,18 @@
-import type { EmitterId, GameSnapshot, PathCell } from "@entities/game-session/model/types";
+import type { CellReactionState, CellReagentProjection, EmitterId, GameSnapshot, PathCell } from "@entities/game-session/model/types";
 import type Phaser from "phaser";
-import { projectReagents } from "@entities/game-session/model/reactions";
+import { gameConfig } from "@entities/game-session/model/config";
+import { getAirReactionConsumedEmitterIds, projectReagents } from "@entities/game-session/model/reactions";
 import { assetGroups } from "@shared/assets/manifest";
 import { getPathTilePresentation } from "./runScenePathTiles";
 
-interface ReagentAssetVisual {
+export interface ReagentAssetVisual {
   readonly key: string
   readonly alpha: number
   readonly scale: number
   readonly depth: number
   readonly jitter: number
+  readonly frameCount?: number
+  readonly frameDurationMs?: number
 }
 
 export class RunSceneReagentPresenter {
@@ -19,22 +22,19 @@ export class RunSceneReagentPresenter {
 
   render(snapshot: GameSnapshot): void {
     const projections = projectReagents(snapshot.board, snapshot.placedTowers, snapshot.upgrades);
+    const reactionsByCellIndex = new Map(snapshot.activeReactions.map(reaction => [reaction.cellIndex, reaction]));
     let spriteIndex = 0;
 
     projections.forEach((projection) => {
       const cell = snapshot.board.pathCells[projection.cellIndex];
-      if (!cell) {
+      const emitterIds = getVisibleReagentEmitterIds(projection, reactionsByCellIndex.get(projection.cellIndex));
+
+      if (!cell || emitterIds.length === 0) {
         return;
       }
 
-      projection.substances.forEach((emitterId, index) => {
-        this.renderSprite(spriteIndex, snapshot.board.pathCells, cell, emitterId, index, projection.substances.length, snapshot.elapsedMs);
-        spriteIndex += 1;
-      });
-
-      const energyIds = projection.energy.length > 0 ? projection.energy : projection.directEnergy;
-      energyIds.forEach((emitterId, index) => {
-        this.renderSprite(spriteIndex, snapshot.board.pathCells, cell, emitterId, index, energyIds.length, snapshot.elapsedMs);
+      emitterIds.forEach((emitterId, index) => {
+        this.renderSprite(spriteIndex, snapshot.board.pathCells, cell, emitterId, index, emitterIds.length, snapshot.elapsedMs);
         spriteIndex += 1;
       });
     });
@@ -61,32 +61,121 @@ export class RunSceneReagentPresenter {
 
     const visual = getReagentAssetVisual(emitterId);
     const tile = getPathTilePresentation(cells, cell);
-    const pulse = Math.sin(elapsedMs / 260 + cell.index + overlapIndex) * 0.035;
+    const pulse = getReagentPulse(emitterId, elapsedMs, cell.index, overlapIndex);
     const offset = overlapCount > 1 ? (overlapIndex - (overlapCount - 1) / 2) * visual.jitter : 0;
     const sprite = this.sprites[index];
+    const frame = getReagentFrame(visual, elapsedMs);
+
+    if (!sprite) {
+      return;
+    }
+
+    sprite.setVisible(true).setTexture(visual.key);
+
+    if (frame !== null) {
+      sprite.setFrame(frame);
+    }
 
     sprite
-      ?.setVisible(true)
-      .setTexture(visual.key)
       .setPosition(cell.x + Math.cos(tile.rotation + Math.PI / 2) * offset, cell.y + Math.sin(tile.rotation + Math.PI / 2) * offset)
       .setDisplaySize(tile.effectSize * visual.scale * (1 + pulse), tile.effectSize * visual.scale * (1 + pulse))
       .setAlpha(visual.alpha + pulse)
-      .setRotation(tile.rotation + Math.sin(elapsedMs / 480 + cell.index) * 0.035)
+      .setRotation(tile.rotation + getReagentRotationOffset(emitterId, elapsedMs, cell.index))
       .setDepth(visual.depth + cell.y / 10000);
   }
 }
 
-function getReagentAssetVisual(emitterId: EmitterId): ReagentAssetVisual {
+export function getVisibleReagentEmitterIds(
+  projection: CellReagentProjection,
+  reaction: CellReactionState | undefined,
+): readonly EmitterId[] {
+  if (reaction?.ground) {
+    return [];
+  }
+
+  const consumedEmitterIds = getAirReactionConsumedEmitterIds(reaction, gameConfig);
+
+  return [
+    ...projection.substances,
+    ...(projection.energy.length > 0 ? projection.energy : projection.directEnergy),
+  ].filter(emitterId => !consumedEmitterIds.has(emitterId));
+}
+
+export function getReagentAssetVisual(emitterId: EmitterId): ReagentAssetVisual {
   switch (emitterId) {
     case "water":
-      return { key: assetGroups.reactions.reagentWaterPuddle.key, alpha: 0.72, scale: 1.08, depth: 6, jitter: 7 };
+      return {
+        key: assetGroups.reactions.reagentWaterRipple.key,
+        alpha: 0.82,
+        scale: 1.1,
+        depth: 6,
+        jitter: 7,
+        frameCount: 8,
+        frameDurationMs: 500,
+      };
     case "oil":
-      return { key: assetGroups.reactions.reagentOilSlick.key, alpha: 0.8, scale: 1.1, depth: 6, jitter: 7 };
+      return {
+        key: assetGroups.reactions.reagentOilSlick.key,
+        alpha: 0.86,
+        scale: 1.1,
+        depth: 6,
+        jitter: 7,
+        frameCount: 8,
+        frameDurationMs: 500,
+      };
     case "spark":
-      return { key: assetGroups.reactions.reagentSparkCharge.key, alpha: 0.66, scale: 0.92, depth: 7, jitter: 8 };
+      return {
+        key: assetGroups.reactions.reagentSparkCharge.key,
+        alpha: 0.78,
+        scale: 0.96,
+        depth: 7,
+        jitter: 8,
+        frameCount: 8,
+        frameDurationMs: 500,
+      };
     case "heat":
-      return { key: assetGroups.reactions.reagentHeatScorch.key, alpha: 0.68, scale: 1.02, depth: 6.5, jitter: 8 };
+      return {
+        key: assetGroups.reactions.reagentHeatScorch.key,
+        alpha: 0.78,
+        scale: 1.04,
+        depth: 6.5,
+        jitter: 8,
+        frameCount: 8,
+        frameDurationMs: 500,
+      };
     default:
       return emitterId satisfies never;
   }
+}
+
+function getReagentFrame(
+  visual: ReagentAssetVisual,
+  elapsedMs: number,
+): number | null {
+  if (!visual.frameCount || !visual.frameDurationMs) {
+    return null;
+  }
+
+  return Math.floor(elapsedMs / visual.frameDurationMs) % visual.frameCount;
+}
+
+function getReagentPulse(
+  emitterId: EmitterId,
+  elapsedMs: number,
+  cellIndex: number,
+  overlapIndex: number,
+): number {
+  if (emitterId === "water" || emitterId === "oil" || emitterId === "spark" || emitterId === "heat") {
+    return 0;
+  }
+
+  return Math.sin(elapsedMs / 260 + cellIndex + overlapIndex) * 0.035;
+}
+
+function getReagentRotationOffset(emitterId: EmitterId, elapsedMs: number, cellIndex: number): number {
+  if (emitterId === "water" || emitterId === "oil" || emitterId === "spark" || emitterId === "heat") {
+    return 0;
+  }
+
+  return Math.sin(elapsedMs / 480 + cellIndex) * 0.035;
 }

@@ -6,7 +6,7 @@ import {
   getReactionSpritePresentation,
   getReactionVfxDefinition,
 } from "./runSceneReactionRender";
-import { renderAirReaction, renderGroundReaction, writeBossPosition } from "./runSceneRender";
+import { writeBossPosition } from "./runSceneRender";
 
 const LOGICAL_WIDTH = 540;
 const MAX_FIELD_CALLOUTS = 2;
@@ -41,18 +41,14 @@ export class RunSceneReactionPresenter {
         return;
       }
 
-      const pulse = 2 + Math.sin(snapshot.elapsedMs / 80 + reaction.cellIndex) * 2;
-
       if (reaction.ground) {
         this.renderReactionSprite(spriteIndex, snapshot.board.pathCells, cell, reaction.ground, snapshot.elapsedMs);
         spriteIndex += 1;
-        renderGroundReaction(graphics, cell, reaction.ground, pulse);
       }
 
       if (reaction.air) {
         this.renderReactionSprite(spriteIndex, snapshot.board.pathCells, cell, reaction.air, snapshot.elapsedMs);
         spriteIndex += 1;
-        renderAirReaction(graphics, cell, reaction.air, pulse, snapshot.elapsedMs);
       }
     });
 
@@ -79,9 +75,17 @@ export class RunSceneReactionPresenter {
     const sprite = this.reactionSprites[index];
     const presentation = getReactionSpritePresentation(cells, cell, reactionId, elapsedMs);
 
+    if (!sprite) {
+      return;
+    }
+
+    sprite.setVisible(true).setTexture(presentation.key);
+
+    if (presentation.frame !== null) {
+      sprite.setFrame(presentation.frame);
+    }
+
     sprite
-      ?.setVisible(true)
-      .setTexture(presentation.key)
       .setPosition(presentation.x, presentation.y)
       .setDisplaySize(presentation.width, presentation.height)
       .setAlpha(presentation.alpha)

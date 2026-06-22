@@ -1,7 +1,33 @@
-import type { BoardSlot, TowerState } from "@entities/game-session/model/types";
+import type { BoardSlot, PathCell, TowerState } from "@entities/game-session/model/types";
 import type Phaser from "phaser";
 import type { RenderPoint } from "./runSceneRender";
 import { assetGroups } from "@shared/assets/manifest";
+
+export type TowerDirection = "up" | "right" | "down" | "left";
+
+export interface TowerSpriteRenderConfig {
+  readonly baseKey: string
+  readonly headKey: string
+  readonly headOriginX: number
+  readonly directions: readonly TowerDirection[]
+}
+
+export const TOWER_HEAD_ORIGIN_Y = 0.5;
+
+const TOWER_HEAD_ORIGIN_X: Record<TowerState["emitterId"], number> = {
+  water: 0.31,
+  oil: 0.31,
+  spark: 0.3,
+  heat: 0.31,
+};
+
+const DIRECTION_ROTATION: Record<TowerDirection, number> = {
+  right: 0,
+  down: Math.PI / 2,
+  left: Math.PI,
+  up: -Math.PI / 2,
+};
+const TOWER_HEAD_SWAY_AMPLITUDE = 0.055;
 
 export function getTowerFieldLabel(emitterId: TowerState["emitterId"]): string {
   switch (emitterId) {
@@ -18,16 +44,69 @@ export function getTowerFieldLabel(emitterId: TowerState["emitterId"]): string {
   }
 }
 
-export function getTowerSpriteKey(emitterId: TowerState["emitterId"]): string {
+export function getTowerSpriteRenderConfig(
+  tower: TowerState,
+  slot: BoardSlot,
+  cells: readonly PathCell[],
+): TowerSpriteRenderConfig {
+  const directions = getTowerDirections(slot, cells);
+
+  return {
+    baseKey: getTowerBaseSpriteKey(tower.emitterId),
+    headKey: getTowerHeadSpriteKey(tower.emitterId),
+    headOriginX: TOWER_HEAD_ORIGIN_X[tower.emitterId],
+    directions,
+  };
+}
+
+export function getTowerDirections(slot: BoardSlot, cells: readonly PathCell[]): readonly TowerDirection[] {
+  if (slot.isCorner) {
+    return getCornerTowerDirections(slot, cells);
+  }
+
+  return [getDirectionFromSlotToCell(slot, cells[slot.cellIndexes[0] ?? 0])];
+}
+
+export function getTowerDirectionRotation(direction: TowerDirection): number {
+  return DIRECTION_ROTATION[direction];
+}
+
+export function getTowerHeadSwayRotation(
+  tower: TowerState,
+  slot: BoardSlot,
+  directionIndex: number,
+  visualMs: number,
+): number {
+  const phase = visualMs / 520 + slot.x * 0.017 + slot.y * 0.011 + tower.id.length * 0.19 + directionIndex * Math.PI;
+
+  return Math.sin(phase) * TOWER_HEAD_SWAY_AMPLITUDE;
+}
+
+function getTowerBaseSpriteKey(emitterId: TowerState["emitterId"]): string {
   switch (emitterId) {
     case "water":
-      return assetGroups.towers.waterCannon.key;
+      return assetGroups.towers.waterCannonBase.key;
     case "oil":
-      return assetGroups.towers.oilPump.key;
+      return assetGroups.towers.oilPumpBase.key;
     case "spark":
-      return assetGroups.towers.sparkDischarger.key;
+      return assetGroups.towers.sparkDischargerBase.key;
     case "heat":
-      return assetGroups.towers.magmaCrane.key;
+      return assetGroups.towers.magmaCraneBase.key;
+    default:
+      return emitterId satisfies never;
+  }
+}
+
+function getTowerHeadSpriteKey(emitterId: TowerState["emitterId"]): string {
+  switch (emitterId) {
+    case "water":
+      return assetGroups.towers.waterCannonHead.key;
+    case "oil":
+      return assetGroups.towers.oilPumpHead.key;
+    case "spark":
+      return assetGroups.towers.sparkDischargerHead.key;
+    case "heat":
+      return assetGroups.towers.magmaCraneHead.key;
     default:
       return emitterId satisfies never;
   }
@@ -71,68 +150,60 @@ export function renderTowerGrounding(
   }
 }
 
-export function renderTowerActivationFeedback(
-  graphics: Phaser.GameObjects.Graphics,
-  tower: TowerState,
-  slot: BoardSlot,
-  position: RenderPoint,
-  active: boolean,
-  visualMs: number,
-): void {
-  if (!active) {
-    return;
+function getCornerTowerDirections(slot: BoardSlot, cells: readonly PathCell[]): readonly TowerDirection[] {
+  if (slot.cellIndexes.length > 1) {
+    return uniqueDirections(slot.cellIndexes.map(cellIndex => getDirectionFromSlotToCell(slot, cells[cellIndex])));
   }
 
-  const phase = visualMs / 100 + position.x * 0.01 + position.y * 0.01;
-  const pulse = 1 + Math.sin(phase) * 0.5;
+  const cornerCellIndex = slot.cellIndexes[0] ?? 0;
+  const cornerCell = cells[cornerCellIndex];
+  const previousCell = cells[(cornerCellIndex - 1 + cells.length) % cells.length];
+  const nextCell = cells[(cornerCellIndex + 1) % cells.length];
 
-  switch (tower.emitterId) {
-    case "water":
-      graphics.lineStyle(3, 0x9DDCFF, 0.54 + pulse * 0.2);
-      graphics.beginPath();
-      graphics.moveTo(position.x + 14, position.y - 8);
-      graphics.lineTo(position.x + 26 + pulse * 4, position.y - 13);
-      graphics.moveTo(position.x + 7, position.y + 2);
-      graphics.lineTo(position.x + 23 + pulse * 3, position.y + 4);
-      graphics.strokePath();
-      graphics.fillStyle(0xD7EFF0, 0.26);
-      graphics.fillCircle(position.x - 16, position.y - 17, 8 + pulse * 2);
-      break;
-    case "oil":
-      graphics.fillStyle(0x070604, 0.34);
-      graphics.fillEllipse(position.x + 15, position.y + 12, 18 + pulse * 4, 7 + pulse);
-      graphics.lineStyle(2, 0xA8844F, 0.54);
-      graphics.beginPath();
-      graphics.moveTo(position.x - 20, position.y + 4);
-      graphics.lineTo(position.x - 29 - pulse * 2, position.y + 10);
-      graphics.strokePath();
-      break;
-    case "spark":
-      graphics.lineStyle(2, 0x9FF7FF, 0.78);
-      graphics.beginPath();
-      graphics.moveTo(position.x - 21, position.y - 27);
-      graphics.lineTo(position.x - 9, position.y - 37 - pulse * 3);
-      graphics.lineTo(position.x + 2, position.y - 25);
-      graphics.lineTo(position.x + 18, position.y - 34 - pulse * 2);
-      graphics.strokePath();
-      graphics.fillStyle(0x61D6D6, 0.12);
-      graphics.fillCircle(position.x, position.y - 18, 26 + pulse * 3);
-      break;
-    case "heat":
-      graphics.fillStyle(0xF08A28, 0.12 + pulse * 0.04);
-      graphics.fillCircle(position.x, position.y - 7, slot.lane === "inner" ? 28 : 32);
-      graphics.lineStyle(3, 0xFFB05B, 0.54 + pulse * 0.16);
-      graphics.strokeCircle(position.x, position.y - 4, 18 + pulse * 4);
-      graphics.lineStyle(2, 0xFFE0A0, 0.42);
-      graphics.beginPath();
-      graphics.moveTo(position.x - 14, position.y - 24);
-      graphics.lineTo(position.x - 10, position.y - 35 - pulse * 4);
-      graphics.moveTo(position.x + 7, position.y - 21);
-      graphics.lineTo(position.x + 12, position.y - 34 - pulse * 3);
-      graphics.strokePath();
-      break;
+  if (!cornerCell || !previousCell || !nextCell) {
+    return ["right", "up"];
+  }
+
+  return uniqueDirections([
+    getCardinalDirection(previousCell.x - cornerCell.x, previousCell.y - cornerCell.y),
+    getCardinalDirection(nextCell.x - cornerCell.x, nextCell.y - cornerCell.y),
+  ]);
+}
+
+function getDirectionFromSlotToCell(slot: BoardSlot, cell: PathCell | undefined): TowerDirection {
+  if (!cell) {
+    return "right";
+  }
+
+  return getCardinalDirection(cell.x - slot.x, cell.y - slot.y);
+}
+
+function getCardinalDirection(x: number, y: number): TowerDirection {
+  if (Math.abs(x) >= Math.abs(y)) {
+    return x < 0 ? "left" : "right";
+  }
+
+  return y < 0 ? "up" : "down";
+}
+
+function uniqueDirections(directions: readonly TowerDirection[]): readonly TowerDirection[] {
+  const unique = [...new Set(directions)];
+
+  return unique.length > 1 ? unique : [unique[0] ?? "right", rotateDirection(unique[0] ?? "right")];
+}
+
+function rotateDirection(direction: TowerDirection): TowerDirection {
+  switch (direction) {
+    case "up":
+      return "right";
+    case "right":
+      return "down";
+    case "down":
+      return "left";
+    case "left":
+      return "up";
     default:
-      return tower.emitterId satisfies never;
+      return direction satisfies never;
   }
 }
 

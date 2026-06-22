@@ -3,7 +3,6 @@ import type {
   CellEnergyClaim,
   CellReactionState,
   CellReagentProjection,
-  DamageFamily,
   EmitterId,
   GameConfig,
   ReactionDefinition,
@@ -31,13 +30,6 @@ interface MutableProjection {
   readonly energy: Set<EnergyId>
   readonly directEnergy: Set<EnergyId>
   readonly energyClaims: CellEnergyClaim[]
-}
-
-interface DamageEntry {
-  readonly reactionId: ReactionId
-  readonly layer: "ground" | "air"
-  readonly damageFamily: DamageFamily
-  readonly amount: number
 }
 
 export function resolveReactions(
@@ -72,45 +64,64 @@ export function projectReagents(
   }));
 }
 
-export function getReactionDamageEntries(
-  reaction: CellReactionState,
-  deltaMs: number,
-  upgrades: readonly UpgradeStackState[] = [],
-  config: GameConfig = gameConfig,
-): readonly DamageEntry[] {
-  return [
-    { reactionId: reaction.ground, layer: "ground" as const },
-    { reactionId: reaction.air, layer: "air" as const },
-  ]
-    .filter((entry): entry is { readonly reactionId: ReactionId, readonly layer: "ground" | "air" } => entry.reactionId !== null)
-    .map((entry) => {
-      const definition = getReactionDefinition(entry.reactionId, config);
-
-      return {
-        reactionId: entry.reactionId,
-        layer: entry.layer,
-        damageFamily: definition.damageFamily,
-        amount: (definition.dps + getReactionDpsBonus(entry.reactionId, upgrades, config)) * deltaMs / 1000,
-      };
-    })
-    .filter(entry => entry.amount > 0);
-}
-
 export function getCellSpeedMultiplier(
   projection: CellReagentProjection | undefined,
   upgrades: readonly UpgradeStackState[] = [],
   config: GameConfig = gameConfig,
+  reaction?: CellReactionState,
 ): number {
   if (!projection) {
     return 1;
   }
 
-  return projection.substances.reduce((multiplier, substance) => {
+  const consumedEmitterIds = getAirReactionConsumedEmitterIds(reaction, config);
+  const totalSlow = projection.substances.filter(substance => !consumedEmitterIds.has(substance)).reduce((slow, substance) => {
     const definition = config.emitters.find(emitter => emitter.id === substance);
     const slowBonus = getSubstanceSlowBonus(substance, upgrades, config);
+    const baseSlow = 1 - (definition?.speedMultiplier ?? 1);
 
-    return Math.min(multiplier, Math.max(config.balance.minSpeedMultiplier, (definition?.speedMultiplier ?? 1) - slowBonus));
-  }, 1);
+    return slow + Math.max(0, baseSlow + slowBonus);
+  }, 0);
+
+  return Math.max(config.balance.minSpeedMultiplier, 1 - totalSlow);
+}
+
+export function getAirReactionConsumedEmitterIds(
+  reaction: CellReactionState | undefined,
+  config: GameConfig = gameConfig,
+): ReadonlySet<EmitterId> {
+  if (!reaction?.air) {
+    return new Set();
+  }
+
+  const definition = config.reactions.find(candidate => candidate.id === reaction.air);
+  const emitterIds = new Set(config.emitters.map(emitter => emitter.id));
+
+  return new Set(definition?.inputs.flatMap(input => getReactionInputEmitterIds(input, config, emitterIds, new Set())) ?? []);
+}
+
+function getReactionInputEmitterIds(
+  input: ReactionInputId,
+  config: GameConfig,
+  emitterIds: ReadonlySet<string>,
+  visitedReactionIds: Set<ReactionId>,
+): readonly EmitterId[] {
+  if (emitterIds.has(input)) {
+    return [input as EmitterId];
+  }
+
+  const reactionId = input as ReactionId;
+  if (visitedReactionIds.has(reactionId)) {
+    return [];
+  }
+
+  const definition = config.reactions.find(candidate => candidate.id === reactionId);
+  if (!definition) {
+    return [];
+  }
+
+  visitedReactionIds.add(reactionId);
+  return definition.inputs.flatMap(nestedInput => getReactionInputEmitterIds(nestedInput, config, emitterIds, visitedReactionIds));
 }
 
 export function collectConnectedPools(pathCellCount: number, cells: ReadonlySet<number>): readonly (readonly number[])[] {
@@ -289,7 +300,7 @@ function resolveTier(
 ): readonly CellReactionState[] {
   const definitions = config.reactions.filter(reaction => reaction.tier === tier);
 
-  return board.pathCells.map<CellReactionState>((cell) => {
+  const resolved = board.pathCells.map<CellReactionState>((cell) => {
     const resolved = definitions
       .filter(reaction => hasReactionInputs(board, projection, previous, tier, cell.index, reaction.inputs, config))
       .reduce<CellReactionState>((state, reaction) => ({
@@ -301,6 +312,34 @@ function resolveTier(
       cellIndex: cell.index,
       ground: resolved.ground,
       air: resolved.air,
+    };
+  });
+
+  return tier === 1 ? extendSteamToNextCell(resolved) : resolved;
+}
+
+function extendSteamToNextCell(reactions: readonly CellReactionState[]): readonly CellReactionState[] {
+  const steamCellIndexes = reactions
+    .filter(reaction => reaction.air === "steam")
+    .map(reaction => reaction.cellIndex);
+
+  if (steamCellIndexes.length === 0) {
+    return reactions;
+  }
+
+  const expandedSteamCellIndexes = new Set([
+    ...steamCellIndexes,
+    ...steamCellIndexes.map(cellIndex => (cellIndex + 1) % reactions.length),
+  ]);
+
+  return reactions.map((reaction) => {
+    if (!expandedSteamCellIndexes.has(reaction.cellIndex) || reaction.air !== null) {
+      return reaction;
+    }
+
+    return {
+      ...reaction,
+      air: "steam",
     };
   });
 }
@@ -317,8 +356,15 @@ function hasReactionInputs(
   const indexes = tier === 1
     ? [cellIndex]
     : getContextIndexes(board.pathCells.length, cellIndex);
+  const reactionInputs = inputs.filter(input => isReactionId(input, config));
+  const hasCurrentReactionAnchor = tier === 1
+    || reactionInputs.length === 0
+    || reactionInputs.some(input => hasReactionInput(projection[cellIndex], previous[cellIndex], tier, input, config));
 
-  return inputs.every(input => indexes.some(index => hasReactionInput(projection[index], previous[index], tier, input, config)));
+  return hasCurrentReactionAnchor
+    && inputs.every((input) => {
+      return indexes.some(index => hasReactionInput(projection[index], previous[index], tier, input, config));
+    });
 }
 
 function hasReactionInput(
@@ -347,16 +393,6 @@ function hasReactionInput(
   return tier === 1
     ? projection.energy.has(input)
     : projection.energy.has(input) || projection.directEnergy.has(input);
-}
-
-function getReactionDefinition(reactionId: ReactionId, config: GameConfig) {
-  const definition = config.reactions.find(reaction => reaction.id === reactionId);
-
-  if (!definition) {
-    throw new Error(`Unknown reaction ${reactionId}`);
-  }
-
-  return definition;
 }
 
 function getEnergyCapacity(emitterId: EnergyId, upgrades: readonly UpgradeStackState[], config: GameConfig): number {
@@ -401,18 +437,6 @@ function getSubstanceCoverageBonus(emitterId: SubstanceId, upgrades: readonly Up
 
 function getSubstanceSlowBonus(emitterId: EmitterId, upgrades: readonly UpgradeStackState[], config: GameConfig): number {
   return getUpgradeEffectTotal(upgrades, emitterId, "substanceSlow", config);
-}
-
-function getReactionDpsBonus(reactionId: ReactionId, upgrades: readonly UpgradeStackState[], config: GameConfig): number {
-  return upgrades.reduce((bonus, stack) => {
-    const definition = config.upgrades.find(upgrade => upgrade.id === stack.upgradeId);
-
-    if (definition?.effect.type !== "reactionDps" || definition.effect.reactionId !== reactionId) {
-      return bonus;
-    }
-
-    return bonus + definition.effect.amount * stack.stacks;
-  }, 0);
 }
 
 function getUpgradeEffectTotal(

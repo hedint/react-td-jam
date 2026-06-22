@@ -1,4 +1,4 @@
-import type { DraftRole, DraftStep, EmitterId, EnemyId, ReactionId, RunPhase, RuntimeSnapshot, StagePoint, UpgradeId, ViewportSize } from "./types";
+import type { DamageSourceId, DraftRole, DraftStep, EmitterId, EnemyId, RunPhase, RuntimeSnapshot, StagePoint, UpgradeId, ViewportSize } from "./types";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { gameConfig } from "./config";
@@ -31,7 +31,7 @@ export const useGameSessionStore = defineStore("game-session", () => {
   const bossHp = ref(0);
   const bossMaxHp = ref(0);
   const bossVulnerableMs = ref(0);
-  const reactionStats = ref<Array<{ readonly reactionId: ReactionId, readonly label: string, readonly damage: number }>>([]);
+  const reactionStats = ref<Array<{ readonly sourceId: DamageSourceId, readonly label: string, readonly damage: number }>>([]);
   const selectedTowerId = ref<string | null>(null);
   const towerItems = ref<Array<{ readonly id: string, readonly label: string, readonly placed: boolean }>>([]);
   const draftStep = ref<DraftStep | null>(null);
@@ -105,10 +105,10 @@ export const useGameSessionStore = defineStore("game-session", () => {
     bossHp.value = snapshot.boss?.hp ?? 0;
     bossMaxHp.value = snapshot.boss?.maxHp ?? 0;
     bossVulnerableMs.value = snapshot.boss?.vulnerableMs ?? 0;
-    reactionStats.value = Object.entries(snapshot.stats.damageByReaction)
-      .map(([reactionId, damage]) => ({
-        reactionId: reactionId as ReactionId,
-        label: getReactionLabel(reactionId as ReactionId),
+    reactionStats.value = Object.entries(snapshot.stats.damageBySource)
+      .map(([sourceId, damage]) => ({
+        sourceId: sourceId as DamageSourceId,
+        label: getDamageSourceLabel(sourceId as DamageSourceId),
         damage: Math.round(damage ?? 0),
       }))
       .filter(entry => entry.damage > 0)
@@ -207,8 +207,15 @@ function getWaveThreatEnemyId(waveIndex: number): EnemyId | null {
   return wave?.telegraphEnemyId ?? wave?.enemyId ?? null;
 }
 
-function getReactionLabel(reactionId: ReactionId): string {
-  return gameConfig.reactions.find(reaction => reaction.id === reactionId)?.displayName ?? reactionId;
+function getDamageSourceLabel(sourceId: DamageSourceId): string {
+  switch (sourceId) {
+    case "rawSpark":
+      return "Искра";
+    case "rawHeat":
+      return "Жар";
+    default:
+      return gameConfig.reactions.find(reaction => reaction.id === sourceId)?.displayName ?? sourceId;
+  }
 }
 
 function getWaveThreatLabel(enemyId: EnemyId | null): string {

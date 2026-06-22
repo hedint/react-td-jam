@@ -18,10 +18,10 @@ export const gameConfig: GameConfig = {
   },
   board,
   emitters: [
-    { id: "water", displayName: "Вода", towerDisplayName: "Водомёт", family: "substance", speedMultiplier: 0.84 },
-    { id: "oil", displayName: "Нефть", towerDisplayName: "Маслонасос", family: "substance", speedMultiplier: 0.68 },
-    { id: "spark", displayName: "Искра", towerDisplayName: "Разрядник", family: "energy", energyCapacity: 3 },
-    { id: "heat", displayName: "Жар", towerDisplayName: "Магмовый кран", family: "energy", energyCapacity: 2 },
+    { id: "water", displayName: "Вода", towerDisplayName: "Водомёт", family: "substance", speedMultiplier: 0.85 },
+    { id: "oil", displayName: "Нефть", towerDisplayName: "Маслонасос", family: "substance", speedMultiplier: 0.70 },
+    { id: "spark", displayName: "Искра", towerDisplayName: "Разрядник", family: "energy", energyCapacity: 3, rawDps: 5, rawDamageFamily: "electric" },
+    { id: "heat", displayName: "Жар", towerDisplayName: "Магмовый кран", family: "energy", energyCapacity: 2, rawDps: 7, rawDamageFamily: "fire" },
   ],
   reactions: [
     { id: "electroPuddle", displayName: "Электролужа", tier: 1, layer: "ground", damageFamily: "electric", dps: 15, inputs: ["water", "spark"] },
@@ -103,6 +103,14 @@ export function validateGameConfig(config: GameConfig): readonly string[] {
 
     if (emitter.family === "energy" && (emitter.energyCapacity ?? 0) <= 0) {
       errors.push(`emitter ${emitter.id} must have positive energyCapacity`);
+    }
+
+    if (emitter.family === "energy" && emitter.rawDps !== undefined && emitter.rawDps <= 0) {
+      errors.push(`emitter ${emitter.id} rawDps must be positive`);
+    }
+
+    if (emitter.rawDps !== undefined && !emitter.rawDamageFamily) {
+      errors.push(`emitter ${emitter.id} rawDps requires rawDamageFamily`);
     }
 
     if (emitter.family === "substance" && (emitter.speedMultiplier ?? 1) > 1) {

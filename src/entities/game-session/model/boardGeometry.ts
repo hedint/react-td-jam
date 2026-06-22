@@ -53,19 +53,19 @@ export function createStadiumLoopCells(config: BoardGeometryConfig): readonly Pa
   const cells: PathCell[] = [];
 
   for (let index = 0; index <= sideCount; index += 1) {
-    cells.push(createPathCell(cells.length, left + config.tileSize * index, bottom, index === 0 || index === sideCount));
+    cells.push(createPathCell(cells.length, left, bottom - config.tileSize * index, index === 0 || index === sideCount));
   }
 
   for (let index = 1; index <= sideCount; index += 1) {
-    cells.push(createPathCell(cells.length, right, bottom - config.tileSize * index, index === sideCount));
+    cells.push(createPathCell(cells.length, left + config.tileSize * index, top, index === sideCount));
   }
 
   for (let index = 1; index <= sideCount; index += 1) {
-    cells.push(createPathCell(cells.length, right - config.tileSize * index, top, index === sideCount));
+    cells.push(createPathCell(cells.length, right, top + config.tileSize * index, index === sideCount));
   }
 
   for (let index = 1; index < sideCount; index += 1) {
-    cells.push(createPathCell(cells.length, left, top + config.tileSize * index, false));
+    cells.push(createPathCell(cells.length, right - config.tileSize * index, bottom, false));
   }
 
   return cells;

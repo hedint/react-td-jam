@@ -1,6 +1,7 @@
-import type { BossDefinition, BossState, GameConfig, RunState } from "./types";
+import type { BossDefinition, BossState, DamageSourceId, GameConfig, RunState } from "./types";
 import { gameConfig } from "./config";
-import { getReactionDamageEntries, resolveReactions } from "./reactions";
+import { getCellDamageEntries } from "./damage";
+import { projectReagents, resolveReactions } from "./reactions";
 
 export function createBossState(overrides: Partial<BossState> = {}, config: GameConfig = gameConfig): BossState {
   const definition = config.boss;
@@ -22,13 +23,15 @@ export function createBossState(overrides: Partial<BossState> = {}, config: Game
 export function stepBoss(state: RunState, scaledDeltaMs: number, config: GameConfig = gameConfig): RunState {
   const definition = getBossDefinition(state.boss!.bossId, config);
   const reactions = resolveReactions(state.board, state.placedTowers, state.upgrades, config);
+  const reagentProjection = projectReagents(state.board, state.placedTowers, state.upgrades, config);
   const bossSpeed = definition.speedCellsPerSecond + (state.boss!.lap - 1) * definition.speedIncreasePerLap;
   const pathProgress = state.boss!.pathProgress + bossSpeed * scaledDeltaMs / 1000;
   const currentCellIndex = getCurrentPathCellIndex(pathProgress % state.board.pathCells.length, state.board.pathCells.length);
-  const damageEntries = getReactionDamageEntries(reactions[currentCellIndex]!, scaledDeltaMs, state.upgrades, config);
+  const damageEntries = getCellDamageEntries(reactions[currentCellIndex]!, reagentProjection[currentCellIndex], scaledDeltaMs, state.upgrades, config);
   const reactionBreakIds = new Set(state.boss!.reactionBreakIds);
   const wasVulnerable = state.boss!.vulnerableMs > 0;
   const damageMultiplier = wasVulnerable ? definition.vulnerableDamageMultiplier : 1;
+  const damageBySource = { ...(state.stats.damageBySource ?? state.stats.damageByReaction) };
   const damageByReaction = { ...state.stats.damageByReaction };
   let hp = state.boss!.hp;
   let totalDamage = state.stats.totalDamage;
@@ -48,8 +51,15 @@ export function stepBoss(state: RunState, scaledDeltaMs: number, config: GameCon
 
     hp = Math.max(0, hp - appliedDamage);
     totalDamage += appliedDamage;
-    damageByReaction[entry.reactionId] = (damageByReaction[entry.reactionId] ?? 0) + appliedDamage;
-    reactionBreakIds.add(entry.reactionId);
+    damageBySource[entry.sourceId] = (damageBySource[entry.sourceId] ?? 0) + appliedDamage;
+
+    if (entry.reactionId) {
+      damageByReaction[entry.reactionId] = (damageByReaction[entry.reactionId] ?? 0) + appliedDamage;
+    }
+
+    if (entry.countsForReactionBreak && entry.reactionId) {
+      reactionBreakIds.add(entry.reactionId);
+    }
   });
 
   const triggeredBreak = !wasVulnerable
@@ -71,6 +81,7 @@ export function stepBoss(state: RunState, scaledDeltaMs: number, config: GameCon
       vulnerableMs,
       reactionBreakIds: [...reactionBreakIds].sort(),
       totalDamage,
+      damageBySource,
       damageByReaction,
       bossBreaks,
       coreHp: state.coreHp,
@@ -105,6 +116,7 @@ export function stepBoss(state: RunState, scaledDeltaMs: number, config: GameCon
     vulnerableMs,
     reactionBreakIds: nextReactionBreakIds,
     totalDamage,
+    damageBySource,
     damageByReaction,
     bossBreaks,
     coreHp,
@@ -122,6 +134,7 @@ function finishBossStep(
     readonly vulnerableMs: number
     readonly reactionBreakIds: readonly BossState["reactionBreakIds"][number][]
     readonly totalDamage: number
+    readonly damageBySource: Partial<Record<DamageSourceId, number>>
     readonly damageByReaction: RunState["stats"]["damageByReaction"]
     readonly bossBreaks: number
     readonly lap?: number
@@ -149,6 +162,7 @@ function finishBossStep(
       ...state.stats,
       bossBreaks: result.bossBreaks,
       totalDamage: result.totalDamage,
+      damageBySource: result.damageBySource,
       damageByReaction: result.damageByReaction,
     },
   };

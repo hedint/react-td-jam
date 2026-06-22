@@ -21,6 +21,8 @@ export interface ReactionVfxDefinition {
   readonly rotationAmplitude: number
   readonly depth: number
   readonly tileScale: number
+  readonly frameCount?: number
+  readonly frameDurationMs?: number
 }
 
 export interface ReactionSpritePresentation {
@@ -32,6 +34,7 @@ export interface ReactionSpritePresentation {
   readonly alpha: number
   readonly rotation: number
   readonly depth: number
+  readonly frame: number | null
 }
 
 export const reactionVfxRegistry = {
@@ -50,6 +53,8 @@ export const reactionVfxRegistry = {
     rotationAmplitude: 0,
     depth: 8,
     tileScale: 1.06,
+    frameCount: 8,
+    frameDurationMs: 500,
   },
   steam: {
     reactionId: "steam",
@@ -59,13 +64,15 @@ export const reactionVfxRegistry = {
     callout: "Пар",
     width: 92,
     height: 86,
-    yOffset: -42,
+    yOffset: 0,
     baseAlpha: 0.62,
     pulseScale: 0.04,
     rotationSpeed: 0,
     rotationAmplitude: 0.03,
     depth: 18,
     tileScale: 0,
+    frameCount: 8,
+    frameDurationMs: 500,
   },
   fire: {
     reactionId: "fire",
@@ -82,6 +89,8 @@ export const reactionVfxRegistry = {
     rotationAmplitude: 0.025,
     depth: 8,
     tileScale: 1.08,
+    frameCount: 8,
+    frameDurationMs: 500,
   },
   stormCloud: {
     reactionId: "stormCloud",
@@ -91,13 +100,15 @@ export const reactionVfxRegistry = {
     callout: "Грозовое облако",
     width: 104,
     height: 88,
-    yOffset: -45,
+    yOffset: 0,
     baseAlpha: 0.78,
     pulseScale: 0.05,
     rotationSpeed: 0,
     rotationAmplitude: 0.035,
     depth: 18,
     tileScale: 0,
+    frameCount: 8,
+    frameDurationMs: 500,
   },
   fireVortex: {
     reactionId: "fireVortex",
@@ -107,13 +118,15 @@ export const reactionVfxRegistry = {
     callout: "Огненный вихрь",
     width: 96,
     height: 96,
-    yOffset: -38,
+    yOffset: 0,
     baseAlpha: 0.78,
     pulseScale: 0.06,
     rotationSpeed: 0.0018,
     rotationAmplitude: 0.03,
     depth: 18,
     tileScale: 0,
+    frameCount: 8,
+    frameDurationMs: 500,
   },
   fireStorm: {
     reactionId: "fireStorm",
@@ -123,13 +136,15 @@ export const reactionVfxRegistry = {
     callout: "Огненный Шторм",
     width: 124,
     height: 112,
-    yOffset: -42,
+    yOffset: 0,
     baseAlpha: 0.82,
     pulseScale: 0.07,
     rotationSpeed: 0.0012,
     rotationAmplitude: 0.04,
     depth: 18,
     tileScale: 0,
+    frameCount: 8,
+    frameDurationMs: 500,
   },
 } as const satisfies Record<ReactionId, ReactionVfxDefinition>;
 
@@ -144,9 +159,10 @@ export function getReactionSpritePresentation(
   elapsedMs: number,
 ): ReactionSpritePresentation {
   const definition = getReactionVfxDefinition(reactionId);
-  const wave = Math.sin(elapsedMs / 145 + cell.index * 0.9);
-  const scale = 1 + wave * definition.pulseScale;
-  const bob = definition.layer === "air"
+  const frame = getReactionFrame(definition, elapsedMs);
+  const wave = frame === null ? Math.sin(elapsedMs / 145 + cell.index * 0.9) : 0;
+  const scale = frame === null ? 1 + wave * definition.pulseScale : 1;
+  const bob = frame === null && definition.layer === "air"
     ? Math.sin(elapsedMs / 220 + cell.index) * 3
     : 0;
   const tile = definition.layer === "ground" ? getPathTilePresentation(cells, cell) : null;
@@ -160,9 +176,12 @@ export function getReactionSpritePresentation(
     y: cell.y + definition.yOffset + bob,
     width: width * scale,
     height: height * scale,
-    alpha: clamp(definition.baseAlpha + wave * 0.08, 0.42, 0.92),
-    rotation: rotation + elapsedMs * definition.rotationSpeed + Math.sin(elapsedMs / 240 + cell.index) * definition.rotationAmplitude,
+    alpha: frame === null ? clamp(definition.baseAlpha + wave * 0.08, 0.42, 0.92) : definition.baseAlpha,
+    rotation: frame === null
+      ? rotation + elapsedMs * definition.rotationSpeed + Math.sin(elapsedMs / 240 + cell.index) * definition.rotationAmplitude
+      : rotation,
     depth: definition.depth + cell.y / 10000,
+    frame,
   };
 }
 
@@ -173,4 +192,12 @@ export function getReactionDisplayName(reactionId: ReactionId): string {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function getReactionFrame(definition: ReactionVfxDefinition, elapsedMs: number): number | null {
+  if (!definition.frameCount || !definition.frameDurationMs) {
+    return null;
+  }
+
+  return Math.floor(elapsedMs / definition.frameDurationMs) % definition.frameCount;
 }
