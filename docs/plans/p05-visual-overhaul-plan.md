@@ -558,13 +558,13 @@ Purpose: make the game interface match the new field quality while protecting th
 
 - Decisions/contradictions:
   - During Phase 5 visual review, board geometry was corrected before continuing HUD work:
-    - the 16-cell path now uses an explicit orthogonal 5x5 grid loop with one equal tile step between all neighboring path cells;
+    - the path now uses an explicit orthogonal 5x6 grid loop with one equal tile step between all neighboring path cells;
     - `cell-0` is the lower-left entrance tile; the gate marker and enemy spawn point use this cell;
     - path order now moves clockwise from the lower-left entrance: up the left side, right across the top, down the right side, then left along the bottom; enemy movement and next-cell effect propagation share this order;
     - `slot-0-outer` is intentionally omitted, so the entrance tile has no outside tower and no starting reaction coverage from an external tower;
     - middle straight cells keep adjacent grid positions on the inside and outside of their path cell;
     - adjacent-to-corner inner slots are collapsed into one physical inner-corner junction slot, avoiding two tower slots occupying the same point;
-    - the four inner-corner junction slots are `slot-0-inner`, `slot-4-inner`, `slot-8-inner`, and `slot-12-inner`; each affects the two straight path cells touching that inner corner and not the corner path tile itself;
+    - the active inner-corner junction slots are `slot-5-inner`, `slot-9-inner`, and `slot-14-inner`; each affects the two straight path cells touching that inner corner and not the corner path tile itself;
     - corner outer slots remain diagonal single-cell slots that affect only their own corner path tile, except the omitted entrance outer slot;
     - `defaultBoardGeometryConfig.lockInnerCornerSlots` is currently `false` for the visual slice. The combat-intended feature flag exists and locks only the inner-corner junction slots when enabled;
     - path reaction cells now render as explicit square red-outlined road tiles rather than ambiguous circular markers or a stadium-shaped path stroke;

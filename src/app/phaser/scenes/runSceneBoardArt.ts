@@ -3,10 +3,12 @@ import type Phaser from "phaser";
 import { assetGroups } from "@shared/assets/manifest";
 
 const FALLBACK_ROAD_TILE_SIZE = 76;
+const ROAD_TILE_OVERLAP = 6;
 const SLOT_DISPLAY_SIZE = 52;
 const CORNER_SLOT_DISPLAY_SIZE = 62;
 const MARKER_DISPLAY_SIZE = 94;
 const EXIT_MARKER_DISPLAY_SIZE = 86;
+const ENTRANCE_MARKER_Y_OFFSET_TILES = -1 / 3;
 
 type Direction = "up" | "right" | "down" | "left";
 
@@ -132,7 +134,7 @@ export function getBoardRoadPiecePresentation(
   const directions = getCellConnectionDirections(cells, cell);
 
   if (directions.length < 2) {
-    const size = getRoadTileSize(cells);
+    const size = getRoadDisplaySize(cells);
 
     return {
       key: assetGroups.board.roadStraight.key,
@@ -148,8 +150,8 @@ export function getBoardRoadPiecePresentation(
   return {
     key: isStraight ? assetGroups.board.roadStraight.key : assetGroups.board.roadCorner.key,
     rotation: isStraight ? getStraightRotation(first, second) : getCornerRotation(first, second),
-    width: getRoadTileSize(cells),
-    height: getRoadTileSize(cells),
+    width: getRoadDisplaySize(cells),
+    height: getRoadDisplaySize(cells),
   };
 }
 
@@ -162,7 +164,9 @@ export function getEntranceMarkerPresentation(cells: readonly PathCell[]): Board
   }
 
   const x = entrance.x + Math.sign(entrance.x - next.x) * getRoadTileSize(cells);
-  const y = entrance.y + Math.sign(entrance.y - next.y) * getRoadTileSize(cells);
+  const y = entrance.y
+    + Math.sign(entrance.y - next.y) * getRoadTileSize(cells)
+    + Math.round(getRoadTileSize(cells) * ENTRANCE_MARKER_Y_OFFSET_TILES);
 
   return {
     x,
@@ -230,6 +234,10 @@ function getRoadTileSize(cells: readonly PathCell[]): number {
   }).filter(distance => distance > 0);
 
   return Math.round(Math.min(...distances, FALLBACK_ROAD_TILE_SIZE));
+}
+
+function getRoadDisplaySize(cells: readonly PathCell[]): number {
+  return getRoadTileSize(cells) + ROAD_TILE_OVERLAP;
 }
 
 function areOppositeDirections(first: Direction, second: Direction): boolean {

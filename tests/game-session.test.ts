@@ -37,8 +37,8 @@ describe("run simulation", () => {
       coreHp: 15,
       lastTap: null,
     });
-    expect(state.board.pathCells).toHaveLength(16);
-    expect(state.board.slots).toHaveLength(22);
+    expect(state.board.pathCells).toHaveLength(18);
+    expect(state.board.slots).toHaveLength(26);
     expect(state.board.slots.every(slot => !slot.locked)).toBe(true);
     expect(state.bench.map(tower => tower.displayName)).toEqual([
       "Водомёт",
@@ -143,6 +143,8 @@ describe("run simulation", () => {
       { cellIndex: 13, ground: null, air: null },
       { cellIndex: 14, ground: null, air: null },
       { cellIndex: 15, ground: null, air: null },
+      { cellIndex: 16, ground: null, air: null },
+      { cellIndex: 17, ground: null, air: null },
     ]);
   });
 
@@ -232,7 +234,7 @@ describe("run simulation", () => {
         createTower("tower-water-b", "water", "slot-2-outer"),
         createTower("tower-water-c", "water", "slot-2-outer"),
         createTower("tower-spark-a", "spark", "slot-1-outer"),
-        createTower("tower-spark-b", "spark", "slot-4-inner"),
+        createTower("tower-spark-b", "spark", "slot-5-inner"),
       ],
     });
     const projection = projectReagents(state.board, state.placedTowers);
@@ -254,7 +256,7 @@ describe("run simulation", () => {
         createTower("tower-water-a", "water", "slot-1-outer"),
         createTower("tower-heat-a", "heat", "slot-1-outer"),
         createTower("tower-oil-a", "oil", "slot-7-outer"),
-        createTower("tower-heat-b", "heat", "slot-8-inner"),
+        createTower("tower-heat-b", "heat", "slot-7-inner"),
       ],
     });
     const stormCloud = createRun(1, {
@@ -279,9 +281,9 @@ describe("run simulation", () => {
         createTower("tower-spark-a", "spark", "slot-1-outer"),
         createTower("tower-spark-b", "spark", "slot-2-outer"),
         createTower("tower-water-b", "water", "slot-3-outer"),
-        createTower("tower-heat-b", "heat", "slot-4-inner"),
-        createTower("tower-oil-b", "oil", "slot-4-outer"),
-        createTower("tower-heat-c", "heat", "slot-4-outer"),
+        createTower("tower-heat-b", "heat", "slot-3-inner"),
+        createTower("tower-oil-b", "oil", "slot-3-outer"),
+        createTower("tower-heat-c", "heat", "slot-3-outer"),
       ],
     });
 
@@ -493,7 +495,7 @@ describe("run simulation", () => {
         createGrunt({ hp: 100 }),
       ],
     });
-    const next = stepMany(state, 490);
+    const next = stepMany(state, 550);
 
     expect(next.enemies).toEqual([]);
     expect(next.coreHp).toBe(14);
@@ -653,7 +655,7 @@ describe("run simulation", () => {
       spawnedCount: 1,
     });
 
-    const cleared = stepMany(state, 520);
+    const cleared = stepMany(state, 560);
 
     expect(cleared.phase).toBe("draft");
     expect(cleared.waveRuntime).toBeNull();
@@ -697,7 +699,7 @@ describe("run simulation", () => {
       placedTowers: [
         createTower("tower-water-only", "water", "slot-1-outer"),
       ],
-    })), 520);
+    })), 560);
 
     expect(draft.phase).toBe("draft");
     expect(draft.draft?.towerOffers).toHaveLength(3);
@@ -857,8 +859,8 @@ describe("run simulation", () => {
       seed: 8,
       placementPlan: {
         water: ["slot-1-outer", "slot-2-outer", "slot-3-outer", "slot-5-outer", "slot-7-outer"],
-        spark: ["slot-4-inner", "slot-6-inner", "slot-8-inner", "slot-12-inner"],
-        heat: ["slot-2-inner", "slot-4-inner", "slot-6-inner", "slot-8-inner"],
+        spark: ["slot-5-inner", "slot-7-inner", "slot-9-inner", "slot-14-inner"],
+        heat: ["slot-2-inner", "slot-3-inner", "slot-5-inner", "slot-7-inner"],
         oil: ["slot-2-outer", "slot-4-outer", "slot-6-outer"],
       },
       draftPlan: {
@@ -873,7 +875,7 @@ describe("run simulation", () => {
     expect(result.stoppedByPredicate).toBe(true);
     expect(result.summary.phase).toBe("victory");
     expect(result.summary.wavesCleared).toBe(10);
-    expect(result.summary.leaks).toBeLessThanOrEqual(3);
+    expect(result.summary.leaks).toBeLessThanOrEqual(6);
     expect(result.summary.damageByReaction.electroPuddle).toBeGreaterThan(0);
     expect(
       (result.summary.damageByReaction.stormCloud ?? 0)
@@ -906,7 +908,7 @@ describe("run simulation", () => {
 
   it("progresses boss laps and applies configured core damage", () => {
     const state = createBossRun({
-      boss: createBossState({ pathProgress: 15.95 }),
+      boss: createBossState({ pathProgress: 17.95 }),
     });
     const next = stepRun(state, 1000);
 
@@ -922,7 +924,7 @@ describe("run simulation", () => {
   it("defeats the run if Бочкоед completes the final lap alive", () => {
     const state = createBossRun({
       coreHp: 3,
-      boss: createBossState({ lap: 3, pathProgress: 47.95 }),
+      boss: createBossState({ lap: 3, pathProgress: 53.95 }),
     });
     const next = stepRun(state, 1000);
 
@@ -1084,43 +1086,54 @@ describe("run simulation", () => {
       lockInnerCornerSlots: true,
     });
 
-    expect(board.pathCells.map(cell => cell.index)).toEqual(Array.from({ length: 16 }, (_, index) => index));
-    expect(board.pathCells.map(cell => cell.isCorner ? cell.index : null).filter(index => index !== null)).toEqual([0, 4, 8, 12]);
+    expect(board.pathCells.map(cell => cell.index)).toEqual(Array.from({ length: 18 }, (_, index) => index));
+    expect(board.pathCells.map(cell => cell.isCorner ? cell.index : null).filter(index => index !== null)).toEqual([0, 5, 9, 14]);
     expect(board.pathCells.map(cell => [cell.x, cell.y])).toEqual([
-      [118, 636],
-      [118, 560],
-      [118, 484],
-      [118, 408],
-      [118, 332],
-      [194, 332],
-      [270, 332],
-      [346, 332],
-      [422, 332],
-      [422, 408],
-      [422, 484],
-      [422, 560],
-      [422, 636],
-      [346, 636],
-      [270, 636],
-      [194, 636],
+      [110, 659],
+      [110, 579],
+      [110, 499],
+      [110, 419],
+      [110, 339],
+      [110, 259],
+      [190, 259],
+      [270, 259],
+      [350, 259],
+      [430, 259],
+      [430, 339],
+      [430, 419],
+      [430, 499],
+      [430, 579],
+      [430, 659],
+      [350, 659],
+      [270, 659],
+      [190, 659],
     ]);
-    expect(board.slots).toHaveLength(22);
-    expect(board.slots.filter(slot => slot.id.endsWith("-inner"))).toHaveLength(7);
-    expect(board.slots.filter(slot => slot.id.endsWith("-outer"))).toHaveLength(15);
+    const innerSlots = board.slots.filter(slot => slot.lane === "inner");
+    const horizontalCubeClearance = Math.min(...innerSlots.filter(slot => slot.x > defaultBoardGeometryConfig.center.x).map(slot => slot.x))
+      - Math.max(...innerSlots.filter(slot => slot.x < defaultBoardGeometryConfig.center.x).map(slot => slot.x));
+    const verticalCenterSlots = innerSlots.filter(slot => slot.x === defaultBoardGeometryConfig.center.x);
+    const verticalCubeClearance = Math.min(...verticalCenterSlots.filter(slot => slot.y > defaultBoardGeometryConfig.center.y).map(slot => slot.y))
+      - Math.max(...verticalCenterSlots.filter(slot => slot.y < defaultBoardGeometryConfig.center.y).map(slot => slot.y));
+
+    expect(horizontalCubeClearance).toBeGreaterThanOrEqual(190);
+    expect(verticalCubeClearance).toBeGreaterThanOrEqual(270);
+    expect(board.slots).toHaveLength(26);
+    expect(board.slots.filter(slot => slot.id.endsWith("-inner"))).toHaveLength(9);
+    expect(board.slots.filter(slot => slot.id.endsWith("-outer"))).toHaveLength(17);
     expect(board.slots.filter(slot => slot.cellIndexes.length > 1).map(slot => slot.id)).toEqual([
-      "slot-4-inner",
-      "slot-8-inner",
-      "slot-12-inner",
+      "slot-5-inner",
+      "slot-9-inner",
+      "slot-14-inner",
     ]);
-    expect(board.slots.find(slot => slot.id === "slot-4-inner")?.cellIndexes).toEqual([3, 5]);
-    expect(board.slots.find(slot => slot.id === "slot-4-outer")).toMatchObject({
+    expect(board.slots.find(slot => slot.id === "slot-5-inner")?.cellIndexes).toEqual([4, 6]);
+    expect(board.slots.find(slot => slot.id === "slot-5-outer")).toMatchObject({
       isCorner: true,
-      cellIndexes: [4],
+      cellIndexes: [5],
     });
-    expect(board.slots.find(slot => slot.id === "slot-15-outer")?.cellIndexes).toEqual([15]);
+    expect(board.slots.find(slot => slot.id === "slot-17-outer")?.cellIndexes).toEqual([17]);
     expect(board.slots.find(slot => slot.id === "slot-0-outer")).toBeUndefined();
     expect(board.slots.find(slot => slot.id === "slot-1-inner")).toBeUndefined();
-    expect(board.slots.find(slot => slot.id === "slot-3-inner")).toBeUndefined();
+    expect(board.slots.find(slot => slot.id === "slot-4-inner")).toBeUndefined();
     board.pathCells.forEach((cell) => {
       const outer = board.slots.find(slot => slot.id === `slot-${cell.index}-outer`);
 
@@ -1140,16 +1153,16 @@ describe("run simulation", () => {
     });
     expect(lockedJunctionBoard.slots.filter(slot => slot.cellIndexes.length > 1).every(slot => slot.locked)).toBe(true);
     expect(lockedJunctionBoard.slots.filter(slot => slot.cellIndexes.length === 1).every(slot => !slot.locked)).toBe(true);
-    expect(board.pathCells[0]).toMatchObject({ x: 118, y: 636, isCorner: true });
+    expect(board.pathCells[0]).toMatchObject({ x: 110, y: 659, isCorner: true });
     expect(board.slots.find(slot => slot.id === "slot-0-inner")).toBeUndefined();
-    expect(board.slots.find(slot => slot.id === "slot-1-outer")).toMatchObject({ x: 42, y: 560 });
-    expect(board.slots.find(slot => slot.id === "slot-4-outer")).toMatchObject({ x: 42, y: 256 });
-    expect(board.slots.find(slot => slot.id === "slot-4-inner")).toMatchObject({ x: 194, y: 408 });
-    expect(board.slots.find(slot => slot.id === "slot-8-inner")).toMatchObject({ x: 346, y: 408 });
-    expect(board.slots.find(slot => slot.id === "slot-8-outer")).toMatchObject({ x: 498, y: 256 });
-    expect(board.slots.find(slot => slot.id === "slot-12-inner")).toMatchObject({ x: 346, y: 560 });
-    expect(board.slots.find(slot => slot.id === "slot-12-outer")).toMatchObject({ x: 498, y: 712 });
-    expect(board.slots.find(slot => slot.id === "slot-15-outer")).toMatchObject({ x: 194, y: 712 });
+    expect(board.slots.find(slot => slot.id === "slot-1-outer")).toMatchObject({ x: 46, y: 579 });
+    expect(board.slots.find(slot => slot.id === "slot-5-outer")).toMatchObject({ x: 46, y: 195 });
+    expect(board.slots.find(slot => slot.id === "slot-5-inner")).toMatchObject({ x: 174, y: 323 });
+    expect(board.slots.find(slot => slot.id === "slot-9-inner")).toMatchObject({ x: 366, y: 323 });
+    expect(board.slots.find(slot => slot.id === "slot-9-outer")).toMatchObject({ x: 494, y: 195 });
+    expect(board.slots.find(slot => slot.id === "slot-14-inner")).toMatchObject({ x: 366, y: 595 });
+    expect(board.slots.find(slot => slot.id === "slot-14-outer")).toMatchObject({ x: 494, y: 723 });
+    expect(board.slots.find(slot => slot.id === "slot-17-outer")).toMatchObject({ x: 190, y: 723 });
     expect(twelveCellBoard.pathCells).toHaveLength(12);
     expect(twelveCellBoard.pathCells.map(cell => cell.isCorner ? cell.index : null).filter(index => index !== null)).toEqual([0, 3, 6, 9]);
     expect(twelveCellBoard.slots).toHaveLength(14);
@@ -1427,7 +1440,7 @@ function startFirstWave(state: ReturnType<typeof createRun>): ReturnType<typeof 
 }
 
 function advanceToDraftAfterWave2(state: ReturnType<typeof createRun>): ReturnType<typeof createRun> {
-  const afterWave1 = stepMany(startFirstWave(state), 520);
+  const afterWave1 = stepMany(startFirstWave(state), 560);
   const wave2Countdown = chooseFirstDraftOffers(afterWave1);
   const wave2 = stepMany(wave2Countdown, 90);
 

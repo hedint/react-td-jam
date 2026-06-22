@@ -23,7 +23,7 @@ describe("reaction VFX registry", () => {
 
   it("presents ground reactions as tile-sized path effects instead of fixed horizontal decals", () => {
     const verticalCell = gameConfig.board.pathCells[0]!;
-    const horizontalCell = gameConfig.board.pathCells[4]!;
+    const horizontalCell = gameConfig.board.pathCells[6]!;
     const verticalPresentation = getReactionSpritePresentation(gameConfig.board.pathCells, verticalCell, "electroPuddle", 0);
     const horizontalPresentation = getReactionSpritePresentation(gameConfig.board.pathCells, horizontalCell, "electroPuddle", 0);
 

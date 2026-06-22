@@ -1,6 +1,5 @@
 import type { BoardSlot, GameSnapshot } from "@entities/game-session/model/types";
 import type { SlotFeedback } from "./slotPlacementFeedback";
-import { gameConfig } from "@entities/game-session/model/config";
 import Phaser from "phaser";
 import { getSlotFeedback } from "./slotPlacementFeedback";
 
@@ -102,83 +101,7 @@ export function renderPlacementSlotFeedback(
   });
 }
 
-export function renderGreatCube(graphics: Phaser.GameObjects.Graphics, snapshot: GameSnapshot): void {
-  const center = getBoardCenter(snapshot.board.pathCells);
-  const hpRatio = Phaser.Math.Clamp(snapshot.coreHp / gameConfig.balance.coreHp, 0, 1);
-  const phaseIntensity = getPhaseIntensity(snapshot.phase);
-  const pulse = Math.sin(snapshot.elapsedMs / 180) * 4 * phaseIntensity;
-  const glowRadius = 70 + pulse;
-
-  graphics.fillStyle(0x050505, 0.52);
-  graphics.fillEllipse(center.x, center.y + 44, 128, 42);
-  graphics.fillStyle(0xF08A28, 0.16 + phaseIntensity * 0.08);
-  graphics.fillCircle(center.x, center.y, glowRadius);
-  graphics.lineStyle(5, 0x7C3E25, 0.45 + phaseIntensity * 0.22);
-  graphics.strokeCircle(center.x, center.y, glowRadius + 6);
-
-  graphics.fillStyle(0x21130E, 1);
-  graphics.lineStyle(5, 0xF08A28, 0.86);
-  graphics.beginPath();
-  graphics.moveTo(center.x, center.y - 54);
-  graphics.lineTo(center.x + 56, center.y - 22);
-  graphics.lineTo(center.x + 48, center.y + 42);
-  graphics.lineTo(center.x, center.y + 66);
-  graphics.lineTo(center.x - 48, center.y + 42);
-  graphics.lineTo(center.x - 56, center.y - 22);
-  graphics.closePath();
-  graphics.fillPath();
-  graphics.strokePath();
-
-  graphics.fillStyle(0x3A2016, 0.96);
-  graphics.beginPath();
-  graphics.moveTo(center.x, center.y - 42);
-  graphics.lineTo(center.x + 42, center.y - 17);
-  graphics.lineTo(center.x, center.y + 6);
-  graphics.lineTo(center.x - 42, center.y - 17);
-  graphics.closePath();
-  graphics.fillPath();
-  graphics.fillStyle(0x6D2F18, 0.9);
-  graphics.beginPath();
-  graphics.moveTo(center.x - 42, center.y - 17);
-  graphics.lineTo(center.x, center.y + 6);
-  graphics.lineTo(center.x, center.y + 50);
-  graphics.lineTo(center.x - 36, center.y + 31);
-  graphics.closePath();
-  graphics.fillPath();
-  graphics.fillStyle(0xA34B20, 0.92);
-  graphics.beginPath();
-  graphics.moveTo(center.x + 42, center.y - 17);
-  graphics.lineTo(center.x, center.y + 6);
-  graphics.lineTo(center.x, center.y + 50);
-  graphics.lineTo(center.x + 36, center.y + 31);
-  graphics.closePath();
-  graphics.fillPath();
-
-  graphics.lineStyle(3, 0xFFD58D, 0.62 + phaseIntensity * 0.18);
-  graphics.beginPath();
-  graphics.moveTo(center.x, center.y - 42);
-  graphics.lineTo(center.x, center.y + 50);
-  graphics.moveTo(center.x - 42, center.y - 17);
-  graphics.lineTo(center.x + 42, center.y - 17);
-  graphics.strokePath();
-
-  graphics.fillStyle(0xF08A28, 0.2 + hpRatio * 0.44);
-  graphics.fillRoundedRect(center.x - 38, center.y + 72, 76 * hpRatio, 8, 4);
-  graphics.lineStyle(2, 0xF3E0B3, 0.72);
-  graphics.strokeRoundedRect(center.x - 40, center.y + 70, 80, 12, 5);
-
-  if (hpRatio <= 0.35) {
-    graphics.lineStyle(3, 0xE05B3F, 0.92);
-    graphics.beginPath();
-    graphics.moveTo(center.x - 10, center.y - 28);
-    graphics.lineTo(center.x + 3, center.y - 6);
-    graphics.lineTo(center.x - 6, center.y + 16);
-    graphics.lineTo(center.x + 9, center.y + 38);
-    graphics.strokePath();
-  }
-}
-
-function getBoardCenter(cells: GameSnapshot["board"]["pathCells"]): { readonly x: number, readonly y: number } {
+export function getBoardCenter(cells: GameSnapshot["board"]["pathCells"]): { readonly x: number, readonly y: number } {
   if (cells.length === 0) {
     return { x: LOGICAL_WIDTH / 2, y: LOGICAL_HEIGHT / 2 };
   }
@@ -202,26 +125,6 @@ function getBoardCenter(cells: GameSnapshot["board"]["pathCells"]): { readonly x
     x: Math.round((bounds.minX + bounds.maxX) / 2),
     y: Math.round((bounds.minY + bounds.maxY) / 2),
   };
-}
-
-function getPhaseIntensity(phase: GameSnapshot["phase"]): number {
-  switch (phase) {
-    case "boss":
-      return 1.45;
-    case "wave":
-      return 1.15;
-    case "countdown":
-      return 1;
-    case "defeat":
-      return 0.55;
-    case "victory":
-      return 1.25;
-    case "draft":
-    case "ready":
-      return 0.82;
-    default:
-      return phase satisfies never;
-  }
 }
 
 function getSlotRingColor(feedback: SlotFeedback, isOccupied: boolean): number {

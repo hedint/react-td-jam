@@ -1,6 +1,7 @@
 import type { BoardSlot, GameSnapshot, TowerState } from "@entities/game-session/model/types";
 import type { Unsubscribe } from "@shared/lib/event-bus/createTypedEventBus";
 import { createFixedStepDriver } from "@entities/game-session/model/fixedStepDriver";
+import { gameConfig } from "@entities/game-session/model/config";
 import { hasSavedRun, saveRun } from "@entities/game-session/model/persistence";
 import { applyAction, createRun, createSnapshot, stepRun } from "@entities/game-session/model/simulation";
 import { assetGroups } from "@shared/assets/manifest";
@@ -8,12 +9,14 @@ import { gameEvents } from "@shared/lib/event-bus/gameEvents";
 import Phaser from "phaser";
 import { RunSceneBoardArtPresenter } from "./runSceneBoardArt";
 import {
+  getBoardCenter,
   renderBoardSlots,
-  renderGreatCube,
   renderPlacementSlotFeedback,
 } from "./runSceneBoardRender";
 import { RunSceneEntryIntro } from "./runSceneEntryIntro";
+import { renderSceneGrounding } from "./runSceneGround";
 import { LOGICAL_HEIGHT, LOGICAL_WIDTH } from "./runSceneLayout";
+import { renderPathFlow } from "./runScenePathFlow";
 import { RunSceneReactionPresenter } from "./runSceneReactionPresenter";
 import { RunSceneReagentPresenter } from "./runSceneReagentRender";
 import {
@@ -37,6 +40,9 @@ import {
   TOWER_HEAD_ORIGIN_Y,
 } from "./runSceneTowerRender";
 
+const CORE_DISPLAY_SIZE = 204;
+const CORE_LIQUID_MIN_FILL = 0.14;
+
 export class RunScene extends Phaser.Scene {
   private readonly driver = createFixedStepDriver({
     initialState: createRun(),
@@ -44,12 +50,14 @@ export class RunScene extends Phaser.Scene {
     step: stepRun,
   });
 
+  private groundGraphics?: Phaser.GameObjects.Graphics;
   private worldGraphics?: Phaser.GameObjects.Graphics;
   private effectGraphics?: Phaser.GameObjects.Graphics;
   private enemyGraphics?: Phaser.GameObjects.Graphics;
   private placementGraphics?: Phaser.GameObjects.Graphics;
   private backdropFloor?: Phaser.GameObjects.Image;
-  private coreText?: Phaser.GameObjects.Text;
+  private coreSprite?: Phaser.GameObjects.Image;
+  private coreLiquidGraphics?: Phaser.GameObjects.Graphics;
   private reactionText?: Phaser.GameObjects.Text;
   private bossLabel?: Phaser.GameObjects.Text;
   private enemyLabels: Phaser.GameObjects.Text[] = [];
@@ -77,6 +85,8 @@ export class RunScene extends Phaser.Scene {
     this.backdropFloor = this.add.image(0, 0, assetGroups.scene.cavernFortressFloor.key)
       .setOrigin(0)
       .setDepth(-30);
+    this.groundGraphics = this.add.graphics().setDepth(-28);
+    renderSceneGrounding(this.groundGraphics, this.driver.state.board);
     this.worldGraphics = this.add.graphics().setDepth(5);
     this.effectGraphics = this.add.graphics().setDepth(10);
     this.enemyGraphics = this.add.graphics().setDepth(20);
@@ -85,13 +95,11 @@ export class RunScene extends Phaser.Scene {
     this.reagentPresenter = new RunSceneReagentPresenter(this);
     this.reactionPresenter = new RunSceneReactionPresenter(this);
 
-    this.coreText = this.add.text(LOGICAL_WIDTH / 2, 480, "", {
-      align: "center",
-      color: "#ffe0a6",
-      fontFamily: "Arial, sans-serif",
-      fontSize: "18px",
-      fontStyle: "700",
-    }).setOrigin(0.5).setDepth(42);
+    this.coreSprite = this.add.image(0, 0, assetGroups.board.greatStillCore.key)
+      .setOrigin(0.5)
+      .setDisplaySize(CORE_DISPLAY_SIZE, CORE_DISPLAY_SIZE)
+      .setDepth(8);
+    this.coreLiquidGraphics = this.add.graphics().setDepth(7.9);
 
     this.reactionText = this.add.text(LOGICAL_WIDTH / 2, 692, "", {
       align: "center",
@@ -187,10 +195,6 @@ export class RunScene extends Phaser.Scene {
     this.renderTowers(snapshot.placedTowers, snapshot.board.slots, snapshot.board.pathCells, snapshot.selectedTowerId, this.time.now);
     this.renderPlacementFeedback(snapshot);
 
-    if (this.coreText) {
-      this.coreText.setText(`Великий Куб: ${snapshot.coreHp}`);
-    }
-
     if (this.reactionText) {
       this.reactionText.setText(getActiveReactionLabel(snapshot.activeReactions));
       this.reactionText.setAlpha(0.82 + Math.sin(snapshot.elapsedMs / 120) * 0.18);
@@ -206,8 +210,62 @@ export class RunScene extends Phaser.Scene {
     graphics.clear();
 
     this.boardArtPresenter?.render(snapshot);
-    renderGreatCube(graphics, snapshot);
+    renderPathFlow(graphics, snapshot, this.time.now);
+    this.renderCore(snapshot);
     renderBoardSlots(graphics, snapshot);
+  }
+
+  private renderCore(snapshot: GameSnapshot): void {
+    const center = getBoardCenter(snapshot.board.pathCells);
+
+    this.coreSprite
+      ?.setVisible(true)
+      .setTexture(assetGroups.board.greatStillCore.key)
+      .setPosition(center.x, center.y)
+      .setDisplaySize(CORE_DISPLAY_SIZE, CORE_DISPLAY_SIZE);
+    this.renderCoreLiquid(snapshot, center);
+  }
+
+  private renderCoreLiquid(
+    snapshot: GameSnapshot,
+    center: { readonly x: number, readonly y: number },
+  ): void {
+    const graphics = this.coreLiquidGraphics;
+    if (!graphics) {
+      return;
+    }
+
+    graphics.clear();
+
+    const fillRatio = getCoreLiquidFillRatio(snapshot);
+    const chamberTop = center.y - 29;
+    const chamberBottom = center.y + 27;
+    const chamberHalfTop = 33;
+    const chamberHalfBottom = 44;
+    const liquidTop = chamberBottom - (chamberBottom - chamberTop) * fillRatio;
+    const topWave = Math.sin(snapshot.elapsedMs / 260) * 2;
+    const topHalfWidth = Phaser.Math.Linear(chamberHalfTop, chamberHalfBottom, fillRatio);
+
+    graphics.fillStyle(0x20130D, 0.56);
+    graphics.fillRoundedRect(center.x - chamberHalfBottom, chamberTop, chamberHalfBottom * 2, chamberBottom - chamberTop, 10);
+
+    graphics.fillStyle(0x8E2D12, 0.76);
+    graphics.beginPath();
+    graphics.moveTo(center.x - chamberHalfBottom, chamberBottom);
+    graphics.lineTo(center.x + chamberHalfBottom, chamberBottom);
+    graphics.lineTo(center.x + topHalfWidth, liquidTop + topWave);
+    graphics.lineTo(center.x, liquidTop - 2 - topWave);
+    graphics.lineTo(center.x - topHalfWidth, liquidTop + topWave);
+    graphics.closePath();
+    graphics.fillPath();
+
+    graphics.fillStyle(0xF07824, 0.7);
+    graphics.fillEllipse(center.x, liquidTop + topWave, topHalfWidth * 1.82, 11);
+    graphics.lineStyle(2, 0xFFB15E, 0.58);
+    graphics.strokeEllipse(center.x, liquidTop + topWave, topHalfWidth * 1.78, 10);
+
+    graphics.fillStyle(0xFFB15E, 0.28);
+    graphics.fillEllipse(center.x - topHalfWidth * 0.28, (liquidTop + chamberBottom) / 2, topHalfWidth * 0.72, chamberBottom - liquidTop);
   }
 
   private renderEffects(snapshot: GameSnapshot): void {
@@ -476,4 +534,15 @@ export class RunScene extends Phaser.Scene {
 
     saveRun(this.driver.state);
   }
+}
+
+function getCoreLiquidFillRatio(snapshot: GameSnapshot): number {
+  if (snapshot.phase === "boss" || snapshot.phase === "victory") {
+    return 1;
+  }
+
+  const finalWaveIndex = Math.max(1, gameConfig.waves.length - 1);
+  const waveProgress = Phaser.Math.Clamp(snapshot.waveIndex / finalWaveIndex, 0, 1);
+
+  return Phaser.Math.Linear(CORE_LIQUID_MIN_FILL, 1, waveProgress);
 }

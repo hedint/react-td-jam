@@ -2,6 +2,7 @@ import type { BoardSlot, BoardState, PathCell } from "./types";
 
 export interface BoardGeometryConfig {
   readonly pathCellCount: number
+  readonly verticalCellCount?: number
   readonly center: {
     readonly x: number
     readonly y: number
@@ -18,16 +19,17 @@ export interface BoardGeometryConfig {
 }
 
 export const defaultBoardGeometryConfig: BoardGeometryConfig = {
-  pathCellCount: 16,
-  center: { x: 270, y: 484 },
+  pathCellCount: 18,
+  verticalCellCount: 6,
+  center: { x: 270, y: 459 },
   bounds: {
     left: 132,
-    top: 304,
+    top: 241,
     right: 408,
-    bottom: 664,
+    bottom: 677,
   },
-  tileSize: 76,
-  slotOffset: 76,
+  tileSize: 80,
+  slotOffset: 64,
   lockInnerCornerSlots: false,
 };
 
@@ -41,34 +43,82 @@ export function createStadiumLoopBoard(config: BoardGeometryConfig = defaultBoar
 }
 
 export function createStadiumLoopCells(config: BoardGeometryConfig): readonly PathCell[] {
-  if (config.pathCellCount < 8 || config.pathCellCount % 4 !== 0) {
-    throw new Error("pathCellCount must be a multiple of 4 and at least 8");
+  const dimensions = getLoopDimensions(config);
+
+  if (dimensions === null) {
+    throw new Error("pathCellCount must describe a loop with at least 3 cells per side");
   }
 
-  const sideCount = config.pathCellCount / 4;
-  const left = config.center.x - config.tileSize * sideCount / 2;
-  const top = config.center.y - config.tileSize * sideCount / 2;
-  const right = left + config.tileSize * sideCount;
-  const bottom = top + config.tileSize * sideCount;
+  const horizontalSegments = dimensions.horizontalCellCount - 1;
+  const verticalSegments = dimensions.verticalCellCount - 1;
+  const left = config.center.x - config.tileSize * horizontalSegments / 2;
+  const top = config.center.y - config.tileSize * verticalSegments / 2;
+  const right = left + config.tileSize * horizontalSegments;
+  const bottom = top + config.tileSize * verticalSegments;
   const cells: PathCell[] = [];
 
-  for (let index = 0; index <= sideCount; index += 1) {
-    cells.push(createPathCell(cells.length, left, bottom - config.tileSize * index, index === 0 || index === sideCount));
+  for (let index = 0; index <= verticalSegments; index += 1) {
+    cells.push(createPathCell(cells.length, left, bottom - config.tileSize * index, index === 0 || index === verticalSegments));
   }
 
-  for (let index = 1; index <= sideCount; index += 1) {
-    cells.push(createPathCell(cells.length, left + config.tileSize * index, top, index === sideCount));
+  for (let index = 1; index <= horizontalSegments; index += 1) {
+    cells.push(createPathCell(cells.length, left + config.tileSize * index, top, index === horizontalSegments));
   }
 
-  for (let index = 1; index <= sideCount; index += 1) {
-    cells.push(createPathCell(cells.length, right, top + config.tileSize * index, index === sideCount));
+  for (let index = 1; index <= verticalSegments; index += 1) {
+    cells.push(createPathCell(cells.length, right, top + config.tileSize * index, index === verticalSegments));
   }
 
-  for (let index = 1; index < sideCount; index += 1) {
+  for (let index = 1; index < horizontalSegments; index += 1) {
     cells.push(createPathCell(cells.length, right - config.tileSize * index, bottom, false));
   }
 
   return cells;
+}
+
+function getLoopDimensions(config: BoardGeometryConfig): {
+  readonly horizontalCellCount: number
+  readonly verticalCellCount: number
+} | null {
+  if (config.pathCellCount < 8) {
+    return null;
+  }
+
+  if (config.verticalCellCount === undefined) {
+    if (config.pathCellCount % 4 !== 0) {
+      return null;
+    }
+
+    const sideCellCount = config.pathCellCount / 4 + 1;
+
+    return {
+      horizontalCellCount: sideCellCount,
+      verticalCellCount: sideCellCount,
+    };
+  }
+
+  const horizontalCellCount = (config.pathCellCount + 4) / 2 - config.verticalCellCount;
+
+  if (
+    !Number.isInteger(horizontalCellCount)
+    || config.verticalCellCount < 3
+  ) {
+    return null;
+  }
+
+  if (horizontalCellCount < 3) {
+    return config.pathCellCount % 4 === 0
+      ? {
+          horizontalCellCount: config.pathCellCount / 4 + 1,
+          verticalCellCount: config.pathCellCount / 4 + 1,
+        }
+      : null;
+  }
+
+  return {
+    horizontalCellCount,
+    verticalCellCount: config.verticalCellCount,
+  };
 }
 
 function createPathCell(index: number, x: number, y: number, isCorner: boolean): PathCell {

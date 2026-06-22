@@ -33,7 +33,7 @@ describe("tower directional rendering", () => {
   });
 
   it("uses corner assets for inner junction slots with two affected cells", () => {
-    const slot = getSlot("slot-4-inner");
+    const slot = getSlot("slot-5-inner");
     const config = getTowerSpriteRenderConfig(
       createTower("tower-spark-a", "spark", slot.id),
       slot,
@@ -49,13 +49,13 @@ describe("tower directional rendering", () => {
   });
 
   it("maps outer corner slots to the two path-side directions instead of a diagonal", () => {
-    const slot = getSlot("slot-4-outer");
+    const slot = getSlot("slot-5-outer");
 
     expect(getTowerDirections(slot, gameConfig.board.pathCells)).toEqual(["down", "right"]);
   });
 
   it("keeps idle head sway subtle and animated", () => {
-    const slot = getSlot("slot-4-inner");
+    const slot = getSlot("slot-5-inner");
     const tower = createTower("tower-water-a", "water", slot.id);
     const samples = [0, 250, 500, 750, 1000].map(time => getTowerHeadSwayRotation(tower, slot, 0, time));
 

@@ -103,6 +103,13 @@ export const assetGroups = {
       src: "/assets/board/marker-exit.png",
       usage: "phaser",
     },
+    greatStillCore: {
+      type: "image",
+      group: "board",
+      key: "board.core.great-still",
+      src: "/assets/board/great-still-core-v2.png",
+      usage: "phaser",
+    },
   },
   towers: {
     waterCannonBase: {
@@ -393,6 +400,7 @@ export const loadableAssets = [
   assetGroups.board.slotSocketCorner,
   assetGroups.board.markerEntrance,
   assetGroups.board.markerExit,
+  assetGroups.board.greatStillCore,
   assetGroups.towers.waterCannonBase,
   assetGroups.towers.waterCannonHead,
   assetGroups.towers.oilPumpBase,
