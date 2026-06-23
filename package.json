@@ -10,6 +10,8 @@
     "dev": "vite --host 0.0.0.0",
     "build": "npm run typecheck && vite build",
     "preview": "vite preview --host 0.0.0.0",
+    "balance:quick": "tsx scripts/balance-runner.ts --quick",
+    "balance:run": "tsx scripts/balance-runner.ts",
     "typecheck": "vue-tsc --noEmit && tsc -p tsconfig.node.json --noEmit",
     "test": "vitest run",
     "lint:fix": "eslint . --fix"
@@ -27,6 +29,7 @@
     "@vue/tsconfig": "0.9.1",
     "eslint": "10.5.0",
     "playwright": "^1.61.0",
+    "tsx": "^4.22.4",
     "typescript": "5.9.3",
     "vite": "8.0.16",
     "vitest": "4.1.9",

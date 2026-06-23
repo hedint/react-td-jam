@@ -12,7 +12,15 @@ export type RunPhase = "ready" | "countdown" | "wave" | "draft" | "boss" | "vict
 export type EmitterId = "water" | "oil" | "spark" | "heat";
 export type ReactionId = "electroPuddle" | "steam" | "fire" | "stormCloud" | "fireVortex" | "fireStorm";
 export type EnemyId = "grunt" | "swarm" | "tank" | "flyer" | "runner" | "insulated" | "flameproof";
-export type UpgradeId = "waterCapacity" | "oilControl" | "sparkCapacity" | "heatReach" | "fireCatalyst";
+export type UpgradeId
+  = | "waterCapacity"
+    | "oilControl"
+    | "sparkCapacity"
+    | "heatReach"
+    | "fireCatalyst"
+    | "unlockSlot5"
+    | "unlockSlot9"
+    | "unlockSlot14";
 export type DraftStep = "tower" | "upgrade";
 export type DraftRole = "support" | "generic" | "pivot";
 export type EnemyTrait = "flying";
@@ -114,11 +122,31 @@ export interface BossState {
   readonly reactionBreakIds: readonly ReactionId[]
 }
 
+export interface WaveSpawnGroup {
+  readonly enemyId: EnemyId
+  readonly count: number
+  readonly spawnIntervalMs: number
+  readonly startDelayMs?: number
+}
+
+export interface WaveGroupRuntimeState {
+  readonly groupIndex: number
+  readonly spawnedCount: number
+  readonly nextSpawnMs: number
+}
+
 export interface WaveRuntimeState {
   readonly waveId: string
-  readonly spawnedCount: number
+  readonly groups: readonly WaveGroupRuntimeState[]
   readonly elapsedMs: number
-  readonly nextSpawnMs: number
+}
+
+export interface DebugReactionOverrideState {
+  readonly id: string
+  readonly cellIndex: number
+  readonly layer: "ground" | "air"
+  readonly reactionId: ReactionId
+  readonly ttlMs: number
 }
 
 export interface WaveStats {
@@ -150,7 +178,7 @@ export interface RunState {
   readonly waveIndex: number
   readonly countdownMs: number
   readonly paused: boolean
-  readonly speed: 1 | 2
+  readonly speed: 1 | 2 | 4 | 8
   readonly coreHp: number
   readonly waveRuntime: WaveRuntimeState | null
   readonly board: BoardState
@@ -164,6 +192,8 @@ export interface RunState {
   readonly boss: BossState | null
   readonly stats: RunStats
   readonly debugVisible: boolean
+  readonly debugCoreHpLocked: boolean
+  readonly debugReactionOverrides: readonly DebugReactionOverrideState[]
   readonly lastTap: StagePoint | null
 }
 
@@ -184,11 +214,20 @@ export type GameAction
     | { readonly type: "rerollDraft" }
     | { readonly type: "chooseDraftTower", readonly emitterId: EmitterId }
     | { readonly type: "chooseDraftUpgrade", readonly upgradeId: UpgradeId }
-    | { readonly type: "setSpeed", readonly speed: 1 | 2 }
+    | { readonly type: "setSpeed", readonly speed: 1 | 2 | 4 | 8 }
     | { readonly type: "selectTower", readonly towerId: string | null }
     | { readonly type: "placeSelectedTower", readonly slotId: string }
     | { readonly type: "tapSlot", readonly slotId: string }
     | { readonly type: "toggleDebug" }
+    | { readonly type: "debugJumpToWave", readonly waveIndex: number }
+    | { readonly type: "debugJumpToBoss" }
+    | { readonly type: "debugSetCoreHpLocked", readonly locked: boolean }
+    | { readonly type: "debugForceSpawnEnemy", readonly enemyId: EnemyId, readonly count?: number }
+    | { readonly type: "debugForceAddTower", readonly emitterId: EmitterId }
+    | { readonly type: "debugForceApplyUpgrade", readonly upgradeId: UpgradeId }
+    | { readonly type: "debugUnlockSlot", readonly slotId: string }
+    | { readonly type: "debugAddReactionOverride", readonly cellIndex: number, readonly layer: "ground" | "air", readonly reactionId: ReactionId, readonly ttlMs?: number }
+    | { readonly type: "debugClearReactionOverrides" }
     | { readonly type: "tap", readonly point: StagePoint }
     | { readonly type: "restart", readonly seed?: number };
 
@@ -201,6 +240,7 @@ export interface BalanceConfig {
   readonly rerollsPerDraft: number
   readonly postDraftCountdownMs: number
   readonly minSpeedMultiplier: number
+  readonly upgradeDraftMilestoneWaves: readonly number[]
 }
 
 export interface EmitterDefinition {
@@ -236,10 +276,8 @@ export interface EnemyDefinition {
 
 export interface WaveDefinition {
   readonly id: string
-  readonly enemyId: EnemyId
-  readonly count: number
-  readonly spawnIntervalMs: number
-  readonly telegraphEnemyId?: EnemyId
+  readonly spawnGroups: readonly WaveSpawnGroup[]
+  readonly telegraphEnemyIds?: readonly EnemyId[]
 }
 
 export interface BossDefinition {
@@ -263,8 +301,8 @@ export interface UpgradeDefinition {
   readonly effect:
     | { readonly type: "energyCapacity", readonly amount: number }
     | { readonly type: "substanceCoverage", readonly amount: number }
-    | { readonly type: "substanceSlow", readonly amount: number }
     | { readonly type: "reactionDps", readonly reactionId: ReactionId, readonly amount: number }
+    | { readonly type: "unlockSlot", readonly slotId: string, readonly amount: number }
 }
 
 export interface GameConfig {

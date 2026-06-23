@@ -91,22 +91,29 @@ function movePlacedTower(state: RunState, selectedTower: TowerState, slotId: str
   }
 
   const placedTowers = state.placedTowers.map((tower) => {
-    if (tower.id === selectedTower.id) {
-      return { ...tower, slotId };
-    }
-
     if (tower.id === occupiedTower?.id) {
       return { ...tower, slotId: selectedTower.slotId };
     }
 
     return tower;
-  });
+  })
+    .filter(tower => tower.id !== selectedTower.id && tower.id !== occupiedTower?.id);
+  const movedTowers = occupiedTower
+    ? [
+        ...placedTowers,
+        { ...selectedTower, slotId },
+        { ...occupiedTower, slotId: selectedTower.slotId },
+      ]
+    : [
+        ...placedTowers,
+        { ...selectedTower, slotId },
+      ];
 
   return {
     ...state,
-    placedTowers,
+    placedTowers: movedTowers,
     selectedTowerId: null,
-    reactions: resolveReactions(state.board, placedTowers, state.upgrades),
+    reactions: resolveReactions(state.board, movedTowers, state.upgrades),
   };
 }
 

@@ -291,6 +291,10 @@ function getUpgradeClass(upgradeId: UpgradeId): string {
       return getEmitterClass("spark");
     case "heatReach":
       return getEmitterClass("heat");
+    case "unlockSlot5":
+    case "unlockSlot9":
+    case "unlockSlot14":
+      return getEmitterClass("water");
     default:
       return upgradeId satisfies never;
   }
@@ -301,13 +305,17 @@ function getUpgradeDescription(upgradeId: UpgradeId): string {
     case "waterCapacity":
       return "Водомёт покрывает больше клеток.";
     case "oilControl":
-      return "Нефть сильнее замедляет врагов.";
+      return "Маслонасос покрывает больше клеток.";
     case "sparkCapacity":
       return "Разрядник питает больше реакций.";
     case "heatReach":
       return "Магмовый кран питает больше реакций.";
     case "fireCatalyst":
       return "Пожар наносит больше урона.";
+    case "unlockSlot5":
+    case "unlockSlot9":
+    case "unlockSlot14":
+      return "Открывает угловой слот для башни под двухклеточную контрапцию.";
     default:
       return upgradeId satisfies never;
   }

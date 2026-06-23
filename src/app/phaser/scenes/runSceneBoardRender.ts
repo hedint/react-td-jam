@@ -32,9 +32,10 @@ export function renderBoardSlots(
     const isEmptyValidTarget = feedback === "valid" && !isOccupied;
 
     const slotRadius = slot.isCorner ? 26 : 22;
-    const shouldDrawStateRing = isSelectedSlot || isOccupied || isEmptyValidTarget || slot.locked;
+    const shouldDrawLockedOverlay = slot.locked && !slot.isCorner;
+    const shouldDrawStateRing = isSelectedSlot || isOccupied || isEmptyValidTarget || shouldDrawLockedOverlay;
 
-    if (slot.locked) {
+    if (shouldDrawLockedOverlay) {
       graphics.fillStyle(0x070809, 0.46);
       graphics.fillCircle(slot.x, slot.y, slotRadius);
     }
@@ -57,17 +58,6 @@ export function renderBoardSlots(
     if (isOccupied) {
       graphics.fillStyle(0xC8A76A, 0.18);
       graphics.fillCircle(slot.x, slot.y, slot.isCorner ? 9 : 7);
-    }
-
-    if (slot.isCorner) {
-      graphics.lineStyle(2, isValidTarget ? 0x6AA99C : 0xC79A55, isValidTarget ? 0.42 : 0.72);
-      graphics.beginPath();
-      graphics.moveTo(slot.x - 13, slot.y);
-      graphics.lineTo(slot.x, slot.y - 13);
-      graphics.lineTo(slot.x + 13, slot.y);
-      graphics.lineTo(slot.x, slot.y + 13);
-      graphics.closePath();
-      graphics.strokePath();
     }
   });
 }

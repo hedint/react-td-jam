@@ -1,4 +1,6 @@
+/* eslint-disable max-lines */
 import type {
+  CellReactionState,
   DamageFamily,
   EnemyDefinition,
   EnemyId,
@@ -6,6 +8,7 @@ import type {
   GameAction,
   GameConfig,
   GameSnapshot,
+  ReactionId,
   RunState,
   TowerState,
   WaveRuntimeState,
@@ -14,7 +17,7 @@ import { getEnemyLeakPathProgress } from "./boardGeometry";
 import { createBossState, stepBoss } from "./boss";
 import { gameConfig } from "./config";
 import { getCellDamageEntries } from "./damage";
-import { chooseDraftTower, chooseDraftUpgrade, createDraftState, rerollDraft } from "./draft";
+import { applyUpgradeToState, chooseDraftTower, chooseDraftUpgrade, createDraftState, rerollDraft } from "./draft";
 import { getCellSpeedMultiplier, projectReagents, resolveReactions } from "./reactions";
 import { createRng } from "./rng";
 import { ensureWaveStats, getDamageBySource, normalizeRunStateStats, updateWaveStats } from "./stats";
@@ -75,6 +78,8 @@ export function createRun(seed = 1, options: CreateRunOptions = {}): RunState {
       waveStats: [],
     },
     debugVisible: false,
+    debugCoreHpLocked: false,
+    debugReactionOverrides: [],
     lastTap: null,
   };
 }
@@ -86,60 +91,68 @@ export function stepRun(state: RunState, deltaMs: number, config: GameConfig = g
 
   const stepScale = state.speed;
   const scaledDeltaMs = deltaMs * stepScale;
+  const stateWithDebugTick = stepDebugReactionOverrides(state, scaledDeltaMs);
 
-  if (state.phase === "countdown") {
-    const countdownMs = Math.max(0, state.countdownMs - scaledDeltaMs);
+  if (stateWithDebugTick.phase === "countdown") {
+    const countdownMs = Math.max(0, stateWithDebugTick.countdownMs - scaledDeltaMs);
     const nextState = {
-      ...state,
-      tick: state.tick + 1,
-      elapsedMs: state.elapsedMs + scaledDeltaMs,
+      ...stateWithDebugTick,
+      tick: stateWithDebugTick.tick + 1,
+      elapsedMs: stateWithDebugTick.elapsedMs + scaledDeltaMs,
       countdownMs,
     };
 
     return countdownMs <= 0 ? startWave(nextState, config) : nextState;
   }
 
-  if (state.phase === "boss" && state.boss) {
-    return stepBoss(state, scaledDeltaMs, config);
+  if (stateWithDebugTick.phase === "boss" && stateWithDebugTick.boss) {
+    const nextBossState = stepBoss(stateWithDebugTick, scaledDeltaMs, config);
+
+    return stateWithDebugTick.debugCoreHpLocked
+      ? { ...nextBossState, coreHp: stateWithDebugTick.coreHp, phase: nextBossState.phase === "defeat" ? "boss" : nextBossState.phase }
+      : nextBossState;
   }
 
-  if (state.phase !== "wave") {
-    return state;
+  if (stateWithDebugTick.phase !== "wave") {
+    return stateWithDebugTick;
   }
 
-  const reactions = resolveReactions(state.board, state.placedTowers, state.upgrades, config);
-  const reagentProjection = projectReagents(state.board, state.placedTowers, state.upgrades, config);
-  const spawned = spawnWaveEnemies(state.waveRuntime, scaledDeltaMs, config);
-  const activeEnemies = [...state.enemies, ...spawned.enemies];
-  const leakPathProgress = getEnemyLeakPathProgress(state.board.pathCells);
+  const baseReactions = resolveReactions(stateWithDebugTick.board, stateWithDebugTick.placedTowers, stateWithDebugTick.upgrades, config);
+  const reactions = applyDebugReactionOverrides(baseReactions, stateWithDebugTick.debugReactionOverrides);
+  const reagentProjection = projectReagents(stateWithDebugTick.board, stateWithDebugTick.placedTowers, stateWithDebugTick.upgrades, config);
+  const spawned = spawnWaveEnemies(stateWithDebugTick.waveRuntime, scaledDeltaMs, config);
+  const activeEnemies = [...stateWithDebugTick.enemies, ...spawned.enemies];
+  const leakPathProgress = getEnemyLeakPathProgress(stateWithDebugTick.board.pathCells);
 
-  let coreHp = state.coreHp;
-  let leaks = state.stats.leaks;
-  let kills = state.stats.kills;
-  let totalDamage = state.stats.totalDamage;
-  const damageBySource = { ...getDamageBySource(state.stats) };
-  const damageByReaction = { ...state.stats.damageByReaction };
-  let waveStats: RunState["stats"]["waveStats"] = [...state.stats.waveStats];
+  let coreHp = stateWithDebugTick.coreHp;
+  let leaks = stateWithDebugTick.stats.leaks;
+  let kills = stateWithDebugTick.stats.kills;
+  let totalDamage = stateWithDebugTick.stats.totalDamage;
+  const damageBySource = { ...getDamageBySource(stateWithDebugTick.stats) };
+  const damageByReaction = { ...stateWithDebugTick.stats.damageByReaction };
+  let waveStats: RunState["stats"]["waveStats"] = [...stateWithDebugTick.stats.waveStats];
   const enemies = activeEnemies.flatMap((enemy) => {
     if (enemy.hp <= 0 || enemy.leaked) {
       return [];
     }
 
     const enemyDefinition = getEnemyDefinition(enemy.enemyId, config);
-    const currentCellIndex = getCurrentPathCellIndex(enemy.pathProgress, state.board.pathCells.length);
-    const speedMultiplier = getEnemySpeedMultiplier(enemyDefinition, reagentProjection[currentCellIndex], state.upgrades, config, reactions[currentCellIndex]);
+    const currentCellIndex = getCurrentPathCellIndex(enemy.pathProgress, stateWithDebugTick.board.pathCells.length);
+    const speedMultiplier = getEnemySpeedMultiplier(enemyDefinition, reagentProjection[currentCellIndex], stateWithDebugTick.upgrades, config, reactions[currentCellIndex]);
     const pathProgress = enemy.pathProgress + (enemyDefinition?.speedCellsPerSecond ?? 1) * speedMultiplier * scaledDeltaMs / 1000;
 
     if (pathProgress >= leakPathProgress) {
-      coreHp = Math.max(0, coreHp - (enemyDefinition?.leakDamage ?? config.balance.leakDamage));
+      coreHp = stateWithDebugTick.debugCoreHpLocked
+        ? coreHp
+        : Math.max(0, coreHp - (enemyDefinition?.leakDamage ?? config.balance.leakDamage));
       leaks += 1;
       waveStats = updateWaveStats(waveStats, spawned.waveId, { leaks: 1 });
 
       return [];
     }
 
-    const cellIndex = getCurrentPathCellIndex(pathProgress, state.board.pathCells.length);
-    const damageEntries = getCellDamageEntries(reactions[cellIndex]!, reagentProjection[cellIndex], scaledDeltaMs, state.upgrades, config);
+    const cellIndex = getCurrentPathCellIndex(pathProgress, stateWithDebugTick.board.pathCells.length);
+    const damageEntries = getCellDamageEntries(reactions[cellIndex]!, reagentProjection[cellIndex], scaledDeltaMs, stateWithDebugTick.upgrades, config);
     let hp = enemy.hp;
 
     damageEntries.forEach((entry) => {
@@ -198,31 +211,31 @@ export function stepRun(state: RunState, deltaMs: number, config: GameConfig = g
   const nextPhase = coreHp <= 0
     ? "defeat"
     : waveComplete
-      ? state.waveIndex >= config.waves.length - 1
+      ? stateWithDebugTick.waveIndex >= config.waves.length - 1
         ? "boss"
         : "draft"
-      : state.phase;
+      : stateWithDebugTick.phase;
   const generatedDraft = nextPhase === "draft"
-    ? createDraftState(state, config)
+    ? createDraftState(stateWithDebugTick, config)
     : null;
   const boss = nextPhase === "boss"
     ? createBossState({}, config)
     : state.boss;
 
   return {
-    ...state,
+    ...stateWithDebugTick,
     phase: nextPhase,
     rng: generatedDraft?.rng ?? state.rng,
-    tick: state.tick + 1,
-    elapsedMs: state.elapsedMs + scaledDeltaMs,
-    draft: generatedDraft?.draft ?? state.draft,
+    tick: stateWithDebugTick.tick + 1,
+    elapsedMs: stateWithDebugTick.elapsedMs + scaledDeltaMs,
+    draft: generatedDraft?.draft ?? stateWithDebugTick.draft,
     waveRuntime: nextPhase === "draft" || nextPhase === "boss" || nextPhase === "defeat" ? null : spawned.waveRuntime,
     boss,
     coreHp,
     enemies,
     reactions,
     stats: {
-      ...state.stats,
+      ...stateWithDebugTick.stats,
       leaks,
       kills,
       totalDamage,
@@ -265,6 +278,39 @@ export function applyAction(state: RunState, action: GameAction, config: GameCon
       return tapSlot(state, action.slotId);
     case "toggleDebug":
       return { ...state, debugVisible: !state.debugVisible };
+    case "debugJumpToWave":
+      return applyDebugAction(state, () => createDebugWaveState(state, action.waveIndex, config));
+    case "debugJumpToBoss":
+      return applyDebugAction(state, () => ({
+        ...state,
+        phase: "boss",
+        waveIndex: config.waves.length - 1,
+        countdownMs: 0,
+        waveRuntime: null,
+        enemies: [],
+        draft: null,
+        boss: createBossState({}, config),
+      }));
+    case "debugSetCoreHpLocked":
+      return applyDebugAction(state, () => ({ ...state, debugCoreHpLocked: action.locked }));
+    case "debugForceSpawnEnemy":
+      return applyDebugAction(state, () => debugForceSpawnEnemy(state, action.enemyId, action.count ?? 1, config));
+    case "debugForceAddTower":
+      return applyDebugAction(state, () => ({
+        ...state,
+        bench: [...state.bench, createTower(`debug-tower-${action.emitterId}-${state.tick}-${state.bench.length}`, action.emitterId, null, config)],
+      }));
+    case "debugForceApplyUpgrade": {
+      const definition = config.upgrades.find(upgrade => upgrade.id === action.upgradeId);
+
+      return applyDebugAction(state, () => definition ? applyUpgradeToState(state, definition) : state);
+    }
+    case "debugUnlockSlot":
+      return applyDebugAction(state, () => unlockSlotInState(state, action.slotId, config));
+    case "debugAddReactionOverride":
+      return applyDebugAction(state, () => addDebugReactionOverride(state, action.cellIndex, action.layer, action.reactionId, action.ttlMs ?? 10000));
+    case "debugClearReactionOverrides":
+      return applyDebugAction(state, () => ({ ...state, debugReactionOverrides: [] }));
     case "tap":
       return { ...state, lastTap: action.point };
     case "restart":
@@ -321,11 +367,20 @@ export function createEnemy(id: string, enemyId: EnemyId, overrides: Partial<Ene
 
 function startWave(state: RunState, config: GameConfig): RunState {
   const wave = config.waves[state.waveIndex] ?? config.waves[0]!;
+  const groups = wave.spawnGroups.map((group, groupIndex) => ({
+    groupIndex,
+    spawnedCount: 0,
+    nextSpawnMs: group.startDelayMs ?? 0,
+  }));
+  const initialSpawn = spawnWaveEnemies({
+    waveId: wave.id,
+    groups,
+    elapsedMs: 0,
+  }, 0, config);
   const waveRuntime: WaveRuntimeState = {
     waveId: wave.id,
-    spawnedCount: Math.min(1, wave.count),
     elapsedMs: 0,
-    nextSpawnMs: wave.spawnIntervalMs,
+    groups: initialSpawn.waveRuntime?.groups ?? groups,
   };
 
   return {
@@ -334,9 +389,7 @@ function startWave(state: RunState, config: GameConfig): RunState {
     countdownMs: 0,
     draft: null,
     waveRuntime,
-    enemies: wave.count > 0
-      ? [createEnemy(`${wave.id}-enemy-0`, wave.enemyId, { pathProgress: 0 }, config)]
-      : [],
+    enemies: initialSpawn.enemies,
     stats: ensureWaveStats(state.stats, wave.id),
   };
 }
@@ -367,24 +420,36 @@ function spawnWaveEnemies(
     };
   }
 
-  let spawnedCount = waveRuntime.spawnedCount;
-  let nextSpawnMs = waveRuntime.nextSpawnMs;
   const elapsedMs = waveRuntime.elapsedMs + deltaMs;
   const enemies: EnemyState[] = [];
+  const groups = wave.spawnGroups.map((group, groupIndex) => {
+    const runtime = waveRuntime.groups.find(candidate => candidate.groupIndex === groupIndex) ?? {
+      groupIndex,
+      spawnedCount: 0,
+      nextSpawnMs: group.startDelayMs ?? 0,
+    };
+    let spawnedCount = runtime.spawnedCount;
+    let nextSpawnMs = runtime.nextSpawnMs;
 
-  while (spawnedCount < wave.count && elapsedMs >= nextSpawnMs) {
-    enemies.push(createEnemy(`${wave.id}-enemy-${spawnedCount}`, wave.enemyId, { pathProgress: 0 }, config));
-    spawnedCount += 1;
-    nextSpawnMs += wave.spawnIntervalMs;
-  }
+    while (spawnedCount < group.count && elapsedMs >= nextSpawnMs) {
+      enemies.push(createEnemy(`${wave.id}-g${groupIndex}-enemy-${spawnedCount}`, group.enemyId, { pathProgress: 0 }, config));
+      spawnedCount += 1;
+      nextSpawnMs += group.spawnIntervalMs;
+    }
+
+    return {
+      groupIndex,
+      spawnedCount,
+      nextSpawnMs,
+    };
+  });
 
   return {
     waveId: wave.id,
     waveRuntime: {
       ...waveRuntime,
-      spawnedCount,
       elapsedMs,
-      nextSpawnMs,
+      groups,
     },
     enemies,
   };
@@ -397,7 +462,15 @@ function isWaveComplete(waveRuntime: WaveRuntimeState | null, livingEnemyCount: 
 
   const wave = config.waves.find(candidate => candidate.id === waveRuntime.waveId);
 
-  return livingEnemyCount === 0 && waveRuntime.spawnedCount >= (wave?.count ?? 0);
+  return livingEnemyCount === 0 && getWaveSpawnedCount(waveRuntime) >= (wave ? getWaveTotalSpawnCount(wave) : 0);
+}
+
+export function getWaveTotalSpawnCount(wave: GameConfig["waves"][number]): number {
+  return wave.spawnGroups.reduce((total, group) => total + group.count, 0);
+}
+
+export function getWaveSpawnedCount(waveRuntime: WaveRuntimeState | null): number {
+  return waveRuntime?.groups.reduce((total, group) => total + group.spawnedCount, 0) ?? 0;
 }
 
 export function getCurrentPathCellIndex(pathProgress: number, pathCellCount: number): number {
@@ -432,6 +505,119 @@ function getEnemySpeedMultiplier(
 
 function getEnemyResistanceMultiplier(enemy: EnemyDefinition, damageFamily: DamageFamily): number {
   return enemy.resistances?.[damageFamily] ?? 1;
+}
+
+function stepDebugReactionOverrides(state: RunState, scaledDeltaMs: number): RunState {
+  if (state.debugReactionOverrides.length === 0) {
+    return state;
+  }
+
+  return {
+    ...state,
+    debugReactionOverrides: state.debugReactionOverrides
+      .map(override => ({ ...override, ttlMs: override.ttlMs - scaledDeltaMs }))
+      .filter(override => override.ttlMs > 0),
+  };
+}
+
+function applyDebugReactionOverrides(
+  reactions: readonly CellReactionState[],
+  overrides: RunState["debugReactionOverrides"],
+): readonly CellReactionState[] {
+  if (overrides.length === 0) {
+    return reactions;
+  }
+
+  return reactions.map((reaction) => {
+    const cellOverrides = overrides.filter(override => override.cellIndex === reaction.cellIndex);
+
+    if (cellOverrides.length === 0) {
+      return reaction;
+    }
+
+    return cellOverrides.reduce<CellReactionState>((nextReaction, override) => ({
+      ...nextReaction,
+      [override.layer]: override.reactionId,
+    }), reaction);
+  });
+}
+
+function applyDebugAction(state: RunState, getNextState: () => RunState): RunState {
+  return state.debugVisible ? getNextState() : state;
+}
+
+function createDebugWaveState(state: RunState, waveIndex: number, config: GameConfig): RunState {
+  const clampedWaveIndex = Math.max(0, Math.min(config.waves.length - 1, waveIndex));
+
+  return startWave({
+    ...state,
+    phase: "ready",
+    waveIndex: clampedWaveIndex,
+    countdownMs: 0,
+    waveRuntime: null,
+    enemies: [],
+    draft: null,
+    boss: null,
+  }, config);
+}
+
+function debugForceSpawnEnemy(state: RunState, enemyId: EnemyId, count: number, config: GameConfig): RunState {
+  const nextEnemies = Array.from({ length: Math.max(1, count) }, (_, index) =>
+    createEnemy(`debug-${enemyId}-${state.tick}-${state.enemies.length + index}`, enemyId, { pathProgress: 0 }, config));
+
+  return {
+    ...state,
+    enemies: [...state.enemies, ...nextEnemies],
+    phase: state.phase === "ready" ? "wave" : state.phase,
+  };
+}
+
+function unlockSlotInState(state: RunState, slotId: string, config: GameConfig): RunState {
+  const board = {
+    ...state.board,
+    slots: state.board.slots.map(slot => slot.id === slotId ? { ...slot, locked: false } : slot),
+  };
+
+  return {
+    ...state,
+    board,
+    reactions: resolveReactions(board, state.placedTowers, state.upgrades, config),
+  };
+}
+
+function addDebugReactionOverride(
+  state: RunState,
+  cellIndex: number,
+  layer: "ground" | "air",
+  reactionId: ReactionId,
+  ttlMs: number,
+): RunState {
+  const safeCellIndex = Math.max(0, Math.min(state.board.pathCells.length - 1, cellIndex));
+  const id = `debug-reaction-${safeCellIndex}-${layer}-${state.tick}`;
+
+  return {
+    ...state,
+    debugReactionOverrides: [
+      ...state.debugReactionOverrides.filter(override => !(override.cellIndex === safeCellIndex && override.layer === layer)),
+      {
+        id,
+        cellIndex: safeCellIndex,
+        layer,
+        reactionId,
+        ttlMs: Math.max(1000, ttlMs),
+      },
+    ],
+    reactions: applyDebugReactionOverrides(state.reactions, [
+      ...state.debugReactionOverrides,
+      {
+        id,
+        cellIndex: safeCellIndex,
+        layer,
+        reactionId,
+        ttlMs: Math.max(1000, ttlMs),
+      },
+    ]),
+  };
 }
 
 function createStartingTowers(config: GameConfig): readonly TowerState[] {

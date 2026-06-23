@@ -4,17 +4,20 @@ import type {
   GameConfig,
   RngState,
   RunState,
+  UpgradeDefinition,
   UpgradeId,
 } from "./types";
 import { gameConfig } from "./config";
 import { nextRandom } from "./rng";
 import { createTower } from "./towerFactory";
 
-const SKIP_UPGRADE_SELECTION_DRAFT_STEP = true;
+const authoredUnlockUpgradeOrder: readonly UpgradeId[] = ["unlockSlot5", "unlockSlot9", "unlockSlot14"];
 
 export function createDraftState(state: RunState, config: GameConfig = gameConfig): { readonly draft: NonNullable<RunState["draft"]>, readonly rng: RngState } {
   const towerOffers = generateTowerOffers(state, state.rng, config);
-  const upgradeOffers = generateUpgradeOffers(state, towerOffers.rng, config);
+  const upgradeOffers = shouldOfferUpgradeDraft(state, config)
+    ? generateUpgradeOffers(state, towerOffers.rng, config)
+    : { offers: [], rng: towerOffers.rng };
 
   return {
     rng: upgradeOffers.rng,
@@ -59,8 +62,7 @@ export function chooseDraftTower(state: RunState, emitterId: EmitterId, config: 
     bench: [...state.bench, tower],
   };
 
-  // Temporary feature flag: skip the upgrade selection screen while draft pacing is being tuned.
-  if (SKIP_UPGRADE_SELECTION_DRAFT_STEP) {
+  if (state.draft.upgradeOffers.length === 0) {
     return advanceAfterDraft(stateWithTower, config);
   }
 
@@ -78,17 +80,30 @@ export function chooseDraftUpgrade(state: RunState, upgradeId: UpgradeId, config
     return state;
   }
 
-  const current = state.upgrades.find(upgrade => upgrade.upgradeId === upgradeId);
   const definition = config.upgrades.find(upgrade => upgrade.id === upgradeId);
-  const nextStacks = Math.min((current?.stacks ?? 0) + 1, definition?.maxStacks ?? 1);
-  const upgrades = current
-    ? state.upgrades.map(upgrade => upgrade.upgradeId === upgradeId ? { ...upgrade, stacks: nextStacks } : upgrade)
-    : [...state.upgrades, { upgradeId, stacks: nextStacks }];
 
-  return advanceAfterDraft({
+  if (!definition) {
+    return state;
+  }
+
+  return advanceAfterDraft(applyUpgradeToState(state, definition), config);
+}
+
+export function applyUpgradeToState(state: RunState, definition: UpgradeDefinition): RunState {
+  const current = state.upgrades.find(upgrade => upgrade.upgradeId === definition.id);
+  const nextStacks = Math.min((current?.stacks ?? 0) + 1, definition.maxStacks);
+  const upgrades = current
+    ? state.upgrades.map(upgrade => upgrade.upgradeId === definition.id ? { ...upgrade, stacks: nextStacks } : upgrade)
+    : [...state.upgrades, { upgradeId: definition.id, stacks: nextStacks }];
+  const board = definition.effect.type === "unlockSlot"
+    ? unlockBoardSlot(state, definition.effect.slotId)
+    : state.board;
+
+  return {
     ...state,
+    board,
     upgrades,
-  }, config);
+  };
 }
 
 export function advanceAfterDraft(state: RunState, config: GameConfig = gameConfig): RunState {
@@ -141,6 +156,10 @@ function generateTowerOffers(
     addOrReplaceOffer(offers, { emitterId: picked.emitterId, role: "support" }, synergies);
   }
 
+  requiredOffers.forEach((emitterId) => {
+    addOrReplaceOffer(offers, { emitterId, role: "pivot" }, synergies);
+  });
+
   return {
     rng,
     offers: offers.slice(0, 3),
@@ -153,21 +172,95 @@ function generateUpgradeOffers(
   config: GameConfig,
 ): { readonly offers: readonly UpgradeId[], readonly rng: RngState } {
   let rng = initialRng;
+  const guaranteedUnlock = getGuaranteedFirstUnlockUpgradeId(state, config);
   const available = config.upgrades
-    .filter(upgrade => getUpgradeStacks(state, upgrade.id) < upgrade.maxStacks)
+    .filter(upgrade => isUpgradeAvailable(state, upgrade))
+    .filter(upgrade => upgrade.id !== guaranteedUnlock)
     .map(upgrade => upgrade.id);
-  const fallback = config.upgrades.map(upgrade => upgrade.id);
+  const fallback = config.upgrades
+    .filter(upgrade => upgrade.id !== guaranteedUnlock)
+    .map(upgrade => upgrade.id);
   const pool = available.length > 0 ? available : fallback;
-  const offers: UpgradeId[] = [];
+  const offers: UpgradeId[] = guaranteedUnlock ? [guaranteedUnlock] : [];
+  const maxOffers = Math.min(3, pool.length + offers.length);
 
-  while (offers.length < Math.min(3, pool.length)) {
-    const picked = pickUpgrade(rng, pool, offers);
+  while (offers.length < maxOffers) {
+    const compatiblePool = getCompatibleUpgradePool(pool, offers, config);
+
+    if (compatiblePool.length === 0) {
+      break;
+    }
+
+    const picked = pickUpgrade(rng, compatiblePool, offers);
 
     rng = picked.rng;
     offers.push(picked.upgradeId);
   }
 
   return { rng, offers };
+}
+
+function shouldOfferUpgradeDraft(state: RunState, config: GameConfig): boolean {
+  const clearedWaveNumber = state.waveIndex + 1;
+
+  return config.balance.upgradeDraftMilestoneWaves.includes(clearedWaveNumber);
+}
+
+function getGuaranteedFirstUnlockUpgradeId(state: RunState, config: GameConfig): UpgradeId | null {
+  const playerHasTakenAnyUnlock = state.upgrades.some((upgrade) => {
+    const definition = config.upgrades.find(candidate => candidate.id === upgrade.upgradeId);
+
+    return definition?.effect.type === "unlockSlot" && upgrade.stacks > 0;
+  });
+
+  if (playerHasTakenAnyUnlock) {
+    return null;
+  }
+
+  return authoredUnlockUpgradeOrder.find((upgradeId) => {
+    const definition = config.upgrades.find(candidate => candidate.id === upgradeId);
+
+    return definition?.effect.type === "unlockSlot" && isSlotLocked(state, definition.effect.slotId);
+  }) ?? null;
+}
+
+function isUpgradeAvailable(state: RunState, upgrade: UpgradeDefinition): boolean {
+  if (getUpgradeStacks(state, upgrade.id) >= upgrade.maxStacks) {
+    return false;
+  }
+
+  if (upgrade.effect.type === "unlockSlot") {
+    return isSlotLocked(state, upgrade.effect.slotId);
+  }
+
+  return true;
+}
+
+function getCompatibleUpgradePool(
+  candidates: readonly UpgradeId[],
+  existingOffers: readonly UpgradeId[],
+  config: GameConfig,
+): readonly UpgradeId[] {
+  if (!existingOffers.some(upgradeId => isSlotUnlockUpgrade(upgradeId, config))) {
+    return candidates;
+  }
+
+  return candidates.filter(upgradeId => !isSlotUnlockUpgrade(upgradeId, config));
+}
+
+function isSlotUnlockUpgrade(upgradeId: UpgradeId, config: GameConfig): boolean {
+  return config.upgrades.find(upgrade => upgrade.id === upgradeId)?.effect.type === "unlockSlot";
+}
+
+function unlockBoardSlot(state: RunState, slotId: string): RunState["board"] {
+  return {
+    ...state.board,
+    slots: state.board.slots.map(slot => slot.id === slotId ? { ...slot, locked: false } : slot),
+  };
+}
+
+function isSlotLocked(state: RunState, slotId: string): boolean {
+  return state.board.slots.some(slot => slot.id === slotId && slot.locked);
 }
 
 function addOrReplaceOffer(
@@ -203,7 +296,12 @@ function pickEmitter(
 ): { readonly emitterId: EmitterId, readonly rng: RngState } {
   const existing = new Set(existingOffers.map(offer => offer.emitterId));
   const available = candidates.filter(emitterId => !existing.has(emitterId));
-  const pool = available.length > 0 ? available : config.emitters.map(emitter => emitter.id);
+  const fallback = config.emitters
+    .map(emitter => emitter.id)
+    .filter(emitterId => !existing.has(emitterId));
+  const pool = available.length > 0
+    ? available
+    : fallback.length > 0 ? fallback : config.emitters.map(emitter => emitter.id);
   const [nextRng, roll] = nextRandom(rng);
 
   return {

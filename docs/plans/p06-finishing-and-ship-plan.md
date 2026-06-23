@@ -1,8 +1,10 @@
+<!-- eslint-disable markdown/heading-increment -->
+
 # Phase 0.6 Finishing and Ship Plan
 
 ## Status
 
-- Current phase: Phase A - Lock the gameplay (not started)
+- Current phase: Phase A - Lock the gameplay (implementation in progress)
 - Overall status: P0 complete; Phase 0.5 visual overhaul phases 0-6 complete (phases 7-10 pending in `p05-visual-overhaul-plan.md`); this is the main ship roadmap for everything still needed to reach a shippable demo.
 - Source docs: `docs/design.md`, `docs/setting.md`, `docs/plans/p0-implementation-plan.md`, `docs/plans/p05-visual-overhaul-plan.md`.
 - Goal: take the feature-complete-but-unpolished P0 to a finished, self-hosted, mobile-first web demo. Includes re-enabling the disabled upgrade economy, a new slot-unlock progression, a wave pacing / mixed-wave balance pass, a game-feel pass, UI finalization, a meta shell, and onboarding/audio.
@@ -28,7 +30,7 @@ Preflight principle: before turning this plan into implementation work, stabiliz
 
 ## Context
 
-The game is mechanically and feature-complete for P0 (10 waves + boss, the full reaction graph, two-step draft, save/resume, 62 headless tests) and visually polished through visual-overhaul phase 6. A finishing review surfaced gaps beyond the obvious remaining work (hints, tutorial, final monster/boss assets, HUD finalization, audio). The largest: **the entire upgrade economy is currently disabled** by a temporary feature flag, so no upgrade is ever applied in the shipping build even though the combat effects are fully wired. This plan captures those gaps and the decisions made about each.
+The game is mechanically and feature-complete for P0 (10 waves + boss, the full reaction graph, two-step draft, save/resume, 117 automated tests after the first Phase A implementation pass) and visually polished through visual-overhaul phase 6. A finishing review surfaced gaps beyond the obvious remaining work (hints, tutorial, final monster/boss assets, HUD finalization, audio). The largest: **the entire upgrade economy was disabled** by a temporary feature flag; Phase A re-enabled it behind milestone cadence and now needs balance/playtest tuning. This plan captures those gaps and the decisions made about each.
 
 ## Key Decisions
 
@@ -162,7 +164,14 @@ Do not solve the exact cadence or wave table casually while re-enabling upgrades
 
 ### Phase A notes
 
-_(record divergences here)_
+- 2026-06-23: First implementation pass landed the pure-simulation Phase A foundation:
+  - upgrade draft skip removed; upgrade picks are now gated by config milestone cleared waves `[2, 4, 6, 8]`;
+  - waves moved from single enemy definitions to explicit `spawnGroups` with overlapping mixed-wave pressure;
+  - the 3 inner corner slots now start locked and can be opened through authored unlock upgrades;
+  - `?debug=1` HUD now drives reducer-owned debug sandbox actions, with debug actions ignored unless debug mode is active;
+  - added `npm run balance:quick` / `npm run balance:run` (`tsx scripts/balance-runner.ts`) for pure headless balance reports.
+- Balance reports (`npm run balance:quick`, `npm run balance:run`) now use a shared 2-cell electro opener, T2-oriented build orders, reaction coverage counts, `--seed-start`, and the experienced final-target gate `fireVortex >= 3 && (stormCloud >= 6 || fireVortex >= 6)`. Full 11x100 run separates the weak baseline (0% win, no T2) from planned T2 strategies: `fire-vortex-rush` 78% win / 80% target T2, `fire-vortex-water-spread` 77% / 80%, `experienced-human-final` 75% / 81%, `fire-control-runners` 66% / 65%. This is acceptable as the current balance baseline: experienced fire-vortex play is winnable without being automatic, while weak/no-T2 play fails. Follow-up tuning remains useful for Storm Cloud underperformance, early wave-4 variance, and improving scripted policies so the strict final-target gate can reproduce mature manual boards like seed 87000.
+- Automated baseline after this pass: `npm run lint:fix` green; `npm run typecheck` green; `npm run test` green with 8 files / 137 tests.
 
 ### Phase A completion summary
 
@@ -297,7 +306,7 @@ _(fill on completion)_
 
 ## Verification
 
-- `npm run typecheck` (vue-tsc + tsc) and `npm run test` (vitest) stay green after each phase; add headless scenarios for re-enabled upgrades + slot unlocks.
+- `npm run typecheck` (vue-tsc + tsc) and `npm run test` (vitest) stay green after each phase; current baseline is 8 files / 117 tests.
 - `npm run dev` + `?debug=1` to exercise playtest tooling and run full balance playthroughs.
 - `npm run build` succeeds and the static output loads; manual real-device touch QA before ship.
 

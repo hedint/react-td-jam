@@ -15,6 +15,8 @@ import {
   createTower,
   deserializeRun,
   getCurrentPathCellIndex,
+  getWaveSpawnedCount,
+  getWaveTotalSpawnCount,
   nextRandom,
   serializeRun,
   stepRun,
@@ -39,7 +41,11 @@ describe("run simulation", () => {
     });
     expect(state.board.pathCells).toHaveLength(18);
     expect(state.board.slots).toHaveLength(26);
-    expect(state.board.slots.every(slot => !slot.locked)).toBe(true);
+    expect(state.board.slots.filter(slot => slot.locked).map(slot => slot.id)).toEqual([
+      "slot-5-inner",
+      "slot-9-inner",
+      "slot-14-inner",
+    ]);
     expect(state.bench.map(tower => tower.displayName)).toEqual([
       "Водомёт",
       "Водомёт",
@@ -58,14 +64,14 @@ describe("run simulation", () => {
   });
 
   it("rerolls draft offers deterministically by seed", () => {
-    const draftA = stepMany(startFirstWave(createPlacedStartingRun(31)), 90);
-    const draftB = stepMany(startFirstWave(createPlacedStartingRun(31)), 90);
+    const draftA = advanceToNextDraft(startFirstWave(createPlacedStartingRun(31)));
+    const draftB = advanceToNextDraft(startFirstWave(createPlacedStartingRun(31)));
 
     expect(applyAction(draftA, { type: "rerollDraft" }).draft).toEqual(applyAction(draftB, { type: "rerollDraft" }).draft);
   });
 
   it("keeps Жар offered before the first flying wave until the player takes it", () => {
-    const draftBeforeFlyers = advanceToDraftAfterWave2(createRun(22));
+    const draftBeforeFlyers = advanceToDraftAfterWave2(createPlacedStartingRun(22));
     const rerolled = applyAction(draftBeforeFlyers, { type: "rerollDraft" });
     const withHeat = applyAction(draftBeforeFlyers, { type: "chooseDraftTower", emitterId: "heat" });
 
@@ -79,8 +85,9 @@ describe("run simulation", () => {
   });
 
   it("does not gate the first flying wave when Жар is refused", () => {
-    const draftBeforeFlyers = advanceToDraftAfterWave2(createRun(22));
-    const refusedHeat = applyAction(draftBeforeFlyers, { type: "chooseDraftTower", emitterId: "water" });
+    const draftBeforeFlyers = advanceToDraftAfterWave2(createPlacedStartingRun(22));
+    const refusedHeat = getDraftCompletionActionsAvoiding(draftBeforeFlyers, "heat")
+      .reduce((state, action) => applyAction(state, action), draftBeforeFlyers);
     const wave = stepMany(refusedHeat, 90);
 
     expect(wave.phase).toBe("wave");
@@ -89,8 +96,8 @@ describe("run simulation", () => {
   });
 
   it("steps deterministically for the slice scenario", () => {
-    const runA = stepMany(startFirstWave(createPlacedStartingRun(11)), 90);
-    const runB = stepMany(startFirstWave(createPlacedStartingRun(11)), 90);
+    const runA = advanceToNextDraft(startFirstWave(createPlacedStartingRun(11)));
+    const runB = advanceToNextDraft(startFirstWave(createPlacedStartingRun(11)));
 
     expect(runA).toEqual(runB);
     expect(runA.phase).toBe("draft");
@@ -190,27 +197,306 @@ describe("run simulation", () => {
     expect(state.reactions[2]).toEqual({ cellIndex: 2, ground: null, air: "steam" });
   });
 
-  it("uses adjacent spark to turn the two-cell steam plume into storm clouds without leaking past steam", () => {
+  it("projects energy tower capacity as direct cells for damage, reactions, and rendering", () => {
+    const base = projectReagents(gameConfig.board, [
+      createTower("tower-spark-a", "spark", "slot-1-outer"),
+    ]);
+    const upgraded = projectReagents(
+      gameConfig.board,
+      [createTower("tower-spark-a", "spark", "slot-1-outer")],
+      [{ upgradeId: "sparkCapacity", stacks: 1 }],
+    );
+
+    expect(base.filter(cell => cell.directEnergy.includes("spark")).map(cell => cell.cellIndex)).toEqual([1]);
+    expect(upgraded.filter(cell => cell.directEnergy.includes("spark")).map(cell => cell.cellIndex)).toEqual([1, 2]);
+  });
+
+  it("projects substance coverage as count-based cells for reactions and rendering", () => {
+    const baseWater = projectReagents(gameConfig.board, [
+      createTower("tower-water-a", "water", "slot-1-outer"),
+    ]);
+    const upgradedWater = projectReagents(
+      gameConfig.board,
+      [createTower("tower-water-a", "water", "slot-1-outer")],
+      [{ upgradeId: "waterCapacity", stacks: 1 }],
+    );
+    const upgradedOil = projectReagents(
+      gameConfig.board,
+      [createTower("tower-oil-a", "oil", "slot-1-outer")],
+      [{ upgradeId: "oilControl", stacks: 1 }],
+    );
+
+    expect(baseWater.filter(cell => cell.substances.includes("water")).map(cell => cell.cellIndex)).toEqual([1]);
+    expect(upgradedWater.filter(cell => cell.substances.includes("water")).map(cell => cell.cellIndex)).toEqual([1, 2]);
+    expect(upgradedOil.filter(cell => cell.substances.includes("oil")).map(cell => cell.cellIndex)).toEqual([1, 2]);
+  });
+
+  it("lets one base energy cell feed two tier 1 reaction cells in a connected substance pool", () => {
+    const electroPuddles = resolveReactions(
+      gameConfig.board,
+      [
+        createTower("tower-water-a", "water", "slot-1-outer"),
+        createTower("tower-spark-a", "spark", "slot-1-outer"),
+      ],
+      [{ upgradeId: "waterCapacity", stacks: 1 }],
+    );
+    const fires = resolveReactions(
+      gameConfig.board,
+      [
+        createTower("tower-oil-a", "oil", "slot-1-outer"),
+        createTower("tower-heat-a", "heat", "slot-1-outer"),
+      ],
+      [{ upgradeId: "oilControl", stacks: 1 }],
+    );
+
+    expect(electroPuddles.filter(reaction => reaction.ground === "electroPuddle").map(reaction => reaction.cellIndex)).toEqual([1, 2]);
+    expect(fires.filter(reaction => reaction.ground === "fire").map(reaction => reaction.cellIndex)).toEqual([1, 2]);
+  });
+
+  it("connects the two-cell inner corner water with a side spark on the shared vertical cell", () => {
+    const projection = projectReagents(gameConfig.board, [
+      createTower("tower-water-a", "water", "slot-5-inner"),
+      createTower("tower-spark-a", "spark", "slot-4-outer"),
+    ]);
+    const reactions = resolveReactions(gameConfig.board, [
+      createTower("tower-water-a", "water", "slot-5-inner"),
+      createTower("tower-spark-a", "spark", "slot-4-outer"),
+    ]);
+
+    expect(projection[4]).toMatchObject({
+      cellIndex: 4,
+      substances: ["water"],
+      directEnergy: ["spark"],
+      energy: ["spark"],
+    });
+    expect(projection[6]).toMatchObject({
+      cellIndex: 6,
+      substances: ["water"],
+      directEnergy: [],
+      energy: [],
+    });
+    expect(reactions[4]).toEqual({ cellIndex: 4, ground: "electroPuddle", air: null });
+  });
+
+  it("lets both anchors of a two-cell corner heat tower form steam in one water pool", () => {
+    const reactions = resolveReactions(gameConfig.board, [
+      createTower("tower-water-left", "water", "slot-8-outer"),
+      createTower("tower-water-corner", "water", "slot-9-outer"),
+      createTower("tower-water-right", "water", "slot-10-outer"),
+      createTower("tower-heat-corner", "heat", "slot-9-inner"),
+    ]);
+
+    expect(reactions.filter(reaction => reaction.air === "steam").map(reaction => reaction.cellIndex)).toEqual([8, 9, 10, 11]);
+  });
+
+  it("scales tier 1 reaction limits by the number of upgraded energy cells", () => {
+    const reactions = resolveReactions(
+      gameConfig.board,
+      [
+        createTower("tower-water-a", "water", "slot-1-outer"),
+        createTower("tower-water-b", "water", "slot-3-outer"),
+        createTower("tower-spark-a", "spark", "slot-1-outer"),
+      ],
+      [
+        { upgradeId: "waterCapacity", stacks: 1 },
+        { upgradeId: "sparkCapacity", stacks: 1 },
+      ],
+    );
+
+    expect(reactions.filter(reaction => reaction.ground === "electroPuddle").map(reaction => reaction.cellIndex)).toEqual([1, 2, 3, 4]);
+  });
+
+  it("requires spark to meet steam on the same anchor cell before forming storm clouds", () => {
     const oneSparkCell = createRun(1, {
       placedTowers: [
         createTower("tower-water-a", "water", "slot-1-outer"),
         createTower("tower-heat-a", "heat", "slot-1-outer"),
-        createTower("tower-spark-a", "spark", "slot-2-outer"),
+        createTower("tower-spark-a", "spark", "slot-3-outer"),
       ],
     });
-    const twoSparkCells = createRun(1, {
+    const anchoredSpark = createRun(1, {
       placedTowers: [
         createTower("tower-water-a", "water", "slot-1-outer"),
         createTower("tower-heat-a", "heat", "slot-1-outer"),
         createTower("tower-spark-a", "spark", "slot-1-outer"),
-        createTower("tower-spark-b", "spark", "slot-2-outer"),
       ],
     });
 
-    expect(oneSparkCell.reactions.filter(reaction => reaction.air === "stormCloud").map(reaction => reaction.cellIndex)).toEqual([1, 2]);
+    expect(oneSparkCell.reactions.filter(reaction => reaction.air === "steam").map(reaction => reaction.cellIndex)).toEqual([1, 2]);
+    expect(oneSparkCell.reactions.some(reaction => reaction.air === "stormCloud")).toBe(false);
     expect(oneSparkCell.reactions[3]).toEqual({ cellIndex: 3, ground: null, air: null });
-    expect(twoSparkCells.reactions.filter(reaction => reaction.air === "stormCloud").map(reaction => reaction.cellIndex)).toEqual([1, 2]);
-    expect(twoSparkCells.reactions[3]).toEqual({ cellIndex: 3, ground: null, air: null });
+    expect(anchoredSpark.reactions.filter(reaction => reaction.air === "stormCloud").map(reaction => reaction.cellIndex)).toEqual([1, 2]);
+  });
+
+  it("keeps a two-cell base steam plume when off-anchor spark cannot trigger storm clouds", () => {
+    const state = createRun(1, {
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-1-outer"),
+        createTower("tower-heat-a", "heat", "slot-1-outer"),
+        createTower("tower-spark-a", "spark", "slot-3-outer"),
+      ],
+    });
+
+    expect(state.reactions.filter(reaction => reaction.air === "steam" || reaction.air === "stormCloud").map(reaction => reaction.cellIndex)).toEqual([1, 2]);
+    expect(state.reactions.some(reaction => reaction.air === "stormCloud")).toBe(false);
+    expect(state.reactions[3]).toEqual({ cellIndex: 3, ground: null, air: null });
+  });
+
+  it("lets base spark cover three existing steam cells as storm clouds from an anchor", () => {
+    const reactions = resolveReactions(
+      gameConfig.board,
+      [
+        createTower("tower-water-a", "water", "slot-1-outer"),
+        createTower("tower-heat-a", "heat", "slot-1-outer"),
+        createTower("tower-spark-a", "spark", "slot-1-outer"),
+      ],
+      [{ upgradeId: "heatReach", stacks: 1 }],
+    );
+
+    expect(reactions.filter(reaction => reaction.air === "stormCloud").map(reaction => reaction.cellIndex)).toEqual([1, 2, 3]);
+  });
+
+  it("lets base fire cover three existing steam cells as a fire vortex from an anchor", () => {
+    const reactions = resolveReactions(
+      gameConfig.board,
+      [
+        createTower("tower-water-a", "water", "slot-1-outer"),
+        createTower("tower-heat-a", "heat", "slot-1-outer"),
+        createTower("tower-oil-a", "oil", "slot-2-outer"),
+        createTower("tower-heat-b", "heat", "slot-2-outer"),
+      ],
+      [{ upgradeId: "heatReach", stacks: 1 }],
+    );
+
+    expect(reactions[2]?.ground).toBeNull();
+    expect(reactions.filter(reaction => reaction.air === "fireVortex").map(reaction => reaction.cellIndex)).toEqual([1, 2, 3]);
+  });
+
+  it("lets fire in the middle of three steam cells consume the backward cell after forward cells run out", () => {
+    const reactions = resolveReactions(
+      gameConfig.board,
+      [
+        createTower("tower-water-a", "water", "slot-2-outer"),
+        createTower("tower-heat-a", "heat", "slot-2-outer"),
+        createTower("tower-oil-a", "oil", "slot-3-outer"),
+        createTower("tower-heat-b", "heat", "slot-3-outer"),
+      ],
+      [{ upgradeId: "heatReach", stacks: 1 }],
+    );
+
+    expect(reactions.filter(reaction => reaction.air === "fireVortex").map(reaction => reaction.cellIndex)).toEqual([2, 3, 4]);
+    expect(reactions.some(reaction => reaction.air === "steam")).toBe(false);
+  });
+
+  it("lets upgrades extend steam and base spark storm clouds past the two-cell steam cap", () => {
+    const steamTowers = [
+      createTower("tower-water-a", "water", "slot-1-outer"),
+      createTower("tower-water-b", "water", "slot-2-outer"),
+      createTower("tower-heat-a", "heat", "slot-1-outer"),
+    ];
+    const upgradedSteam = resolveReactions(gameConfig.board, steamTowers, [{ upgradeId: "heatReach", stacks: 1 }]);
+    const upgradedStorm = resolveReactions(
+      gameConfig.board,
+      [
+        ...steamTowers,
+        createTower("tower-spark-a", "spark", "slot-1-outer"),
+      ],
+      [{ upgradeId: "heatReach", stacks: 1 }],
+    );
+
+    expect(upgradedSteam.filter(reaction => reaction.air === "steam").map(reaction => reaction.cellIndex)).toEqual([1, 2, 3]);
+    expect(upgradedStorm.filter(reaction => reaction.air === "stormCloud").map(reaction => reaction.cellIndex)).toEqual([1, 2, 3]);
+  });
+
+  it("does not let one energy tower directly feed both tier 1 and tier 2 reactions", () => {
+    const state = createRun(1, {
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-1-outer"),
+        createTower("tower-heat-a", "heat", "slot-1-outer"),
+        createTower("tower-spark-a", "spark", "slot-1-outer"),
+      ],
+    });
+
+    expect(state.reactions[1]).toEqual({ cellIndex: 1, ground: null, air: "stormCloud" });
+    expect(state.reactions.some(reaction => reaction.ground === "electroPuddle")).toBe(false);
+  });
+
+  it("keeps a storm cloud when new water appears under its spark source", () => {
+    const reactions = resolveReactions(gameConfig.board, [
+      createTower("tower-water-steam", "water", "slot-1-outer"),
+      createTower("tower-heat-steam", "heat", "slot-1-outer"),
+      createTower("tower-water-extra", "water", "slot-2-outer"),
+      createTower("tower-spark-cloud", "spark", "slot-2-outer"),
+    ]);
+
+    expect(reactions[1]).toEqual({ cellIndex: 1, ground: null, air: "stormCloud" });
+    expect(reactions[2]).toEqual({ cellIndex: 2, ground: null, air: "stormCloud" });
+    expect(reactions.some(reaction => reaction.ground === "electroPuddle")).toBe(false);
+  });
+
+  it("keeps a storm cloud when late water appears under another upgraded heat cell", () => {
+    const baseTowers = [
+      createTower("tower-water-steam", "water", "slot-1-outer"),
+      createTower("tower-heat-steam", "heat", "slot-1-outer"),
+      createTower("tower-spark-cloud", "spark", "slot-1-outer"),
+    ];
+    const upgrades = [
+      { upgradeId: "heatReach" as const, stacks: 1 },
+      { upgradeId: "waterCapacity" as const, stacks: 2 },
+    ];
+    const before = resolveReactions(gameConfig.board, baseTowers, upgrades);
+    const after = resolveReactions(gameConfig.board, [
+      ...baseTowers,
+      createTower("tower-water-extra", "water", "slot-2-inner"),
+    ], upgrades);
+
+    expect(before.filter(reaction => reaction.air === "stormCloud").map(reaction => reaction.cellIndex)).toEqual([1, 2, 3]);
+    expect(after.filter(reaction => reaction.air === "stormCloud").map(reaction => reaction.cellIndex)).toEqual([1, 2, 3]);
+  });
+
+  it("keeps a fire vortex when new water appears under its fire source", () => {
+    const reactions = resolveReactions(gameConfig.board, [
+      createTower("tower-water-steam", "water", "slot-1-outer"),
+      createTower("tower-heat-steam", "heat", "slot-1-outer"),
+      createTower("tower-oil-fire", "oil", "slot-2-outer"),
+      createTower("tower-heat-fire", "heat", "slot-2-outer"),
+      createTower("tower-water-extra", "water", "slot-2-inner"),
+    ]);
+
+    expect(reactions[1]).toEqual({ cellIndex: 1, ground: null, air: "fireVortex" });
+    expect(reactions[2]).toEqual({ cellIndex: 2, ground: null, air: "fireVortex" });
+    expect(reactions[3]).toEqual({ cellIndex: 3, ground: null, air: null });
+  });
+
+  it("lets earlier same-tier fire vortex consume steam before a later storm cloud", () => {
+    const reactions = resolveReactions(
+      gameConfig.board,
+      [
+        createTower("tower-water-a", "water", "slot-4-outer"),
+        createTower("tower-heat-steam", "heat", "slot-4-outer"),
+        createTower("tower-oil-fire", "oil", "slot-4-outer"),
+        createTower("tower-heat-fire", "heat", "slot-4-outer"),
+        createTower("tower-spark-a", "spark", "slot-4-outer"),
+      ],
+      [{ upgradeId: "heatReach", stacks: 1 }],
+    );
+
+    expect(reactions[4]).toEqual({ cellIndex: 4, ground: null, air: "fireVortex" });
+    expect(reactions[5]).toEqual({ cellIndex: 5, ground: null, air: "fireVortex" });
+    expect(reactions[6]).toEqual({ cellIndex: 6, ground: null, air: "fireVortex" });
+    expect(reactions.some(reaction => reaction.air === "stormCloud")).toBe(false);
+  });
+
+  it("does not let one heat tower directly feed both steam and fire", () => {
+    const state = createRun(1, {
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-1-outer"),
+        createTower("tower-oil-a", "oil", "slot-1-outer"),
+        createTower("tower-heat-a", "heat", "slot-1-outer"),
+      ],
+    });
+
+    expect(state.reactions[1]).toEqual({ cellIndex: 1, ground: "fire", air: null });
   });
 
   it("keeps water and oil pools connected only along the ring", () => {
@@ -240,7 +526,7 @@ describe("run simulation", () => {
     ]);
   });
 
-  it("resolves the P0 T1/T2/T3 reaction graph", () => {
+  it("resolves the P0 T1/T2 graph and keeps T3 dormant until compatible anchors exist", () => {
     const t1 = createRun(1, {
       placedTowers: [
         createTower("tower-water-a", "water", "slot-1-outer"),
@@ -260,20 +546,21 @@ describe("run simulation", () => {
       placedTowers: [
         createTower("tower-water-a", "water", "slot-1-outer"),
         createTower("tower-heat-a", "heat", "slot-1-outer"),
-        createTower("tower-oil-a", "oil", "slot-1-outer"),
-        createTower("tower-heat-b", "heat", "slot-2-inner"),
+        createTower("tower-oil-a", "oil", "slot-2-outer"),
+        createTower("tower-heat-b", "heat", "slot-2-outer"),
       ],
     });
     const fireStorm = createRun(1, {
       placedTowers: [
         createTower("tower-water-a", "water", "slot-1-outer"),
         createTower("tower-heat-a", "heat", "slot-1-outer"),
-        createTower("tower-spark-a", "spark", "slot-1-outer"),
-        createTower("tower-spark-b", "spark", "slot-2-outer"),
         createTower("tower-water-b", "water", "slot-3-outer"),
         createTower("tower-heat-b", "heat", "slot-3-inner"),
-        createTower("tower-oil-b", "oil", "slot-3-outer"),
-        createTower("tower-heat-c", "heat", "slot-3-outer"),
+        createTower("tower-water-c", "water", "slot-5-outer"),
+        createTower("tower-heat-c", "heat", "slot-5-outer"),
+        createTower("tower-spark-a", "spark", "slot-2-outer"),
+        createTower("tower-oil-a", "oil", "slot-7-outer"),
+        createTower("tower-heat-d", "heat", "slot-7-outer"),
       ],
     });
 
@@ -281,7 +568,7 @@ describe("run simulation", () => {
     expect(t1.reactions.some(reaction => reaction.ground === "fire")).toBe(true);
     expect(stormCloud.reactions.some(reaction => reaction.air === "stormCloud")).toBe(true);
     expect(fireVortex.reactions.some(reaction => reaction.air === "fireVortex")).toBe(true);
-    expect(fireStorm.reactions.some(reaction => reaction.air === "fireStorm")).toBe(true);
+    expect(fireStorm.reactions.some(reaction => reaction.air === "fireStorm")).toBe(false);
   });
 
   it("resolves reactions independently from placed tower iteration order", () => {
@@ -332,17 +619,18 @@ describe("run simulation", () => {
     expect(maxT2).toBeLessThan(minT3);
   });
 
-  it("allows one ground and one air reaction to coexist on a cell", () => {
+  it("consumes the ground fire catalyst when fire vortex forms on the same cell", () => {
     const state = createRun(1, {
       placedTowers: [
         createTower("tower-water-a", "water", "slot-1-outer"),
+        createTower("tower-oil-a", "oil", "slot-1-outer"),
         createTower("tower-heat-a", "heat", "slot-1-outer"),
-        createTower("tower-spark-a", "spark", "slot-1-outer"),
+        createTower("tower-heat-b", "heat", "slot-1-outer"),
       ],
     });
 
-    expect(state.reactions[1]?.ground).not.toBeNull();
-    expect(state.reactions[1]?.air).not.toBeNull();
+    expect(state.reactions[1]?.ground).toBeNull();
+    expect(state.reactions[1]?.air).toBe("fireVortex");
   });
 
   it("keeps raw water and oil as zero-damage control/setup", () => {
@@ -374,8 +662,7 @@ describe("run simulation", () => {
     expect(state.reactions[1]).toEqual({ cellIndex: 1, ground: null, air: null });
     expect(projection[1]?.substances).toEqual(["oil", "water"]);
     expect(getCellSpeedMultiplier(projection[1])).toBeCloseTo(0.55);
-    expect(getCellSpeedMultiplier(projection[1], [{ upgradeId: "oilControl", stacks: 1 }])).toBeCloseTo(0.45);
-    expect(getCellSpeedMultiplier(projection[1], [{ upgradeId: "oilControl", stacks: 10 }])).toBe(gameConfig.balance.minSpeedMultiplier);
+    expect(getCellSpeedMultiplier(projection[1], [{ upgradeId: "oilControl", stacks: 1 }])).toBeCloseTo(0.55);
   });
 
   it("does not apply consumed water slow under steam", () => {
@@ -411,6 +698,26 @@ describe("run simulation", () => {
     expect(next.enemies[0]?.pathProgress).toBeCloseTo(1.7);
     expect(next.stats.damageBySource.rawSpark).toBe(5);
     expect(next.stats.damageByReaction.electroPuddle).toBeUndefined();
+  });
+
+  it("applies raw energy damage over the upgraded emitter capacity footprint", () => {
+    const state = {
+      ...createRun(1, {
+        placedTowers: [
+          createTower("tower-spark-a", "spark", "slot-1-outer"),
+        ],
+        enemies: [
+          createGrunt({ hp: 100, maxHp: 100, pathProgress: 2 }),
+        ],
+      }),
+      upgrades: [
+        { upgradeId: "sparkCapacity" as const, stacks: 1 },
+      ],
+    };
+    const next = stepRun(state, 100);
+
+    expect(next.enemies[0]?.hp).toBe(99.5);
+    expect(next.stats.damageBySource.rawSpark).toBe(0.5);
   });
 
   it("suppresses raw spark damage when the same cell has a ground reaction", () => {
@@ -471,7 +778,7 @@ describe("run simulation", () => {
   });
 
   it("damages and kills a Грунт that crosses the Электролужа", () => {
-    const state = stepMany(startFirstWave(createPlacedStartingRun(1)), 90);
+    const state = advanceToNextDraft(startFirstWave(createPlacedStartingRun(1)));
 
     expect(state.enemies).toEqual([]);
     expect(state.coreHp).toBe(15);
@@ -642,16 +949,16 @@ describe("run simulation", () => {
     expect(state.enemies).toHaveLength(1);
     expect(state.waveRuntime).toMatchObject({
       waveId: "wave-1",
-      spawnedCount: 1,
     });
+    expect(getWaveSpawnedCount(state.waveRuntime)).toBe(1);
 
-    const cleared = stepMany(state, 560);
+    const cleared = advanceToNextDraft(state);
 
     expect(cleared.phase).toBe("draft");
     expect(cleared.waveRuntime).toBeNull();
     expect(cleared.stats.waveStats.find(wave => wave.waveId === "wave-1")).toMatchObject({
       kills: 0,
-      leaks: 1,
+      leaks: getWaveTotalSpawnCount(gameConfig.waves[0]!),
     });
   });
 
@@ -667,8 +974,18 @@ describe("run simulation", () => {
     expect(applyAction(state, { type: "restart", seed: 99 }).seed).toBe(99);
   });
 
+  it("ignores debug sandbox actions until debug mode is enabled", () => {
+    const state = createRun(1);
+    const ignored = applyAction(state, { type: "debugSetCoreHpLocked", locked: true });
+    const debugState = applyAction(state, { type: "toggleDebug" });
+    const locked = applyAction(debugState, { type: "debugSetCoreHpLocked", locked: true });
+
+    expect(ignored.debugCoreHpLocked).toBe(false);
+    expect(locked.debugCoreHpLocked).toBe(true);
+  });
+
   it("supports draft picks and selected bench placement as reducer contracts", () => {
-    const draft = stepMany(startFirstWave(createPlacedStartingRun(5)), 90);
+    const draft = advanceToNextDraft(startFirstWave(createPlacedStartingRun(5)));
     const withTower = applyAction(draft, { type: "chooseDraftTower", emitterId: draft.draft!.towerOffers[0]!.emitterId });
     const selected = applyAction(withTower, { type: "selectTower", towerId: withTower.bench[0]!.id });
     const placed = applyAction(selected, { type: "placeSelectedTower", slotId: "slot-3-outer" });
@@ -683,16 +1000,34 @@ describe("run simulation", () => {
   });
 
   it("generates tower draft roles with a synergistic support offer", () => {
-    const draft = stepMany(startFirstWave(createRun(5, {
+    const draft = advanceToNextDraft(startFirstWave(createRun(5, {
       placedTowers: [
         createTower("tower-water-only", "water", "slot-1-outer"),
       ],
-    })), 560);
+    })));
 
     expect(draft.phase).toBe("draft");
     expect(draft.draft?.towerOffers).toHaveLength(3);
     expect(draft.draft?.towerOffers.map(offer => offer.role)).toContain("support");
     expect(getTowerOfferIds(draft).some(emitterId => emitterId === "spark" || emitterId === "heat")).toBe(true);
+  });
+
+  it("offers three distinct tower types in a draft and reroll", () => {
+    const drafts = Array.from({ length: 40 }, (_, index) => {
+      const draft = advanceToNextDraft(startFirstWave(createPlacedStartingRun(index + 1)));
+
+      return [
+        draft,
+        applyAction(draft, { type: "rerollDraft" }),
+      ];
+    }).flat();
+
+    drafts.forEach((draft) => {
+      const offerIds = getTowerOfferIds(draft);
+
+      expect(offerIds).toHaveLength(3);
+      expect(new Set(offerIds).size).toBe(offerIds.length);
+    });
   });
 
   it("keeps Нефть offered after wave 4 until taken", () => {
@@ -710,13 +1045,38 @@ describe("run simulation", () => {
   });
 
   it("spends the single reroll budget on the current draft step", () => {
-    const draft = stepMany(startFirstWave(createPlacedStartingRun(6)), 90);
+    const draft = advanceToNextDraft(startFirstWave(createPlacedStartingRun(6)));
     const rerolled = applyAction(draft, { type: "rerollDraft" });
     const exhausted = applyAction(rerolled, { type: "rerollDraft" });
 
     expect(rerolled.draft?.rerollsRemaining).toBe(0);
     expect(exhausted.draft).toEqual(rerolled.draft);
     expect(exhausted.rng).toEqual(rerolled.rng);
+  });
+
+  it("uses milestone upgrade drafts and guarantees the first slot unlock offer", () => {
+    const afterWave1Draft = advanceToNextDraft(startFirstWave(createPlacedStartingRun(15)));
+    const wave2Countdown = applyAction(afterWave1Draft, { type: "chooseDraftTower", emitterId: afterWave1Draft.draft!.towerOffers[0]!.emitterId });
+    const afterWave2Draft = advanceToNextDraft(stepMany(wave2Countdown, 90));
+    const afterTowerPick = applyAction(afterWave2Draft, { type: "chooseDraftTower", emitterId: afterWave2Draft.draft!.towerOffers[0]!.emitterId });
+
+    expect(wave2Countdown.phase).toBe("countdown");
+    expect(afterTowerPick.phase).toBe("draft");
+    expect(afterTowerPick.draft?.step).toBe("upgrade");
+    expect(afterTowerPick.draft?.upgradeOffers).toContain("unlockSlot5");
+  });
+
+  it("offers at most one corner slot unlock upgrade per draft", () => {
+    const afterWave1Draft = advanceToNextDraft(startFirstWave(createPlacedStartingRun(15)));
+    const wave2Countdown = applyAction(afterWave1Draft, { type: "chooseDraftTower", emitterId: afterWave1Draft.draft!.towerOffers[0]!.emitterId });
+    const afterWave2Draft = advanceToNextDraft(stepMany(wave2Countdown, 90));
+    const afterTowerPick = applyAction(afterWave2Draft, { type: "chooseDraftTower", emitterId: afterWave2Draft.draft!.towerOffers[0]!.emitterId });
+    const rerolled = applyAction(afterTowerPick, { type: "rerollDraft" });
+    const countUnlockOffers = (state: RunState) =>
+      state.draft?.upgradeOffers.filter(upgradeId => upgradeId === "unlockSlot5" || upgradeId === "unlockSlot9" || upgradeId === "unlockSlot14").length ?? 0;
+
+    expect(countUnlockOffers(afterTowerPick)).toBeLessThanOrEqual(1);
+    expect(countUnlockOffers(rerolled)).toBeLessThanOrEqual(1);
   });
 
   it("caps upgrade stacks and lets upgrade effects alter reactions", () => {
@@ -746,8 +1106,27 @@ describe("run simulation", () => {
     expect(resolveReactions(gameConfig.board, towers, [{ upgradeId: "waterCapacity", stacks: 1 }])[1]?.ground).toBe("electroPuddle");
   });
 
+  it("unlocks a corner slot through an upgrade and preserves it in saves", () => {
+    const state = {
+      ...createRun(1),
+      phase: "draft" as const,
+      draft: {
+        step: "upgrade" as const,
+        rerollsRemaining: 0,
+        towerOffers: [] as const,
+        upgradeOffers: ["unlockSlot5"] as const,
+      },
+    };
+    const unlocked = applyAction(state, { type: "chooseDraftUpgrade", upgradeId: "unlockSlot5" });
+    const restored = deserializeRun(serializeRun(unlocked));
+
+    expect(state.board.slots.find(slot => slot.id === "slot-5-inner")?.locked).toBe(true);
+    expect(unlocked.board.slots.find(slot => slot.id === "slot-5-inner")?.locked).toBe(false);
+    expect(restored.board.slots.find(slot => slot.id === "slot-5-inner")?.locked).toBe(false);
+  });
+
   it("round-trips draft state and upgrade stacks through save serialization", () => {
-    const draft = stepMany(startFirstWave(createPlacedStartingRun(8)), 90);
+    const draft = advanceToNextDraft(startFirstWave(createPlacedStartingRun(8)));
     const withTower = applyAction(draft, { type: "chooseDraftTower", emitterId: draft.draft!.towerOffers[0]!.emitterId });
     const restored = deserializeRun(serializeRun(withTower));
 
@@ -776,7 +1155,7 @@ describe("run simulation", () => {
           { emitterId: "spark", role: "generic" },
           { emitterId: "heat", role: "pivot" },
         ] as const,
-        upgradeOffers: ["waterCapacity", "sparkCapacity", "heatReach"] as const,
+        upgradeOffers: [] as const,
       },
     };
     const withTower = applyAction(draft, { type: "chooseDraftTower", emitterId: "water" });
@@ -793,13 +1172,13 @@ describe("run simulation", () => {
     expect(wave.phase).toBe("wave");
     expect(wave.waveRuntime).toMatchObject({
       waveId: "wave-2",
-      spawnedCount: 1,
     });
+    expect(getWaveSpawnedCount(wave.waveRuntime)).toBe(1);
     expect(wave.enemies).toHaveLength(1);
 
     const withMoreSpawns = stepMany(wave, 18);
 
-    expect(withMoreSpawns.waveRuntime?.spawnedCount).toBeGreaterThan(1);
+    expect(getWaveSpawnedCount(withMoreSpawns.waveRuntime)).toBeGreaterThan(1);
   });
 
   it("drives a minimal headless smoke-run through wave 10", () => {
@@ -811,7 +1190,7 @@ describe("run simulation", () => {
       autoCompleteDrafts: true,
       stopWhen: state =>
         state.phase === "boss"
-        && state.stats.waveStats.some(wave => wave.waveId === "wave-10" && wave.kills + wave.leaks >= gameConfig.waves[9]!.count),
+        && state.stats.waveStats.some(wave => wave.waveId === "wave-10" && wave.kills + wave.leaks >= getWaveTotalSpawnCount(gameConfig.waves[9]!)),
     });
 
     expect(result.stoppedByPredicate).toBe(true);
@@ -825,7 +1204,7 @@ describe("run simulation", () => {
 
   it("drives a headless full run from wave 1 through Бочкоед to victory", () => {
     const result = runHeadlessRun(createRun(1, {
-      placedTowers: createElectroRingTowers(),
+      placedTowers: createDominantRingTowers(),
     }), {
       maxSteps: 50000,
       autoStartWaves: true,
@@ -837,10 +1216,10 @@ describe("run simulation", () => {
     expect(result.state.phase).toBe("victory");
     expect(result.state.stats.waveStats.map(wave => wave.waveId)).toContain("wave-10");
     expect(result.state.boss?.hp).toBe(0);
-    expect(result.state.stats.damageByReaction.electroPuddle).toBeGreaterThan(0);
+    expect(result.state.stats.damageByReaction.fire).toBeGreaterThan(0);
   });
 
-  it("drives a scripted strategy to a terminal run with skipped upgrades and mixed reaction damage", () => {
+  it("drives an underbuilt scripted strategy to terminal failure", () => {
     const result = runHeadlessStrategy({
       id: "mixed-damage-skipped-upgrades",
       seed: 8,
@@ -861,12 +1240,10 @@ describe("run simulation", () => {
 
     expect(result.stoppedByPredicate).toBe(true);
     expect(result.summary.phase).toBe("defeat");
-    expect(result.summary.wavesCleared).toBe(10);
+    expect(result.summary.wavesCleared).toBeLessThan(10);
     expect(result.summary.coreHp).toBe(0);
     expect(result.summary.leaks).toBeGreaterThan(0);
     expect(result.summary.damageByReaction.steam).toBeGreaterThan(0);
-    expect(result.summary.damageByReaction.stormCloud).toBeGreaterThan(0);
-    expect(result.summary.damageBySource.rawSpark).toBeGreaterThan(0);
   });
 
   it("drives a weak scripted strategy to meaningful leaks or defeat", () => {
@@ -1336,7 +1713,7 @@ describe("game config", () => {
     };
     waves[0] = {
       ...waves[0]!,
-      enemyId: "missing-enemy" as never,
+      spawnGroups: [{ enemyId: "missing-enemy" as never, count: 1, spawnIntervalMs: 100 }],
     };
     upgrades[0] = {
       ...upgrades[0]!,
@@ -1347,7 +1724,7 @@ describe("game config", () => {
       "balance has invalid runtime values",
       "emitter water is missing display names",
       "reaction electroPuddle references unknown input missing-input",
-      "wave wave-1 references unknown enemy missing-enemy",
+      "wave wave-1 group 0 references unknown enemy missing-enemy",
       "upgrade waterCapacity references unknown emitter missing-emitter",
     ]);
   });
@@ -1402,28 +1779,24 @@ function stepMany(state: ReturnType<typeof createRun>, times: number): ReturnTyp
   return current;
 }
 
+function advanceToNextDraft(state: ReturnType<typeof createRun>): ReturnType<typeof createRun> {
+  return runHeadlessRun(state, {
+    maxSteps: 30000,
+    stopWhen: candidate => candidate.phase === "draft",
+  }).state;
+}
+
 function startFirstWave(state: ReturnType<typeof createRun>): ReturnType<typeof createRun> {
   return applyAction(state, { type: "startWave" });
 }
 
 function advanceToDraftAfterWave2(state: ReturnType<typeof createRun>): ReturnType<typeof createRun> {
-  const afterWave1 = stepMany(startFirstWave(state), 560);
-  const wave2Countdown = chooseFirstDraftOffers(afterWave1);
+  const afterWave1 = advanceToNextDraft(startFirstWave(state));
+  const wave2Countdown = getDraftCompletionActionsAvoiding(afterWave1, "heat")
+    .reduce((current, action) => applyAction(current, action), afterWave1);
   const wave2 = stepMany(wave2Countdown, 90);
 
-  return stepMany(wave2, 600);
-}
-
-function chooseFirstDraftOffers(state: ReturnType<typeof createRun>): ReturnType<typeof createRun> {
-  const towerOffer = state.draft?.towerOffers[0];
-  const withTower = towerOffer
-    ? applyAction(state, { type: "chooseDraftTower", emitterId: towerOffer.emitterId })
-    : state;
-  const upgradeOffer = withTower.draft?.upgradeOffers[0];
-
-  return upgradeOffer
-    ? applyAction(withTower, { type: "chooseDraftUpgrade", upgradeId: upgradeOffer })
-    : withTower;
+  return advanceToNextDraft(wave2);
 }
 
 function getTowerOfferIds(state: ReturnType<typeof createRun>) {
@@ -1466,22 +1839,22 @@ function createSteamRingTowers() {
   ];
 }
 
-function createElectroRingTowers() {
-  const outerSlots = gameConfig.board.slots.filter(slot => slot.lane === "outer");
-  const innerSlots = gameConfig.board.slots.filter(slot => slot.lane === "inner");
+function createDominantRingTowers() {
+  const pathSlots = gameConfig.board.slots.filter(slot => slot.cellIndexes.length === 1);
 
-  return [
-    ...outerSlots.map(slot => createTower(`tower-water-electro-${slot.id}`, "water", slot.id)),
-    ...innerSlots.map(slot => createTower(`tower-spark-electro-${slot.id}`, "spark", slot.id)),
-  ];
+  return pathSlots.flatMap(slot => [
+    createTower(`tower-dominant-water-${slot.id}`, "water", slot.id),
+    createTower(`tower-dominant-heat-steam-${slot.id}`, "heat", slot.id),
+    createTower(`tower-dominant-oil-${slot.id}`, "oil", slot.id),
+    createTower(`tower-dominant-heat-fire-${slot.id}`, "heat", slot.id),
+  ]);
 }
 
 function createStormCloudTowers() {
   return [
     createTower("tower-water-a", "water", "slot-1-outer"),
-    createTower("tower-water-b", "water", "slot-2-outer"),
     createTower("tower-heat-a", "heat", "slot-1-outer"),
-    createTower("tower-spark-a", "spark", "slot-2-inner"),
+    createTower("tower-spark-a", "spark", "slot-1-outer"),
   ];
 }
 

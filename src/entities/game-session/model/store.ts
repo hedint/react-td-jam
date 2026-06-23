@@ -17,7 +17,7 @@ export const useGameSessionStore = defineStore("game-session", () => {
   const waveIndex = ref(0);
   const countdownMs = ref(0);
   const coreHp = ref(0);
-  const speed = ref<1 | 2>(1);
+  const speed = ref<1 | 2 | 4 | 8>(1);
   const livingEnemyCount = ref(0);
   const activeReactionCount = ref(0);
   const waveThreatEnemyId = ref<EnemyId | null>(null);
@@ -39,6 +39,9 @@ export const useGameSessionStore = defineStore("game-session", () => {
   const draftUpgradeOffers = ref<Array<{ readonly upgradeId: UpgradeId, readonly label: string, readonly stacks: number, readonly maxStacks: number }>>([]);
   const rerollsRemaining = ref(0);
   const paused = ref(false);
+  const debugVisible = ref(false);
+  const debugCoreHpLocked = ref(false);
+  const debugReactionOverrideCount = ref(0);
   const lastTap = ref<StagePoint | null>(null);
   const viewport = ref<ViewportSize>(initialViewport);
 
@@ -147,6 +150,9 @@ export const useGameSessionStore = defineStore("game-session", () => {
     }) ?? [];
     rerollsRemaining.value = snapshot.draft?.rerollsRemaining ?? 0;
     paused.value = snapshot.paused;
+    debugVisible.value = snapshot.debugVisible;
+    debugCoreHpLocked.value = snapshot.debugCoreHpLocked;
+    debugReactionOverrideCount.value = snapshot.debugReactionOverrides.length;
     lastTap.value = snapshot.lastTap;
     viewport.value = snapshot.viewport;
   }
@@ -195,6 +201,9 @@ export const useGameSessionStore = defineStore("game-session", () => {
     draftUpgradeOffers,
     rerollsRemaining,
     paused,
+    debugVisible,
+    debugCoreHpLocked,
+    debugReactionOverrideCount,
     lastTap,
     lastTapLabel,
     viewport,
@@ -206,7 +215,7 @@ export const useGameSessionStore = defineStore("game-session", () => {
 function getWaveThreatEnemyId(waveIndex: number): EnemyId | null {
   const wave = gameConfig.waves[waveIndex];
 
-  return wave?.telegraphEnemyId ?? wave?.enemyId ?? null;
+  return wave?.telegraphEnemyIds?.[0] ?? wave?.spawnGroups[0]?.enemyId ?? null;
 }
 
 function getDamageSourceLabel(sourceId: DamageSourceId): string {
