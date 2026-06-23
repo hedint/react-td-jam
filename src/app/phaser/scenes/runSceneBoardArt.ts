@@ -1,5 +1,6 @@
 import type { BoardSlot, GameSnapshot, PathCell } from "@entities/game-session/model/types";
 import type Phaser from "phaser";
+import { getCoreEntrancePathCell } from "@entities/game-session/model/boardGeometry";
 import { assetGroups } from "@shared/assets/manifest";
 
 const FALLBACK_ROAD_TILE_SIZE = 76;
@@ -9,6 +10,7 @@ const CORNER_SLOT_DISPLAY_SIZE = 62;
 const MARKER_DISPLAY_SIZE = 94;
 const EXIT_MARKER_DISPLAY_SIZE = 86;
 const ENTRANCE_MARKER_Y_OFFSET_TILES = -1 / 3;
+const ENEMY_LEAK_TARGET_INSET_TILES = 1.42;
 
 type Direction = "up" | "right" | "down" | "left";
 
@@ -192,6 +194,23 @@ export function getExitMarkerPresentation(cells: readonly PathCell[]): BoardMark
     x,
     y,
     rotation: getDirectionRotation(getDirectionBetween(previous, { ...entrance, x, y })),
+  };
+}
+
+export function getEnemyLeakTargetPresentation(cells: readonly PathCell[]): BoardMarkerPresentation | null {
+  const approach = getCoreEntrancePathCell(cells);
+
+  if (!approach) {
+    return null;
+  }
+
+  const tileSize = getRoadTileSize(cells);
+  const y = approach.y - Math.round(tileSize * ENEMY_LEAK_TARGET_INSET_TILES);
+
+  return {
+    x: approach.x,
+    y,
+    rotation: getDirectionRotation(getDirectionBetween(approach, { ...approach, y })),
   };
 }
 

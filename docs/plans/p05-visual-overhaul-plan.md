@@ -64,7 +64,7 @@ Explicitly out of scope:
 
 ## Key Product Decisions
 
-- Visual direction: top-down "chunky industrial gremlin fortress" with dark metal, rock, soot, brass/copper, magma orange, electric cyan, steam white, and strong reaction color coding.
+- Visual direction: top-down "chunky industrial goblin fortress" with dark metal, rock, soot, brass/copper, magma orange, electric cyan, steam white, and strong reaction color coding.
 - Perspective: keep current top-down gameplay coordinates; create depth through painted shadows, bevels, material texture, local glow, parallax-free layers, and sprite grounding.
 - Asset strategy: asset-heavy 2D, not pure procedural; however, procedural overlays remain mandatory for live gameplay feedback.
 - Scene model: layered 2D background under dynamic objects, not a single flat screenshot and not fully modular tilemap production.
@@ -217,7 +217,7 @@ Purpose: produce one representative live-combat in-game mockup and stop for user
     - Generated source copy: `docs/visual-overhaul/mockups/phase1-live-combat-style-target.png`.
     - Exact mobile scale check: `docs/visual-overhaul/mockups/phase1-live-combat-style-target-540x960.png`.
     - Prompt/spec and direction notes: `docs/visual-overhaul/mockups/phase1-live-combat-style-target.md`.
-  - The mockup establishes the intended 0.5 direction: top-down chunky industrial gremlin fortress, dark iron/rock base, brass and copper frames, strong magma-orange Куб focal glow, electric-cyan reaction accents, steam-white air effects, and compact iron/brass HUD and tray panels.
+  - The mockup establishes the intended 0.5 direction: top-down chunky industrial goblin fortress, dark iron/rock base, brass and copper frames, strong magma-orange Куб focal glow, electric-cyan reaction accents, steam-white air effects, and compact iron/brass HUD and tray panels.
   - Tower silhouette rules from the style target:
     - Водомёт: tank plus cannon/nozzle mass.
     - Маслонасос: dark barrel and hose/pump mass.
@@ -339,7 +339,7 @@ Purpose: deliver the main 0.5a visual jump by replacing the schematic board and 
 - [x] Render the осадная галерея path from `board.pathCells`/geometry using dynamic path segments, tile/decal sprites, or procedural mesh-like drawing; do not bake it into the background.
 - [x] Render gate/checkpoint from gameplay geometry as a separate dynamic marker/layer; do not bake it into the background.
 - [x] Render the Великий Перегонный Куб as a separate dynamic object at the configured board center; do not bake it into the background.
-- [x] Add Куб runtime states: Batch fill/level indication, glow pulse, damage overlay, and phase-sensitive intensity driven from existing snapshot data.
+- [x] Add Куб runtime states: potion brew level indication, glow pulse, damage overlay, and phase-sensitive intensity driven from existing snapshot data.
 - [x] Preserve the current logical path cell centers and slot centers.
 - [x] Replace path and slot schematic drawing with thematic ground markers that remain readable and tappable.
 - [x] Add mobile-first selection/valid-placement feedback that follows P0 placement rules; desktop hover is intentionally omitted.
@@ -823,7 +823,7 @@ Purpose: create approved source frames and validate the facing model on one crea
 - [ ] Generate or produce approved source frames for all seven P0 enemy archetypes: Грунт, Сварм, Танк, Летун, Бегун, Грязевик, Магма-выползень.
 - [ ] Generate or produce approved source frame for Бочкоед.
 - [ ] Ensure every enemy silhouette maps to its gameplay role: basic, swarm, tank, flying, runner, electric-resistant, fire-resistant.
-- [ ] Ensure Бочкоед reads as a large deep-cave batch-drinking threat and works on the existing path.
+- [ ] Ensure Бочкоед reads as a large deep-cave potion-drinking threat and works on the existing path.
 - [ ] Normalize all approved seed frames to consistent in-game scale and bottom-center anchors.
 - [ ] Build preview sheets for approved seed frames.
 - [ ] Build a facing spike with one representative creature, preferably Бегун or Грунт: source frame, minimal movement loop, in-engine playback on the real loop, and corner transitions.

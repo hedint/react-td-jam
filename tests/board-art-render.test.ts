@@ -1,9 +1,11 @@
 import {
   getBoardRoadPiecePresentation,
+  getEnemyLeakTargetPresentation,
   getEntranceMarkerPresentation,
   getExitMarkerPresentation,
 } from "@app/phaser/scenes/runSceneBoardArt";
 import { writeEnemyIntroPosition, writeEnemyPosition } from "@app/phaser/scenes/runSceneRender";
+import { getCoreEntrancePathCell } from "@entities/game-session/model/boardGeometry";
 import { gameConfig } from "@entities/game-session/model/config";
 import { createGrunt } from "@entities/game-session/model/simulation";
 import { assetGroups } from "@shared/assets/manifest";
@@ -65,6 +67,21 @@ describe("board art render helpers", () => {
       x: 186,
       y: 608,
       rotation: 0,
+    });
+  });
+
+  it("uses the next bottom path cell as the core entrance run-in", () => {
+    const coreEntrance = getCoreEntrancePathCell(gameConfig.board.pathCells);
+    const leakTarget = getEnemyLeakTargetPresentation(gameConfig.board.pathCells);
+
+    expect(coreEntrance).toMatchObject({
+      index: 17,
+      x: 190,
+      y: 659,
+    });
+    expect(leakTarget).toMatchObject({
+      x: 190,
+      y: 551,
     });
   });
 

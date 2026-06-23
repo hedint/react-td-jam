@@ -40,7 +40,7 @@ Produce static tower source frames for:
 Prompt summary:
 
 ```text
-Create a 2x2 sprite sheet of four distinct top-down static tower sprites for a chunky industrial gremlin fortress tower defense game: water cannon, oil pump, spark discharger, and magma crane. Use dark iron, rock, soot, brass/copper, magma orange, electric cyan, and steam white accents. Put exactly one isolated sprite per quadrant, centered on an invisible 256x256 cell, on a perfectly flat #00ff00 chroma-key background. No text, labels, UI frame, watermark, characters, or path tiles.
+Create a 2x2 sprite sheet of four distinct top-down static tower sprites for a chunky industrial goblin fortress tower defense game: water cannon, oil pump, spark discharger, and magma crane. Use dark iron, rock, soot, brass/copper, magma orange, electric cyan, and steam white accents. Put exactly one isolated sprite per quadrant, centered on an invisible 256x256 cell, on a perfectly flat #00ff00 chroma-key background. No text, labels, UI frame, watermark, characters, or path tiles.
 ```
 
 ## Phase 5 Layered Directional Tower Set
@@ -61,5 +61,5 @@ Create a 2x2 sprite sheet of four distinct top-down static tower sprites for a c
 Prompt summary:
 
 ```text
-Create a 4 rows x 2 columns sprite sheet for a modular tower rendering system matching the existing chunky industrial gremlin fortress PNG tower style. Rows are water cannon, oil pump, spark discharger, and magma crane. Column 1 is the stationary base layer with circular stone-and-dark-iron tower body and no directional output. Column 2 is the rotating head/output layer only, built around the same invisible center pivot and pointing exactly right. Use brass/copper details, water/oil/electric/magma accents, and a flat #00ff00 chroma-key background. No labels, UI, scenery, path tiles, shadows on the background, or diagonal/ambiguous output directions.
+Create a 4 rows x 2 columns sprite sheet for a modular tower rendering system matching the existing chunky industrial goblin fortress PNG tower style. Rows are water cannon, oil pump, spark discharger, and magma crane. Column 1 is the stationary base layer with circular stone-and-dark-iron tower body and no directional output. Column 2 is the rotating head/output layer only, built around the same invisible center pivot and pointing exactly right. Use brass/copper details, water/oil/electric/magma accents, and a flat #00ff00 chroma-key background. No labels, UI, scenery, path tiles, shadows on the background, or diagonal/ambiguous output directions.
 ```

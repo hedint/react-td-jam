@@ -2,7 +2,7 @@
 
 ## Boss
 
-Бочкоед: large deep-cave batch-drinking titan-beast.
+Бочкоед: large deep-cave potion-drinking titan-beast.
 
 ## Readability Rules
 

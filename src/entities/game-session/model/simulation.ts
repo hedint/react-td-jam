@@ -10,6 +10,7 @@ import type {
   TowerState,
   WaveRuntimeState,
 } from "./types";
+import { getEnemyLeakPathProgress } from "./boardGeometry";
 import { createBossState, stepBoss } from "./boss";
 import { gameConfig } from "./config";
 import { getCellDamageEntries } from "./damage";
@@ -110,6 +111,7 @@ export function stepRun(state: RunState, deltaMs: number, config: GameConfig = g
   const reagentProjection = projectReagents(state.board, state.placedTowers, state.upgrades, config);
   const spawned = spawnWaveEnemies(state.waveRuntime, scaledDeltaMs, config);
   const activeEnemies = [...state.enemies, ...spawned.enemies];
+  const leakPathProgress = getEnemyLeakPathProgress(state.board.pathCells);
 
   let coreHp = state.coreHp;
   let leaks = state.stats.leaks;
@@ -128,7 +130,7 @@ export function stepRun(state: RunState, deltaMs: number, config: GameConfig = g
     const speedMultiplier = getEnemySpeedMultiplier(enemyDefinition, reagentProjection[currentCellIndex], state.upgrades, config, reactions[currentCellIndex]);
     const pathProgress = enemy.pathProgress + (enemyDefinition?.speedCellsPerSecond ?? 1) * speedMultiplier * scaledDeltaMs / 1000;
 
-    if (pathProgress >= state.board.pathCells.length) {
+    if (pathProgress >= leakPathProgress) {
       coreHp = Math.max(0, coreHp - (enemyDefinition?.leakDamage ?? config.balance.leakDamage));
       leaks += 1;
       waveStats = updateWaveStats(waveStats, spawned.waveId, { leaks: 1 });

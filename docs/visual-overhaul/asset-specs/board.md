@@ -54,7 +54,7 @@ Runtime placement:
 Final generation prompt:
 
 ```text
-Create six isolated board field assets for a chunky industrial gremlin fortress tower defense game. Arrange them in a clean 3 columns x 2 rows sprite sheet, exactly one centered asset per cell, with generous padding and no overlap.
+Create six isolated board field assets for a chunky industrial goblin fortress tower defense game. Arrange them in a clean 3 columns x 2 rows sprite sheet, exactly one centered asset per cell, with generous padding and no overlap.
 Cell 1: straight road tile, raised stone-and-dark-iron monster walkway, rectangular top-down segment, beveled side curbs, brass rivets, soot wear.
 Cell 2: corner road tile, same material, 90 degree L-turn segment, raised walkway with beveled outer and inner curbs, brass rivets, soot wear.
 Cell 3: empty tower slot socket, circular brass-rimmed industrial build pad, dark iron inner plate, bolts, readable as empty and buildable.
@@ -68,7 +68,7 @@ Constraints: perfectly flat solid #00ff00 chroma-key background; no text, labels
 Square road replacement prompt:
 
 ```text
-Create exactly two isolated square path-cell road tiles for a chunky industrial gremlin fortress tower defense game, arranged side by side in a 2 columns x 1 row sprite sheet.
+Create exactly two isolated square path-cell road tiles for a chunky industrial goblin fortress tower defense game, arranged side by side in a 2 columns x 1 row sprite sheet.
 Frame 1: straight road tile. The visible road surface fills the entire square tile footprint, edge to edge, with a vertical straight monster walkway that connects seamlessly at the top and bottom edges. Square top-down tile, no inner padding. Raised dark stone and iron plates, beveled side curbs, brass rivets, soot wear.
 Frame 2: corner road tile. The visible road surface fills the entire square tile footprint, with a 90 degree L-shaped walkway connecting seamlessly to the top edge and right edge. Square top-down tile, no inner padding. Same material, raised stone and dark iron plates, beveled curbs, brass rivets, soot wear.
 Constraints: perfectly flat solid #00ff00 chroma-key background outside the tile art only; no text, labels, UI, monsters, towers, reactions, grid lines, watermark, or scenery.

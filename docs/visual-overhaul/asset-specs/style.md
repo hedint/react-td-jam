@@ -6,7 +6,7 @@ Create original top-down 2D bitmap assets for the current `540x960` portrait gam
 
 ## Direction
 
-- Chunky industrial gremlin fortress.
+- Chunky industrial goblin fortress.
 - Dark iron, soot-black rock, brass/copper, magma orange, electric cyan, steam white.
 - Top-down gameplay read; depth comes from bevels, painted shadows, grounding, local glow, and material texture.
 - Shapes must remain readable at phone scale.

@@ -76,6 +76,32 @@ export function createStadiumLoopCells(config: BoardGeometryConfig): readonly Pa
   return cells;
 }
 
+export function getCoreEntrancePathCell(cells: readonly PathCell[]): PathCell | null {
+  if (cells.length === 0) {
+    return null;
+  }
+
+  const bounds = getCellBounds(cells);
+  const centerX = (bounds.minX + bounds.maxX) / 2;
+  const bottomCells = cells.filter(cell => cell.y === bounds.maxY);
+
+  const centerApproachCell = bottomCells.reduce<PathCell | null>((best, cell) => {
+    if (!best) {
+      return cell;
+    }
+
+    return Math.abs(cell.x - centerX) < Math.abs(best.x - centerX) ? cell : best;
+  }, null);
+
+  const nextCell = centerApproachCell ? cells[centerApproachCell.index + 1] : undefined;
+
+  return nextCell?.y === bounds.maxY ? nextCell : centerApproachCell;
+}
+
+export function getEnemyLeakPathProgress(cells: readonly PathCell[]): number {
+  return (getCoreEntrancePathCell(cells)?.index ?? cells.length - 1) + 1;
+}
+
 function getLoopDimensions(config: BoardGeometryConfig): {
   readonly horizontalCellCount: number
   readonly verticalCellCount: number

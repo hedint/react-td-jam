@@ -269,7 +269,7 @@ const reserveTowerStacks = computed(() => {
     selected: session.selectedTowerId !== null && stack.ids.includes(session.selectedTowerId),
   }));
 });
-const resultTitle = computed(() => session.phase === "victory" ? "Бочкоед иссушён" : "Батч пролит");
+const resultTitle = computed(() => session.phase === "victory" ? "Бочкоед иссушён" : "Зелье пролито");
 const resultSubtitle = computed(() =>
   session.phase === "victory"
     ? "Великий Куб удержан."

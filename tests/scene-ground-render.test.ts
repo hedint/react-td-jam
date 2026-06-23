@@ -67,6 +67,15 @@ describe("path flow render helpers", () => {
     expect(chevron.rotation).toBeCloseTo(Math.atan2(next.y - cell.y, next.x - cell.x));
   });
 
+  it("orients the core entrance chevron into the central cube", () => {
+    const cells = gameConfig.board.pathCells;
+    const cell = cells[17]!;
+    const chevron = getPathChevronPresentation(cells, cell, 0);
+
+    expect(chevron).toMatchObject({ x: 190, y: 659 });
+    expect(chevron.rotation).toBeCloseTo(-Math.PI / 2);
+  });
+
   it("renders a chevron for every path cell without throwing", () => {
     const snapshot = createSnapshot(createRun());
     const { graphics, callCount } = createGraphicsStub();

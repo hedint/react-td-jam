@@ -1,7 +1,8 @@
 import type { BoardSlot, BossState, CellReactionState, EnemyState, PathCell, ReactionId, TowerState } from "@entities/game-session/model/types";
 import type Phaser from "phaser";
+import { getCoreEntrancePathCell } from "@entities/game-session/model/boardGeometry";
 import { gameConfig } from "@entities/game-session/model/config";
-import { getEntranceMarkerPresentation } from "./runSceneBoardArt";
+import { getEnemyLeakTargetPresentation, getEntranceMarkerPresentation } from "./runSceneBoardArt";
 
 export interface RenderPoint {
   x: number
@@ -9,6 +10,18 @@ export interface RenderPoint {
 }
 
 export function writeEnemyPosition(cells: readonly PathCell[], enemy: EnemyState, out: RenderPoint): RenderPoint {
+  const coreEntranceCell = getCoreEntrancePathCell(cells);
+  const leakTarget = getEnemyLeakTargetPresentation(cells);
+
+  if (coreEntranceCell && leakTarget && enemy.pathProgress >= coreEntranceCell.index) {
+    const amount = clamp(enemy.pathProgress - coreEntranceCell.index, 0, 1);
+
+    out.x = linear(coreEntranceCell.x, leakTarget.x, amount);
+    out.y = linear(coreEntranceCell.y, leakTarget.y, amount);
+
+    return out;
+  }
+
   const currentIndex = Math.floor(enemy.pathProgress) % cells.length;
   const nextIndex = (currentIndex + 1) % cells.length;
   const current = cells[currentIndex] ?? cells[0];

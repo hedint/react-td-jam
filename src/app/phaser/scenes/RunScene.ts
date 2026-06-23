@@ -20,7 +20,6 @@ import { RunSceneReactionPresenter } from "./runSceneReactionPresenter";
 import { RunSceneReagentPresenter } from "./runSceneReagentRender";
 import {
   findSlotAtPoint,
-  getActiveReactionLabel,
   getEnemyVisual,
   renderEnemyAccent,
   writeBossIntroPosition,
@@ -54,7 +53,6 @@ export class RunScene extends Phaser.Scene {
   private backdropFloor?: Phaser.GameObjects.Image;
   private coreSprite?: Phaser.GameObjects.Image;
   private coreLiquidGraphics?: Phaser.GameObjects.Graphics;
-  private reactionText?: Phaser.GameObjects.Text;
   private bossLabel?: Phaser.GameObjects.Text;
   private enemyLabels: Phaser.GameObjects.Text[] = [];
   private towerLabels: Phaser.GameObjects.Text[] = [];
@@ -95,14 +93,6 @@ export class RunScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(8);
     this.coreLiquidGraphics = this.add.graphics().setDepth(7.9);
-
-    this.reactionText = this.add.text(LOGICAL_WIDTH / 2, 692, "", {
-      align: "center",
-      color: "#b9fbff",
-      fontFamily: "Arial, sans-serif",
-      fontSize: "18px",
-      fontStyle: "700",
-    }).setOrigin(0.5).setDepth(42);
 
     this.bossLabel = this.add.text(0, 0, "", {
       align: "center",
@@ -191,11 +181,6 @@ export class RunScene extends Phaser.Scene {
     this.renderBoss(snapshot, visualMs);
     this.renderTowers(snapshot.placedTowers, snapshot.board.slots, snapshot.board.pathCells, snapshot.selectedTowerId, visualMs);
     this.renderPlacementFeedback(snapshot);
-
-    if (this.reactionText) {
-      this.reactionText.setText(getActiveReactionLabel(snapshot.activeReactions));
-      this.reactionText.setAlpha(0.82 + Math.sin(visualMs / 120) * 0.18);
-    }
   }
 
   private renderBoard(snapshot: GameSnapshot, visualMs: number): void {

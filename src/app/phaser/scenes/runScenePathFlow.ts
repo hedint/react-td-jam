@@ -1,5 +1,7 @@
 import type { GameSnapshot, PathCell } from "@entities/game-session/model/types";
 import type Phaser from "phaser";
+import { getCoreEntrancePathCell } from "@entities/game-session/model/boardGeometry";
+import { getEnemyLeakTargetPresentation } from "./runSceneBoardArt";
 import { getPathTilePresentation } from "./runScenePathTiles";
 
 const CHEVRON_COLOR = 0xF0B85B;
@@ -23,11 +25,16 @@ export function getPathChevronPresentation(
   visualMs: number,
 ): PathChevronPresentation {
   const wave = (Math.sin(visualMs / 300 - cell.index * 0.5) + 1) / 2;
+  const coreEntranceCell = getCoreEntrancePathCell(cells);
+  const leakTarget = getEnemyLeakTargetPresentation(cells);
+  const rotation = coreEntranceCell?.index === cell.index && leakTarget
+    ? Math.atan2(leakTarget.y - cell.y, leakTarget.x - cell.x)
+    : getPathTilePresentation(cells, cell).rotation;
 
   return {
     x: cell.x,
     y: cell.y,
-    rotation: getPathTilePresentation(cells, cell).rotation,
+    rotation,
     alpha: CHEVRON_BASE_ALPHA + wave * CHEVRON_PULSE_ALPHA,
   };
 }

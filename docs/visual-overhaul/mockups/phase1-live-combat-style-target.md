@@ -12,13 +12,13 @@
 Use case: ui-mockup
 Asset type: 540x960 portrait in-game visual style target for a top-down 2D browser tower defense game
 
-Primary request: Create one polished live-combat style frame for React TD: a chunky industrial gremlin fortress under siege, with the same top-down geometry as the current game. The image must read as an in-game screenshot mockup, not a poster.
+Primary request: Create one polished live-combat style frame for React TD: a chunky industrial goblin fortress under siege, with the same top-down geometry as the current game. The image must read as an in-game screenshot mockup, not a poster.
 
 Scene/backdrop: dark soot-black cavern fortress workshop, brass and copper machinery, magma orange furnace light, worn iron panels, rivets, grime, rock cracks, small debris, controlled steam.
 
 Composition/framing: exact portrait game-frame composition, 540x960 aspect ratio. Top compact HUD strip from y=80 to y=130. Central playable field from about y=145 to y=705. Lower tower tray/cards from about y=715 to y=815. Keep the center playfield clear and usable. Top-down rectangular loop path roughly bounded by left x=132, top y=304, right x=408, bottom y=664, wrapped around a central Great Distillation Cube at x=270 y=484. Do not use isometric perspective.
 
-Gameplay elements: dynamic-looking rectangular siege gallery path around the central copper Great Distillation Cube; visible gate/checkpoint marker; inner and outer tower slots aligned around the loop; four tower contraptions: water cannon/tank/nozzle, oil pump/barrel/hose, lightning coil/prongs, magma tap/crucible/valve; at least two enemy types on the path: small goblin grunt, bat/flying enemy or swarm; two or three reactions visible: electric puddle on ground with water shape and cyan arcs, steam plume above path, oil fire or storm cloud, with ground and air layers clearly separated.
+Gameplay elements: dynamic-looking rectangular siege gallery path around the central copper Great Distillation Cube; visible gate/checkpoint marker; inner and outer tower slots aligned around the loop; four tower contraptions: water cannon/tank/nozzle, oil pump/barrel/hose, lightning coil/prongs, magma tap/crucible/valve; at least two enemy types on the path: small deep-cave grunt, bat/flying enemy or swarm; two or three reactions visible: electric puddle on ground with water shape and cyan arcs, steam plume above path, oil fire or storm cloud, with ground and air layers clearly separated.
 
 UI: compact iron/brass control panels, not generic web dashboard. Top HUD shows core HP, wave/phase, enemy type/threat, speed, start/pause button as game UI shapes. Lower tray has four tower cards/items reusing tower art, dense workshop rail style, readable hierarchy, no large center overlay.
 
