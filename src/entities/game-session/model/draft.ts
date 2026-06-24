@@ -207,13 +207,13 @@ function shouldOfferUpgradeDraft(state: RunState, config: GameConfig): boolean {
 }
 
 function getGuaranteedFirstUnlockUpgradeId(state: RunState, config: GameConfig): UpgradeId | null {
-  const playerHasTakenAnyUnlock = state.upgrades.some((upgrade) => {
+  const unlocksTaken = state.upgrades.filter((upgrade) => {
     const definition = config.upgrades.find(candidate => candidate.id === upgrade.upgradeId);
 
     return definition?.effect.type === "unlockSlot" && upgrade.stacks > 0;
-  });
+  }).length;
 
-  if (playerHasTakenAnyUnlock) {
+  if (unlocksTaken >= 2) {
     return null;
   }
 

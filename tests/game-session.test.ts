@@ -2,6 +2,7 @@ import type { EmitterId, GameAction, GameConfig, ReactionDefinition, RunState } 
 import { renderPerformanceBudget } from "@app/phaser/scenes/renderPerformance";
 import { createStadiumLoopBoard, defaultBoardGeometryConfig } from "@entities/game-session/model/boardGeometry";
 import { gameConfig, validateGameConfig } from "@entities/game-session/model/config";
+import { applyUpgradeToState, createDraftState } from "@entities/game-session/model/draft";
 import { createFixedStepDriver } from "@entities/game-session/model/fixedStepDriver";
 import { runHeadlessRun, runHeadlessStrategy } from "@entities/game-session/model/headlessRun";
 import { clearSavedRun, hasSavedRun, loadSavedRun, saveRun } from "@entities/game-session/model/persistence";
@@ -1093,6 +1094,17 @@ describe("run simulation", () => {
     expect(afterTowerPick.phase).toBe("draft");
     expect(afterTowerPick.draft?.step).toBe("upgrade");
     expect(afterTowerPick.draft?.upgradeOffers).toContain("unlockSlot5");
+  });
+
+  it("guarantees a second slot unlock offer before returning unlocks to the random pool", () => {
+    const unlockSlot5 = gameConfig.upgrades.find(upgrade => upgrade.id === "unlockSlot5")!;
+    const withOneUnlock = applyUpgradeToState(createRun(15), unlockSlot5);
+    const generated = createDraftState({
+      ...withOneUnlock,
+      waveIndex: 3,
+    });
+
+    expect(generated.draft.upgradeOffers).toContain("unlockSlot9");
   });
 
   it("offers at most one corner slot unlock upgrade per draft", () => {

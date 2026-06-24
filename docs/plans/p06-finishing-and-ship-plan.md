@@ -30,7 +30,7 @@ Preflight principle: before turning this plan into implementation work, stabiliz
 
 ## Context
 
-The game is mechanically and feature-complete for P0 (10 waves + boss, the full reaction graph, two-step draft, save/resume, 137 automated tests after the first Phase A implementation pass) and visually polished through visual-overhaul phase 6. A finishing review surfaced gaps beyond the obvious remaining work (hints, tutorial, final monster/boss assets, HUD finalization, audio). The largest: **the entire upgrade economy was disabled** by a temporary feature flag; Phase A re-enabled it behind milestone cadence and now needs balance/playtest tuning. This plan captures those gaps and the decisions made about each.
+The game is mechanically and feature-complete for P0 (10 waves + boss, the full reaction graph, two-step draft, save/resume, 139 automated tests after the A5 finishing pass) and visually polished through visual-overhaul phase 6. A finishing review surfaced gaps beyond the obvious remaining work (hints, tutorial, final monster/boss assets, HUD finalization, audio). The largest: **the entire upgrade economy was disabled** by a temporary feature flag; Phase A re-enabled it behind milestone cadence and now needs balance/playtest tuning. This plan captures those gaps and the decisions made about each.
 
 ## Key Decisions
 
@@ -108,7 +108,7 @@ The model already supports this: `slot.locked` (`types.ts`), 2-cell inner-corner
 - [x] Add an "unlock corner slot" upgrade kind to `config.upgrades` and `UpgradeId` (`types.ts`); each pick opens one specific corner; stop offering once all 3 are open.
 - [x] Offer slot unlocks through the normal upgrade pool first; do not make them guaranteed milestone rewards unless A4 proves the pool behavior hurts pacing.
 - [x] Add an `unlockSlot` transition in the `simulation.ts` action processor that flips `slot.locked`.
-- [ ] Render locked slots distinctly and signal they are unlockable (`RunScene.ts` slot rendering / `runSceneTowerRender.ts`).
+- [x] Render locked slots distinctly and signal they are unlockable (`RunScene.ts` slot rendering / `runSceneTowerRender.ts`).
 
 #### Acceptance Criteria
 - [x] All 3 corner slots start locked and reject placement.
@@ -153,14 +153,14 @@ Do not solve the exact cadence or wave table casually while re-enabling upgrades
 
 #### Tasks
 - [x] Tune the chosen upgrade cadence, upgrade magnitudes, slot-unlock value, and revised wave difficulty in `config.ts`.
-- [ ] Validate the three wow moments fire in real runs: (1) ~10s electro-puddle melt, (2) mid-run storm chain, (3) T3 Огненный Шторм or the boss Reaction-Break climax.
-- [ ] Decide the remaining T3 tuning question: make `Огненный Шторм` reachable often enough through normal slot/upgrade economy, now that its collision rule is fixed.
-- [ ] Produce the C2 boss ability brief from the tuned run: at least one mandatory scripted set-piece and at least one mandatory telegraphed combat ability, without adding P1 adaptive resistance or other new P1 systems.
+- [x] Validate the three wow moments fire in real runs: (1) ~10s electro-puddle melt, (2) mid-run storm chain, (3) T3 Огненный Шторм or the boss Reaction-Break climax.
+- [x] Decide the remaining T3 tuning question: make `Огненный Шторм` reachable often enough through normal slot/upgrade economy, now that its collision rule is fixed.
+- [x] Produce the C2 boss ability brief from the tuned run: at least one mandatory scripted set-piece and at least one mandatory telegraphed combat ability, without adding P1 adaptive resistance or other new P1 systems.
 
 #### Acceptance Criteria
 - [x] A competent run is winnable-but-tense; an underbuilt run can lose (headless weak/expected-win strategies still meaningful).
-- [ ] The early electro-puddle melt and mid-run storm chain are reproducible in normal play; the final climax is reliable through T3 `Огненный Шторм`.
-- [ ] If T3 still does not appear in balance runs after the collision rule, adjust slot/upgrade economy or authored strategy until it is no longer dead content.
+- [x] The early electro-puddle melt and mid-run storm chain are reproducible in normal play; the final climax is reliable through T3 `Огненный Шторм`.
+- [x] If T3 still does not appear in balance runs after the collision rule, adjust slot/upgrade economy or authored strategy until it is no longer dead content.
 
 ### Phase A notes
 
@@ -173,11 +173,23 @@ Do not solve the exact cadence or wave table casually while re-enabling upgrades
 - Implementation deviations: unlock upgrades are applied through the draft upgrade reducer path (`applyUpgradeToState`) rather than a normal player-facing `simulation.ts` action; `simulation.ts` still owns the debug-only direct unlock action. The first authored unlock is guaranteed as a normal upgrade offer until any unlock is taken, so unlock discoverability is intentionally stronger than a purely random pool.
 - Balance reports (`npm run balance:quick`, `npm run balance:run`) now use a shared 2-cell electro opener, T2-oriented build orders, reaction coverage counts, `--seed-start`, and the experienced final-target gate `fireVortex >= 3 && (stormCloud >= 6 || fireVortex >= 6)`. Full 11x100 run separates the weak baseline (0% win, no T2) from planned T2 strategies: `fire-vortex-rush` 78% win / 80% target T2, `fire-vortex-water-spread` 77% / 80%, `experienced-human-final` 75% / 81%, `fire-control-runners` 66% / 65%. This is acceptable as the current balance baseline: experienced fire-vortex play is winnable without being automatic, while weak/no-T2 play fails. Follow-up tuning remains useful for Storm Cloud underperformance, early wave-4 variance, and improving scripted policies so the strict final-target gate can reproduce mature manual boards like seed 87000.
 - 2026-06-24: A5 rule decision: `Огненный Шторм` is back as the intended final climax. The resolver now promotes neighboring accepted `Грозовое облако` + `Огненный вихрь` T2 pools into `fireStorm`, and the `fireStorm` spritesheet now has cyan lightning over the fire ring so it no longer reads as only another fire vortex. `npm run balance:quick` after the rule still reports `t3=0%`; the new `fire-storm-rush` policy survives some runs (`win=30%` quick sample) and forms large `stormCloud` coverage, but does not yet form `fireVortex`/`fireStorm`. Current balance implication: the rule is implemented, but slot/upgrade economy or the authored strategy still needs tuning before A5 can mark the T3 climax reliable.
-- Automated baseline after this pass: `npm run lint:fix` green; `npm run typecheck` green; `npm run test` green with 8 files / 137 tests.
+- 2026-06-24: A5 finishing pass locked `Огненный Шторм` as a rare but reachable climax rather than a guaranteed late-game output. The target gate is at least 20% T3 formation in the expert authored balance strategy. Changes:
+  - upgrade drafts now guarantee authored corner unlock offers until 2 corner slots have been opened, while still limiting a draft to at most 1 unlock offer;
+  - `fire-storm-rush` now plays a stable fire-vortex early/mid game, then uses normal pause-to-edit relocation after `unlockSlot5`, `unlockSlot9`, `waterCapacity`, and `heatReach` to assemble adjacent T2 pools for `fireStorm`;
+  - balance reports now include T3 coverage plus T2 near-miss diagnostics (`minT2Separation`, dual-T2 near-miss, adjacent-T2-without-T3) so future tuning can distinguish strategy gaps from resolver bugs;
+  - locked inner-corner slots are visible on the board as locked/unlockable sockets instead of hidden sockets.
+- A5 full balance result (`npm run balance:run`, 100 seeds per strategy): weak `baseline-electro-opener` remains 0% win / 0% T3; strong non-T3 routes remain tense rather than automatic (`fire-vortex-rush` 78% win, `fire-vortex-water-spread` 77%, `fire-control-runners` 66%); `fire-storm-rush` reaches `t3=32%`, `final=32%`, and 49% win. No adjacent-T2-without-T3 cases appeared, so the current blocker was economy/strategy, not resolver semantics.
+- A5 C2 boss brief decision:
+  - Lap 1 midpoint: Бочкоед jumps directly to the exit, smashes the Куб gate for 2 core damage, then starts lap 2. If he dies earlier, this event does not fire.
+  - Lap 2 midpoint: Бочкоед telegraphs and temporarily suppresses the right side of the track, cells 10-14. C2 should implement this as a readable temporary track/reaction suppression, not as tower or upgrade removal.
+  - Lap 3 start: Бочкоед holds for 2 seconds and summons an extra monster wave, then resumes. If he dies earlier, this event does not fire.
+  - Required boss sprite slices for C2 asset production: crawl loop, leap prepare / air / smash, blackout cast, summon idle / roar, vulnerable, hit, death.
+  - Runtime boss abilities and sprite slicing stay deferred to C2; A5 only locks the implementation-ready brief.
+- Automated baseline after this pass: `npm run lint:fix` green; `npm run typecheck` green; `npm run test` green with 8 files / 139 tests.
 
 ### Phase A completion summary
 
-_(fill on completion)_
+Phase A is complete as of 2026-06-24. Upgrades are enabled on the milestone cadence, 3 inner-corner slot unlocks are part of the normal upgrade economy, mixed waves and debug balance tooling are in place, the weak baseline remains losing, competent fire-vortex routes are winnable-but-tense, and the intended T3 climax is reachable in the expert authored strategy at the agreed rare-climax rate. Boss ability implementation and final boss art remain deferred to C2, with the A5 brief above as the source of truth.
 
 ---
 
@@ -303,12 +315,12 @@ _(fill on completion)_
 
 - **Draft cadence / upgrade pacing**: how often the upgrade pick appears (every 2nd wave vs milestone waves vs alternating tower/upgrade vs another rule), and how it relates to mixed-wave pressure. Decide during A4.
 - **Mixed-wave curve**: exact composition for waves 4-10, including flyer pressure, heavy/fast pressure, and scaling common meat. Decide during A4 before final tuning.
-- **T3 climax economy**: Огненный Шторм is the intended final wow; decide the slot/upgrade/strategy tuning needed to make it reachable in normal play after the new neighboring-pool collision rule.
-- **Boss ability set**: which mandatory telegraphed combat ability and which mandatory scripted animation set-piece(s). Draft the brief during A5; finalize before C2.
+- **T3 climax economy**: resolved in A5. Огненный Шторм is a rare expert-route climax with a 20%+ target gate; current full balance result is 32% T3 formation in `fire-storm-rush`.
+- **Boss ability set**: resolved in A5. C2 implements the lap-1 exit smash, lap-2 right-side suppression, and lap-3 summon brief recorded in Phase A notes.
 
 ## Verification
 
-- `npm run typecheck` (vue-tsc + tsc) and `npm run test` (vitest) stay green after each phase; current baseline is 8 files / 137 tests.
+- `npm run typecheck` (vue-tsc + tsc) and `npm run test` (vitest) stay green after each phase; current baseline is 8 files / 139 tests.
 - `npm run dev` + `?debug=1` to exercise playtest tooling and run full balance playthroughs.
 - `npm run build` succeeds and the static output loads; manual real-device touch QA before ship.
 

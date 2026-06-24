@@ -74,15 +74,14 @@ export class RunSceneBoardArtPresenter {
     slots.forEach((slot, index) => {
       const sprite = this.slotSprites[index];
       const size = slot.isCorner ? CORNER_SLOT_DISPLAY_SIZE : SLOT_DISPLAY_SIZE;
-      const isHiddenLockedSlot = slot.locked && slot.lane === "inner" && slot.isCorner;
 
       sprite
-        ?.setVisible(!isHiddenLockedSlot)
+        ?.setVisible(true)
         .setTexture(slot.isCorner ? assetGroups.board.slotSocketCorner.key : assetGroups.board.slotSocket.key)
         .setPosition(slot.x, slot.y)
         .setDisplaySize(size, size)
         .setRotation(slot.isCorner ? Math.PI / 4 : 0)
-        .setAlpha(slot.locked ? 0.42 : 0.92)
+        .setAlpha(slot.locked ? 0.25 : 0.92)
         .setDepth(3 + slot.y / 10000);
     });
 

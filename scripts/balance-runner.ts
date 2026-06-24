@@ -10,6 +10,7 @@ interface BalancePolicy {
   readonly description: string
   readonly targetReactions: readonly ReactionId[]
   readonly placementPlan: Partial<Record<EmitterId, readonly string[]>>
+  readonly relocationPlan?: Partial<Record<EmitterId, readonly string[]>>
   readonly towerBuildOrder: readonly EmitterId[]
   readonly towerFallbackPriority: readonly EmitterId[]
   readonly upgradeBuildOrder: readonly UpgradeId[]
@@ -33,9 +34,12 @@ interface BalanceRunSummary {
   readonly firstT2Wave: number | null
   readonly firstFinalTargetWave: number | null
   readonly firstT3Wave: number | null
+  readonly firstDualT2NearMissWave: number | null
   readonly maxFireVortexCells: number
   readonly maxStormCloudCells: number
   readonly maxFireStormCells: number
+  readonly minT2Separation: number | null
+  readonly adjacentT2WithoutFireStorm: boolean
   readonly anyT2Formed: boolean
   readonly targetT2Formed: boolean
   readonly finalTargetFormed: boolean
@@ -64,6 +68,9 @@ interface StrategyAggregate {
   readonly fireVortexCells: PercentileSummary
   readonly stormCloudCells: PercentileSummary
   readonly fireStormCells: PercentileSummary
+  readonly dualT2NearMissRate: number
+  readonly minT2Separation: PercentileSummary | null
+  readonly adjacentT2WithoutFireStormRate: number
   readonly t3Rate: number
   readonly firstT3Wave: PercentileSummary | null
   readonly firstSlotUnlockWave: PercentileSummary | null
@@ -260,18 +267,24 @@ const policies: readonly BalancePolicy[] = [
   },
   {
     id: "fire-storm-rush",
-    description: "Keeps the stable electro opener, then attempts the explicit Fire Storm route through corner unlock and stretched water/heat coverage.",
+    description: "Explicit rare-T3 line: opens a second corner slot, builds adjacent Storm Cloud and Fire Vortex pools, then converts them into Fire Storm.",
     targetReactions: ["fireStorm"],
     placementPlan: withCommonPlacement({
-      water: ["slot-11-inner", "slot-6-outer", "slot-4-outer"],
-      heat: ["slot-5-inner", "slot-3-inner", "slot-2-inner", "slot-10-outer"],
-      oil: ["slot-3-outer", "slot-12-inner"],
-      spark: ["slot-7-inner", "slot-17-outer", "slot-9-outer"],
+      water: ["slot-11-outer", "slot-10-outer", "slot-12-outer", "slot-13-outer"],
+      spark: ["slot-7-inner", "slot-11-inner"],
+      heat: ["slot-3-inner", "slot-11-inner", "slot-12-inner", "slot-16-inner"],
+      oil: ["slot-10-outer", "slot-12-outer", "slot-13-outer", "slot-8-outer"],
     }),
-    towerBuildOrder: ["water", "water", "spark", "heat", "oil", "heat", "water", "heat", "water", "spark", "heat", "spark"],
-    towerFallbackPriority: ["heat", "water", "spark", "oil"],
-    upgradeBuildOrder: ["waterCapacity", "heatReach", "unlockSlot5", "waterCapacity", "heatReach"],
-    upgradeFallbackPriority: ["waterCapacity", "heatReach", "unlockSlot5", "sparkCapacity", "oilControl", "fireCatalyst"],
+    relocationPlan: {
+      water: ["slot-1-outer", "slot-2-outer", "slot-4-outer", "slot-15-outer", "slot-11-inner"],
+      spark: ["slot-2-inner", "slot-16-outer"],
+      heat: ["slot-5-outer", "slot-3-inner", "slot-5-inner"],
+      oil: ["slot-8-outer", "slot-6-outer"],
+    },
+    towerBuildOrder: ["water", "water", "spark", "heat", "oil", "heat", "water", "oil", "heat"],
+    towerFallbackPriority: ["heat", "oil", "water", "spark"],
+    upgradeBuildOrder: ["waterCapacity", "heatReach", "unlockSlot5", "unlockSlot9"],
+    upgradeFallbackPriority: ["waterCapacity", "heatReach", "unlockSlot5", "unlockSlot9", "sparkCapacity", "oilControl", "fireCatalyst"],
   },
 ];
 
@@ -312,9 +325,12 @@ function runPolicy(policy: BalancePolicy, seed: number): BalanceRunSummary {
   let firstT2Wave: number | null = null;
   let firstFinalTargetWave: number | null = null;
   let firstT3Wave: number | null = null;
+  let firstDualT2NearMissWave: number | null = null;
   let maxFireVortexCells = 0;
   let maxStormCloudCells = 0;
   let maxFireStormCells = 0;
+  let minT2Separation: number | null = null;
+  let adjacentT2WithoutFireStorm = false;
   let t3Formed = false;
   const formedReactions = new Set<ReactionId>();
   const upgradePicks: UpgradeId[] = [];
@@ -347,13 +363,26 @@ function runPolicy(policy: BalancePolicy, seed: number): BalanceRunSummary {
     }
 
     const snapshot = createSnapshot(state);
-    const fireVortexCells = countReactionCells(snapshot.activeReactions, "fireVortex");
-    const stormCloudCells = countReactionCells(snapshot.activeReactions, "stormCloud");
-    const fireStormCells = countReactionCells(snapshot.activeReactions, "fireStorm");
+    const fireVortexCellIndexes = getReactionCellIndexes(snapshot.activeReactions, "fireVortex");
+    const stormCloudCellIndexes = getReactionCellIndexes(snapshot.activeReactions, "stormCloud");
+    const fireStormCellIndexes = getReactionCellIndexes(snapshot.activeReactions, "fireStorm");
+    const fireVortexCells = fireVortexCellIndexes.length;
+    const stormCloudCells = stormCloudCellIndexes.length;
+    const fireStormCells = fireStormCellIndexes.length;
+    const t2Separation = getMinCircularSeparation(gameConfig.balance.pathCellCount, fireVortexCellIndexes, stormCloudCellIndexes);
 
     maxFireVortexCells = Math.max(maxFireVortexCells, fireVortexCells);
     maxStormCloudCells = Math.max(maxStormCloudCells, stormCloudCells);
     maxFireStormCells = Math.max(maxFireStormCells, fireStormCells);
+    if (t2Separation !== null) {
+      minT2Separation = minT2Separation === null ? t2Separation : Math.min(minT2Separation, t2Separation);
+      if (t2Separation <= 2 && fireStormCells === 0) {
+        firstDualT2NearMissWave ??= state.waveIndex + 1;
+      }
+      if (t2Separation === 1 && fireStormCells === 0) {
+        adjacentT2WithoutFireStorm = true;
+      }
+    }
     if (firstFinalTargetWave === null && isFinalTargetCoverage(fireVortexCells, stormCloudCells, fireStormCells)) {
       firstFinalTargetWave = state.waveIndex + 1;
     }
@@ -399,9 +428,12 @@ function runPolicy(policy: BalancePolicy, seed: number): BalanceRunSummary {
     firstT2Wave,
     firstFinalTargetWave,
     firstT3Wave,
+    firstDualT2NearMissWave,
     maxFireVortexCells,
     maxStormCloudCells,
     maxFireStormCells,
+    minT2Separation,
+    adjacentT2WithoutFireStorm,
     anyT2Formed: [...formedReactions].some(reactionId => t2ReactionIds.has(reactionId)),
     targetT2Formed: policy.targetReactions.some(reactionId => formedReactions.has(reactionId)),
     finalTargetFormed: firstFinalTargetWave !== null,
@@ -434,7 +466,55 @@ function getPlacementActions(state: RunState, policy: BalancePolicy): readonly G
     );
   });
 
-  return actions;
+  return actions.length > 0 ? actions : getRelocationActions(state, policy);
+}
+
+function getRelocationActions(state: RunState, policy: BalancePolicy): readonly GameAction[] {
+  if (!policy.relocationPlan || !canUseRelocationPlan(state, policy.relocationPlan)) {
+    return [];
+  }
+
+  for (const emitterId of Object.keys(policy.relocationPlan) as EmitterId[]) {
+    const targetSlotIds = policy.relocationPlan[emitterId] ?? [];
+
+    for (const targetSlotId of targetSlotIds) {
+      const occupant = state.placedTowers.find(tower => tower.slotId === targetSlotId);
+
+      if (occupant?.emitterId === emitterId) {
+        continue;
+      }
+
+      const candidate = state.placedTowers.find(tower =>
+        tower.emitterId === emitterId
+        && !targetSlotIds.includes(tower.slotId ?? ""));
+
+      if (!candidate) {
+        continue;
+      }
+
+      return [
+        ...(state.paused ? [] : [{ type: "pause" } satisfies GameAction]),
+        { type: "selectTower", towerId: candidate.id },
+        { type: "placeSelectedTower", slotId: targetSlotId },
+        ...(state.paused ? [] : [{ type: "resume" } satisfies GameAction]),
+      ];
+    }
+  }
+
+  return [];
+}
+
+function canUseRelocationPlan(
+  state: RunState,
+  relocationPlan: Partial<Record<EmitterId, readonly string[]>>,
+): boolean {
+  const requiredUpgradeIds: readonly UpgradeId[] = ["unlockSlot5", "unlockSlot9", "waterCapacity", "heatReach"];
+  const takenUpgradeIds = new Set(state.upgrades.filter(upgrade => upgrade.stacks > 0).map(upgrade => upgrade.upgradeId));
+  const targetSlotIds = Object.values(relocationPlan).flat();
+
+  return requiredUpgradeIds.every(upgradeId => takenUpgradeIds.has(upgradeId))
+    && state.bench.length === 0
+    && targetSlotIds.every(slotId => state.board.slots.some(slot => slot.id === slotId && !slot.locked));
 }
 
 function getDraftActions(state: RunState, policy: BalancePolicy): readonly GameAction[] {
@@ -539,11 +619,30 @@ function unique<T>(items: readonly T[]): readonly T[] {
   return [...new Set(items)];
 }
 
-function countReactionCells(
+function getReactionCellIndexes(
   reactions: ReturnType<typeof createSnapshot>["activeReactions"],
   reactionId: ReactionId,
-): number {
-  return reactions.filter(reaction => reaction.ground === reactionId || reaction.air === reactionId).length;
+): readonly number[] {
+  return reactions
+    .filter(reaction => reaction.ground === reactionId || reaction.air === reactionId)
+    .map(reaction => reaction.cellIndex);
+}
+
+function getMinCircularSeparation(
+  pathCellCount: number,
+  leftCellIndexes: readonly number[],
+  rightCellIndexes: readonly number[],
+): number | null {
+  if (leftCellIndexes.length === 0 || rightCellIndexes.length === 0) {
+    return null;
+  }
+
+  return Math.min(...leftCellIndexes.flatMap(leftCellIndex =>
+    rightCellIndexes.map((rightCellIndex) => {
+      const direct = Math.abs(leftCellIndex - rightCellIndex);
+
+      return Math.min(direct, pathCellCount - direct);
+    })));
 }
 
 function isFinalTargetCoverage(fireVortexCells: number, stormCloudCells: number, fireStormCells: number): boolean {
@@ -555,6 +654,8 @@ function aggregatePolicy(policy: BalancePolicy, runs: readonly BalanceRunSummary
   const t2Waves = runs.map(run => run.firstT2Wave).filter(wave => wave !== null);
   const finalTargetWaves = runs.map(run => run.firstFinalTargetWave).filter(wave => wave !== null);
   const t3Waves = runs.map(run => run.firstT3Wave).filter(wave => wave !== null);
+  const dualT2NearMissWaves = runs.map(run => run.firstDualT2NearMissWave).filter(wave => wave !== null);
+  const minT2Separations = runs.map(run => run.minT2Separation).filter(separation => separation !== null);
 
   return {
     strategyId: policy.id,
@@ -575,6 +676,9 @@ function aggregatePolicy(policy: BalancePolicy, runs: readonly BalanceRunSummary
     fireVortexCells: percentiles(runs.map(run => run.maxFireVortexCells)),
     stormCloudCells: percentiles(runs.map(run => run.maxStormCloudCells)),
     fireStormCells: percentiles(runs.map(run => run.maxFireStormCells)),
+    dualT2NearMissRate: dualT2NearMissWaves.length / runs.length,
+    minT2Separation: minT2Separations.length > 0 ? percentiles(minT2Separations) : null,
+    adjacentT2WithoutFireStormRate: runs.filter(run => run.adjacentT2WithoutFireStorm).length / runs.length,
     t3Rate: runs.filter(run => run.t3Formed).length / runs.length,
     firstT3Wave: t3Waves.length > 0 ? percentiles(t3Waves) : null,
     firstSlotUnlockWave: unlockWaves.length > 0 ? percentiles(unlockWaves) : null,
@@ -597,6 +701,9 @@ function renderMarkdownReport(aggregates: readonly StrategyAggregate[]): string 
     percentileLabel(aggregate.fireVortexCells),
     percentileLabel(aggregate.stormCloudCells),
     percentileLabel(aggregate.fireStormCells),
+    percent(aggregate.dualT2NearMissRate),
+    aggregate.minT2Separation ? percentileLabel(aggregate.minT2Separation) : "n/a",
+    percent(aggregate.adjacentT2WithoutFireStormRate),
     percent(aggregate.finalTargetRate),
     aggregate.firstFinalTargetWave ? percentileLabel(aggregate.firstFinalTargetWave) : "n/a",
     percent(aggregate.t3Rate),
@@ -611,8 +718,8 @@ function renderMarkdownReport(aggregates: readonly StrategyAggregate[]): string 
     `Seed range: ${seedStart}-${seedStart + seedCount - 1}`,
     `Seeds per strategy: ${seedCount}`,
     "",
-    "| Strategy | Target | Win | Core HP p10/med/p90 | Leaks p10/med/p90 | Duration p10/med/p90 | Waves p10/med/p90 | Breaks p10/med/p90 | Any T2 | Target T2 | First T2 p10/med/p90 | Fire Vortex cells p10/med/p90 | Storm cells p10/med/p90 | Fire Storm cells p10/med/p90 | Final target | First final p10/med/p90 | T3 | First T3 p10/med/p90 | First unlock p10/med/p90 |",
-    "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    "| Strategy | Target | Win | Core HP p10/med/p90 | Leaks p10/med/p90 | Duration p10/med/p90 | Waves p10/med/p90 | Breaks p10/med/p90 | Any T2 | Target T2 | First T2 p10/med/p90 | Fire Vortex cells p10/med/p90 | Storm cells p10/med/p90 | Fire Storm cells p10/med/p90 | Dual T2 near-miss | Min T2 gap p10/med/p90 | Adjacent T2 no T3 | Final target | First final p10/med/p90 | T3 | First T3 p10/med/p90 | First unlock p10/med/p90 |",
+    "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ...rows.map(row => `| ${row.join(" | ")} |`),
     "",
     "## Strategy Notes",
@@ -624,7 +731,7 @@ function renderMarkdownReport(aggregates: readonly StrategyAggregate[]): string 
 
 function renderConsoleSummary(aggregates: readonly StrategyAggregate[]): string {
   return aggregates
-    .map(aggregate => `${aggregate.strategyId}: win=${percent(aggregate.winRate)}, targetT2=${percent(aggregate.targetT2Rate)}, final=${percent(aggregate.finalTargetRate)}, fv=${percentileLabel(aggregate.fireVortexCells)}, storm=${percentileLabel(aggregate.stormCloudCells)}, fs=${percentileLabel(aggregate.fireStormCells)}, core=${percentileLabel(aggregate.coreHp)}, leaks=${percentileLabel(aggregate.leaks)}, t3=${percent(aggregate.t3Rate)}`)
+    .map(aggregate => `${aggregate.strategyId}: win=${percent(aggregate.winRate)}, targetT2=${percent(aggregate.targetT2Rate)}, final=${percent(aggregate.finalTargetRate)}, fv=${percentileLabel(aggregate.fireVortexCells)}, storm=${percentileLabel(aggregate.stormCloudCells)}, fs=${percentileLabel(aggregate.fireStormCells)}, gap=${aggregate.minT2Separation ? percentileLabel(aggregate.minT2Separation) : "n/a"}, near=${percent(aggregate.dualT2NearMissRate)}, adjacentNoT3=${percent(aggregate.adjacentT2WithoutFireStormRate)}, core=${percentileLabel(aggregate.coreHp)}, leaks=${percentileLabel(aggregate.leaks)}, t3=${percent(aggregate.t3Rate)}`)
     .join("\n");
 }
 

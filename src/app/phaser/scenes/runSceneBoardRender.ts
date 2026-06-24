@@ -31,14 +31,7 @@ export function renderBoardSlots(
     });
     const isEmptyValidTarget = feedback === "valid" && !isOccupied;
 
-    const slotRadius = slot.isCorner ? 26 : 22;
-    const shouldDrawLockedOverlay = slot.locked && !slot.isCorner;
-    const shouldDrawStateRing = isSelectedSlot || isOccupied || isEmptyValidTarget || shouldDrawLockedOverlay;
-
-    if (shouldDrawLockedOverlay) {
-      graphics.fillStyle(0x070809, 0.46);
-      graphics.fillCircle(slot.x, slot.y, slotRadius);
-    }
+    const shouldDrawStateRing = isSelectedSlot || isOccupied || isEmptyValidTarget;
 
     if (!shouldDrawStateRing) {
       return;
@@ -53,7 +46,7 @@ export function renderBoardSlots(
       getSlotRingColor(feedback, isOccupied),
       getSlotRingAlpha(feedback, isOccupied, isSelectedSlot),
     );
-    graphics.strokeCircle(slot.x, slot.y, slotRadius);
+    graphics.strokeCircle(slot.x, slot.y, slot.isCorner ? 26 : 22);
 
     if (isOccupied) {
       graphics.fillStyle(0xC8A76A, 0.18);
