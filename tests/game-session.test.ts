@@ -526,7 +526,7 @@ describe("run simulation", () => {
     ]);
   });
 
-  it("resolves the P0 T1/T2 graph and keeps T3 dormant until compatible anchors exist", () => {
+  it("resolves the P0 T1/T2 graph without requiring T3 setup", () => {
     const t1 = createRun(1, {
       placedTowers: [
         createTower("tower-water-a", "water", "slot-1-outer"),
@@ -569,6 +569,35 @@ describe("run simulation", () => {
     expect(stormCloud.reactions.some(reaction => reaction.air === "stormCloud")).toBe(true);
     expect(fireVortex.reactions.some(reaction => reaction.air === "fireVortex")).toBe(true);
     expect(fireStorm.reactions.some(reaction => reaction.air === "fireStorm")).toBe(false);
+  });
+
+  it("turns adjacent storm cloud and fire vortex pools into fire storm", () => {
+    const base = createRun(1, {
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-1-outer"),
+        createTower("tower-heat-a", "heat", "slot-1-outer"),
+        createTower("tower-water-b", "water", "slot-3-outer"),
+        createTower("tower-heat-b", "heat", "slot-3-outer"),
+        createTower("tower-water-c", "water", "slot-4-outer"),
+        createTower("tower-heat-c", "heat", "slot-4-outer"),
+        createTower("tower-oil-a", "oil", "slot-1-outer"),
+        createTower("tower-heat-d", "heat", "slot-1-outer"),
+        createTower("tower-spark-a", "spark", "slot-4-outer"),
+      ],
+    });
+    const upgrades = [
+      { upgradeId: "waterCapacity" as const, stacks: 2 },
+      { upgradeId: "heatReach" as const, stacks: 2 },
+    ];
+    const fireStormState = {
+      ...base,
+      upgrades,
+      reactions: resolveReactions(base.board, base.placedTowers, upgrades),
+    };
+
+    expect(fireStormState.reactions.filter(reaction => reaction.air === "fireStorm").map(reaction => reaction.cellIndex)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(fireStormState.reactions.some(reaction => reaction.air === "fireVortex")).toBe(false);
+    expect(fireStormState.reactions.some(reaction => reaction.air === "stormCloud")).toBe(false);
   });
 
   it("resolves reactions independently from placed tower iteration order", () => {

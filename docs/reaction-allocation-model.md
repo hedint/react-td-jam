@@ -53,6 +53,7 @@
 ## Якорь реакции
 
 Реакция может начаться только на клетке, где одновременно доступны все обязательные input-ы рецепта.
+Исключение: `fireStorm` возникает не из совпадения input-ов на одной клетке, а на границе столкновения уже собранных T2-пулов `stormCloud` и `fireVortex`.
 
 Пример для огненного вихря:
 
@@ -83,7 +84,7 @@ cell 3: fireVortex
 - `fire`: `oil + heat`, захватывает клетки нефти.
 - `stormCloud`: `steam + spark`, захватывает клетки пара.
 - `fireVortex`: `fire + steam`, захватывает клетки пара.
-- `fireStorm`: `stormCloud + fireVortex`, пока использует то же правило якоря и захвата, детали можно уточнить после плейтеста.
+- `fireStorm`: `stormCloud + fireVortex`, если клетка `fireVortex` соседствует с клеткой `stormCloud`; все клетки участвующего пула `fireVortex` и все клетки участвующего пула `stormCloud` становятся `fireStorm`.
 
 Все input-токены, которые реально использованы, потребляются. Потребленная нижняя реакция исчезает, не отображается и не наносит урон.
 
@@ -100,6 +101,24 @@ cell 3: steam
 - `fire` на `cell 1` потреблен и пропадает;
 - `steam` на `cell 1..3` потреблен;
 - `fireVortex` виден на `cell 1..3`.
+
+Пример для `fireStorm`:
+
+```text
+cell 1: fireVortex
+cell 2: fireVortex
+cell 3: fireVortex
+cell 4: stormCloud
+```
+
+`cell 3` и `cell 4` соседствуют, поэтому весь пул `fireVortex` на `cell 1..3` и весь пул `stormCloud` на `cell 4` превращаются в:
+
+```text
+cell 1: fireStorm
+cell 2: fireStorm
+cell 3: fireStorm
+cell 4: fireStorm
+```
 
 ## Приоритет
 

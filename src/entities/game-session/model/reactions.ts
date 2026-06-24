@@ -207,22 +207,29 @@ function resolveReactionModel(
   const tierOneCandidates = createTierOneCandidatesForConfig(board, emitterTokens, upgrades, config);
   const tierOneReactionTokens = createReactionTokens(tierOneCandidates);
   const tierTwoCandidates = createHigherTierCandidatesForConfig(board, tierOneReactionTokens, emitterTokens, 2, config);
-  const tierTwoReactionTokens = createReactionTokens(tierTwoCandidates);
-  const tierThreeCandidates = createHigherTierCandidatesForConfig(board, tierTwoReactionTokens, emitterTokens, 3, config);
-  const allCandidates = [
+  const lowerTierCandidates = [
     ...tierOneCandidates,
     ...tierTwoCandidates,
-    ...tierThreeCandidates,
   ];
-  const accepted = acceptCandidates(allCandidates, [
+  const lowerTierAccepted = acceptCandidates(lowerTierCandidates, [
     ...emitterTokens,
     ...tierOneReactionTokens,
-    ...tierTwoReactionTokens,
   ]);
+  const fireStormAccepted = acceptFireStormCollisionCandidates(
+    createFireStormCollisionCandidates(board, lowerTierAccepted.acceptedCandidates, config),
+  );
+  const consumedReactionTokenIds = new Set([
+    ...lowerTierAccepted.consumedReactionTokenIds,
+    ...fireStormAccepted.consumedReactionTokenIds,
+  ]);
+  const acceptedCandidates = [
+    ...lowerTierAccepted.acceptedCandidates,
+    ...fireStormAccepted.acceptedCandidates,
+  ];
 
   const model = {
-    projection: createProjection(board, emitterTokens, accepted.acceptedCandidates),
-    reactions: createReactionState(board, accepted.acceptedCandidates, accepted.consumedReactionTokenIds),
+    projection: createProjection(board, emitterTokens, acceptedCandidates),
+    reactions: createReactionState(board, acceptedCandidates, consumedReactionTokenIds),
   };
 
   lastReactionModelCache = {
@@ -603,6 +610,99 @@ function createReactionCatalyzedCandidates(
         });
     });
   });
+}
+
+function createFireStormCollisionCandidates(
+  board: BoardState,
+  acceptedCandidates: readonly AllocationCandidate[],
+  config: GameConfig,
+): readonly AllocationCandidate[] {
+  const definitionEntry = config.reactions
+    .map((definition, reactionIndex) => ({ definition, reactionIndex }))
+    .find(entry => entry.definition.id === "fireStorm");
+
+  if (!definitionEntry) {
+    return [];
+  }
+
+  const fireVortexCandidates = acceptedCandidates.filter(candidate => candidate.reactionId === "fireVortex");
+  const stormCloudCandidates = acceptedCandidates.filter(candidate => candidate.reactionId === "stormCloud");
+  const candidates = new Map<string, AllocationCandidate>();
+
+  fireVortexCandidates.forEach((fireVortex) => {
+    stormCloudCandidates.forEach((stormCloud) => {
+      const collision = getPoolCollision(board.pathCells.length, fireVortex.producedCellIndexes, stormCloud.producedCellIndexes);
+
+      if (!collision) {
+        return;
+      }
+
+      const producedCellIndexes = sortCellIndexes([...new Set([
+        ...fireVortex.producedCellIndexes,
+        ...stormCloud.producedCellIndexes,
+      ])]);
+      const consumedTokenIds = [...new Set([
+        ...fireVortex.producedTokenIds,
+        ...stormCloud.producedTokenIds,
+      ])];
+      const originOrder = Math.max(
+        fireVortex.originOrder,
+        stormCloud.originOrder,
+      );
+      const id = `allocation:fireStorm:${stormCloud.id}:${collision.catalystCellIndex}:${fireVortex.id}:${collision.spreadCellIndex}:${producedCellIndexes.join("-")}`;
+
+      candidates.set(id, {
+        id,
+        reactionId: definitionEntry.definition.id,
+        reactionIndex: definitionEntry.reactionIndex,
+        selectionRank: -producedCellIndexes.length,
+        tier: definitionEntry.definition.tier,
+        layer: definitionEntry.definition.layer,
+        anchorCellIndex: Math.min(collision.spreadCellIndex, collision.catalystCellIndex),
+        originOrder,
+        consumedTokenIds,
+        producedCellIndexes,
+        producedTokenIds: producedCellIndexes.map(cellIndex => createReactionTokenId(id, definitionEntry.definition.id, cellIndex)),
+      });
+    });
+  });
+
+  return [...candidates.values()];
+}
+
+function getPoolCollision(
+  pathCellCount: number,
+  fireVortexPool: readonly number[],
+  stormCloudPool: readonly number[],
+): { readonly spreadCellIndex: number, readonly catalystCellIndex: number } | null {
+  for (const spreadCellIndex of fireVortexPool) {
+    for (const catalystCellIndex of stormCloudPool) {
+      if (areNeighborCells(pathCellCount, spreadCellIndex, catalystCellIndex)) {
+        return { spreadCellIndex, catalystCellIndex };
+      }
+    }
+  }
+
+  return null;
+}
+
+function acceptFireStormCollisionCandidates(candidates: readonly AllocationCandidate[]): {
+  readonly acceptedCandidates: readonly AllocationCandidate[]
+  readonly consumedReactionTokenIds: ReadonlySet<string>
+} {
+  const consumedReactionTokenIds = new Set<string>();
+  const acceptedCandidates: AllocationCandidate[] = [];
+
+  getAllocationPriorityOrder(candidates).forEach((candidate) => {
+    if (candidate.consumedTokenIds.some(tokenId => consumedReactionTokenIds.has(tokenId))) {
+      return;
+    }
+
+    candidate.consumedTokenIds.forEach(tokenId => consumedReactionTokenIds.add(tokenId));
+    acceptedCandidates.push(candidate);
+  });
+
+  return { acceptedCandidates, consumedReactionTokenIds };
 }
 
 function acceptCandidates(
@@ -1062,6 +1162,11 @@ function nextCell(pathCellCount: number, cellIndex: number): number {
 
 function previousCell(pathCellCount: number, cellIndex: number): number {
   return (cellIndex - 1 + pathCellCount) % pathCellCount;
+}
+
+function areNeighborCells(pathCellCount: number, leftCellIndex: number, rightCellIndex: number): boolean {
+  return nextCell(pathCellCount, leftCellIndex) === rightCellIndex
+    || previousCell(pathCellCount, leftCellIndex) === rightCellIndex;
 }
 
 function isSubstance(input: ReactionInputId): input is SubstanceId {
