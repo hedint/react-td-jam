@@ -4,24 +4,24 @@
 
 P0 archetypes:
 
-- Грунт;
-- Сварм;
-- Танк;
-- Летун;
-- Бегун;
+- Заморыш;
+- Кусака;
+- Тролль;
+- Нетопырь;
+- Варг;
 - Грязевик;
-- Магма-выползень.
+- Магмень.
 
 ## Identity Rules
 
 - Each enemy must map to gameplay role without label text.
-- Грунт: baseline readable meat.
-- Сварм: smaller clustered threat.
-- Танк: heavy, slow, sturdy shape.
-- Летун: airborne silhouette and shadow separation.
-- Бегун: lean/fast posture.
+- Заморыш: baseline readable meat.
+- Кусака: smaller clustered threat.
+- Тролль: heavy, slow, sturdy shape.
+- Нетопырь: airborne silhouette and shadow separation.
+- Варг: lean/fast posture.
 - Грязевик: grounded, clay/insulated read.
-- Магма-выползень: heat-proof magma creature read.
+- Магмень: heat-proof magma creature read.
 
 ## Production Rule
 

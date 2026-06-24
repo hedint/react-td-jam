@@ -40,6 +40,26 @@ type ManifestGroups = {
   readonly [Group in AssetGroup]: Readonly<Record<string, AssetDefinition & { readonly group: Group }>>
 };
 
+type EnemySpriteAssetId = "grunt" | "swarm" | "tank" | "flyer" | "runner" | "insulated" | "flameproof";
+type EnemySpriteAnim = "move" | "hit" | "death";
+
+function enemySpriteSheetAsset(
+  enemyId: EnemySpriteAssetId,
+  animationName: EnemySpriteAnim,
+): SpriteSheetAsset & { readonly group: "enemies" } {
+  return {
+    type: "spritesheet",
+    group: "enemies",
+    key: `enemies.${enemyId}.${animationName}.side`,
+    src: `/assets/enemies/${enemyId}/${enemyId}-${animationName}-side.png`,
+    frame: {
+      width: 256,
+      height: 256,
+    },
+    usage: "phaser",
+  };
+}
+
 export const assetGroups = {
   scene: {
     cavernFortressFloor: {
@@ -208,6 +228,34 @@ export const assetGroups = {
     },
   },
   enemies: {
+    gruntMoveSide: enemySpriteSheetAsset("grunt", "move"),
+    gruntHitSide: enemySpriteSheetAsset("grunt", "hit"),
+    gruntDeathSide: enemySpriteSheetAsset("grunt", "death"),
+    swarmMoveSide: enemySpriteSheetAsset("swarm", "move"),
+    swarmHitSide: enemySpriteSheetAsset("swarm", "hit"),
+    swarmDeathSide: enemySpriteSheetAsset("swarm", "death"),
+    tankMoveSide: enemySpriteSheetAsset("tank", "move"),
+    tankHitSide: enemySpriteSheetAsset("tank", "hit"),
+    tankDeathSide: enemySpriteSheetAsset("tank", "death"),
+    flyerMoveSide: enemySpriteSheetAsset("flyer", "move"),
+    flyerHitSide: enemySpriteSheetAsset("flyer", "hit"),
+    flyerDeathSide: enemySpriteSheetAsset("flyer", "death"),
+    runnerMoveSide: enemySpriteSheetAsset("runner", "move"),
+    runnerHitSide: enemySpriteSheetAsset("runner", "hit"),
+    runnerDeathSide: enemySpriteSheetAsset("runner", "death"),
+    insulatedMoveSide: enemySpriteSheetAsset("insulated", "move"),
+    insulatedHitSide: enemySpriteSheetAsset("insulated", "hit"),
+    insulatedDeathSide: enemySpriteSheetAsset("insulated", "death"),
+    flameproofMoveSide: enemySpriteSheetAsset("flameproof", "move"),
+    flameproofHitSide: enemySpriteSheetAsset("flameproof", "hit"),
+    flameproofDeathSide: enemySpriteSheetAsset("flameproof", "death"),
+    runnerSeedSide: {
+      type: "image",
+      group: "enemies",
+      key: "enemies.runner.seed.side",
+      src: "/assets/enemies/runner/runner-seed-side-01.png",
+      usage: "phaser",
+    },
     enemySpritePlaceholder: {
       type: "svg",
       group: "enemies",
@@ -392,46 +440,13 @@ export const assetGroups = {
 } as const satisfies ManifestGroups;
 
 export const loadableAssets = [
-  assetGroups.scene.cavernFortressFloor,
-  assetGroups.scene.cavernBackdropPlaceholder,
-  assetGroups.board.roadStraight,
-  assetGroups.board.roadCorner,
-  assetGroups.board.slotSocket,
-  assetGroups.board.slotSocketCorner,
-  assetGroups.board.markerEntrance,
-  assetGroups.board.markerExit,
-  assetGroups.board.greatStillCore,
-  assetGroups.towers.waterCannonBase,
-  assetGroups.towers.waterCannonHead,
-  assetGroups.towers.oilPumpBase,
-  assetGroups.towers.oilPumpHead,
-  assetGroups.towers.sparkDischargerBase,
-  assetGroups.towers.sparkDischargerHead,
-  assetGroups.towers.magmaCraneBase,
-  assetGroups.towers.magmaCraneHead,
-  assetGroups.towers.waterCannon,
-  assetGroups.towers.oilPump,
-  assetGroups.towers.sparkDischarger,
-  assetGroups.towers.magmaCrane,
-  assetGroups.towers.towerSpritePlaceholder,
-  assetGroups.enemies.enemySpritePlaceholder,
-  assetGroups.reactions.reagentWaterPuddle,
-  assetGroups.reactions.reagentWaterRipple,
-  assetGroups.reactions.reagentOilSlick,
-  assetGroups.reactions.reagentSparkCharge,
-  assetGroups.reactions.reagentHeatScorch,
-  assetGroups.reactions.electroPuddle,
-  assetGroups.reactions.steam,
-  assetGroups.reactions.fire,
-  assetGroups.reactions.stormCloud,
-  assetGroups.reactions.fireVortex,
-  assetGroups.reactions.fireStorm,
-  assetGroups.reactions.reactionDecalPlaceholder,
-  assetGroups.ui.placeholder,
-  assetGroups.ui.ironPanel,
-  assetGroups.ui.brassCardFrame,
-  assetGroups.ui.rivetChip,
-] as const satisfies readonly AssetDefinition[];
+  ...Object.values(assetGroups.scene),
+  ...Object.values(assetGroups.board),
+  ...Object.values(assetGroups.towers),
+  ...Object.values(assetGroups.enemies),
+  ...Object.values(assetGroups.reactions),
+  ...Object.values(assetGroups.ui),
+] satisfies readonly AssetDefinition[];
 
 export const phaserPreloadAssets = (loadableAssets as readonly AssetDefinition[])
   .filter(asset => asset.usage === "phaser" || asset.usage === "both");

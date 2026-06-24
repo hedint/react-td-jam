@@ -579,7 +579,7 @@ function createReactionCatalyzedCandidates(
     return anchorSpreadTokens.flatMap((anchorSpreadToken) => {
       const originOrder = Math.max(catalystToken.originOrder, anchorSpreadToken.originOrder);
 
-      return getSpreadCellSelectionsByPriority(board.pathCells.length, pool, catalystToken.cellIndex, higherTierCatalystCapacity)
+      return getSpreadCellSelectionsByProximityPriority(board.pathCells.length, pool, catalystToken.cellIndex, higherTierCatalystCapacity)
         .flatMap((selectedCells, selectionRank) => {
           const selectedSpreadTokens = getSelectedReactionTokens(selectedCells, spreadTokensByCell, anchorSpreadToken);
 
@@ -986,6 +986,39 @@ function getSpreadCellSelectionsByPriority(
     || right.backwardCount - left.backwardCount).map(selection => selection.cells);
 }
 
+function getSpreadCellSelectionsByProximityPriority(
+  pathCellCount: number,
+  pool: readonly number[],
+  anchorCellIndex: number,
+  capacity: number,
+): readonly (readonly number[])[] {
+  return [...getSpreadCellSelectionsByPriority(pathCellCount, pool, anchorCellIndex, capacity)]
+    .sort((left, right) =>
+      right.length - left.length
+      || getSelectionBoundaryPenalty(anchorCellIndex, left) - getSelectionBoundaryPenalty(anchorCellIndex, right)
+      || getMaxRingDistance(pathCellCount, anchorCellIndex, left) - getMaxRingDistance(pathCellCount, anchorCellIndex, right)
+      || getSelectionDirectionBias(pathCellCount, anchorCellIndex, left) - getSelectionDirectionBias(pathCellCount, anchorCellIndex, right)
+      || left.join("-").localeCompare(right.join("-")),
+    );
+}
+
+function getSelectionBoundaryPenalty(anchorCellIndex: number, cellIndexes: readonly number[]): number {
+  return anchorCellIndex !== 0 && cellIndexes.includes(0) ? 1 : 0;
+}
+
+function getMaxRingDistance(pathCellCount: number, anchorCellIndex: number, cellIndexes: readonly number[]): number {
+  return Math.max(...cellIndexes.map(cellIndex => getRingDistance(pathCellCount, anchorCellIndex, cellIndex)));
+}
+
+function getSelectionDirectionBias(pathCellCount: number, anchorCellIndex: number, cellIndexes: readonly number[]): number {
+  const forwardCount = cellIndexes.filter(cellIndex => getForwardDistance(pathCellCount, anchorCellIndex, cellIndex) > 0
+    && getForwardDistance(pathCellCount, anchorCellIndex, cellIndex) <= getBackwardDistance(pathCellCount, anchorCellIndex, cellIndex)).length;
+  const backwardCount = cellIndexes.filter(cellIndex => getBackwardDistance(pathCellCount, anchorCellIndex, cellIndex) > 0
+    && getBackwardDistance(pathCellCount, anchorCellIndex, cellIndex) < getForwardDistance(pathCellCount, anchorCellIndex, cellIndex)).length;
+
+  return Math.abs(forwardCount - backwardCount);
+}
+
 function sortCellIndexes(cellIndexes: readonly number[]): readonly number[] {
   return [...cellIndexes].sort((left, right) => left - right);
 }
@@ -1162,6 +1195,18 @@ function nextCell(pathCellCount: number, cellIndex: number): number {
 
 function previousCell(pathCellCount: number, cellIndex: number): number {
   return (cellIndex - 1 + pathCellCount) % pathCellCount;
+}
+
+function getRingDistance(pathCellCount: number, from: number, to: number): number {
+  return Math.min(getForwardDistance(pathCellCount, from, to), getBackwardDistance(pathCellCount, from, to));
+}
+
+function getForwardDistance(pathCellCount: number, from: number, to: number): number {
+  return (to - from + pathCellCount) % pathCellCount;
+}
+
+function getBackwardDistance(pathCellCount: number, from: number, to: number): number {
+  return (from - to + pathCellCount) % pathCellCount;
 }
 
 function areNeighborCells(pathCellCount: number, leftCellIndex: number, rightCellIndex: number): boolean {

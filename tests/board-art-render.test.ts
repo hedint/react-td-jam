@@ -4,11 +4,17 @@ import {
   getEntranceMarkerPresentation,
   getExitMarkerPresentation,
 } from "@app/phaser/scenes/runSceneBoardArt";
-import { writeEnemyIntroPosition, writeEnemyPosition } from "@app/phaser/scenes/runSceneRender";
+import {
+  enemyAnimationDirections,
+  enemyAnimationNames,
+  getEnemyAnimationTextureKey,
+  getEnemyPhaserAnimationKey,
+} from "@app/phaser/scenes/runSceneEnemyPresenter";
+import { getEnemySideFacing, writeEnemyIntroPosition, writeEnemyPosition } from "@app/phaser/scenes/runSceneRender";
 import { getCoreEntrancePathCell } from "@entities/game-session/model/boardGeometry";
 import { gameConfig } from "@entities/game-session/model/config";
 import { createGrunt } from "@entities/game-session/model/simulation";
-import { assetGroups } from "@shared/assets/manifest";
+import { assetGroups, phaserPreloadAssets } from "@shared/assets/manifest";
 import { describe, expect, it } from "vitest";
 
 describe("board art render helpers", () => {
@@ -99,5 +105,30 @@ describe("board art render helpers", () => {
     writeEnemyIntroPosition(gameConfig.board.pathCells, enemy, 1, intro);
 
     expect(intro).toEqual(runtime);
+  });
+
+  it("uses side-facing plus horizontal flip across vertical and horizontal loop segments", () => {
+    const cells = gameConfig.board.pathCells;
+
+    expect(getEnemySideFacing(cells, 0.5)).toBe("right");
+    expect(getEnemySideFacing(cells, 7.25)).toBe("right");
+    expect(getEnemySideFacing(cells, 10.25)).toBe("left");
+    expect(getEnemySideFacing(cells, 15.25)).toBe("left");
+  });
+
+  it("preloads move, hit, and death spritesheets for every normal enemy", () => {
+    const preloadKeys = new Set(phaserPreloadAssets.map(asset => asset.key));
+
+    gameConfig.enemies.forEach((enemy) => {
+      enemyAnimationNames.forEach((animationName) => {
+        enemyAnimationDirections.forEach((direction) => {
+          const textureKey = getEnemyAnimationTextureKey(enemy.id, animationName, direction);
+
+          expect(textureKey).toBe(`enemies.${enemy.id}.${animationName}.${direction}`);
+          expect(getEnemyPhaserAnimationKey(enemy.id, animationName, direction)).toBe(`${textureKey}.anim`);
+          expect(preloadKeys.has(textureKey)).toBe(true);
+        });
+      });
+    });
   });
 });

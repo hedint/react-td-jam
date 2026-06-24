@@ -254,13 +254,13 @@ Ship gate: C1/C2 final enemy and boss runtime integration must be complete befor
 ### C1 - Final monster assets + integration
 
 #### Tasks
-- [ ] Run a final naming pass for all 7 enemy archetypes before asset approval; specifically reconsider awkward placeholder-feeling names such as `Грунт`.
-- [ ] Approve seed frames + facing model, animate move/hit/death, and replace procedural enemy shapes in `RunScene.ts` (~270-298).
-- [ ] Wire through `src/shared/assets/manifest.ts` (`enemies.<id>.<anim>.<dir>` keys).
+- [x] Run a final naming pass for all 7 enemy archetypes before asset approval; specifically reconsider awkward placeholder-feeling names such as `Грунт`.
+- [x] Approve seed frames + facing model, animate move/hit/death, and replace procedural enemy shapes in `RunScene.ts` (~270-298).
+- [x] Wire through `src/shared/assets/manifest.ts` (`enemies.<id>.<anim>.<dir>` keys).
 
 #### Acceptance Criteria
-- [ ] Enemy display names are approved as final Russian fiction names before public-demo ship.
-- [ ] All 7 enemy archetypes render as animated sprites with correct facing; no procedural fallback shapes in normal play.
+- [x] Enemy display names are approved as final Russian fiction names before public-demo ship.
+- [x] All 7 enemy archetypes render as animated sprites with correct facing; no procedural fallback shapes in normal play.
 
 ### C2 - Final boss assets + abilities + animations
 
@@ -283,7 +283,26 @@ Ship gate: C1/C2 final enemy and boss runtime integration must be complete befor
 
 ### Phase C notes
 
-_(record divergences here)_
+- 2026-06-24: C1 naming gate approved one-word public enemy names for UI safety: `grunt` -> `Заморыш`, `swarm` -> `Кусака`, `tank` -> `Тролль`, `flyer` -> `Нетопырь`, `runner` -> `Варг`, `insulated` -> `Грязевик`, `flameproof` -> `Магмень`. Internal ids remain unchanged. Бочкоед remains deferred to a separate C2 iteration.
+- 2026-06-24: Gate 2 shifted to one-creature approval slices. `Заморыш` seed direction approved first, then regenerated as clean v2 without baked shadow so Phaser can render consistent runtime shadows. Approved source is `public/assets/enemies/grunt/source/grunt-seed-02-source.png`; normalized transparent seed is `public/assets/enemies/grunt/grunt-seed-side-02.png`. Remaining normal enemy seeds stay pending.
+- 2026-06-24: `Кусака` seed approved as one compact biting creature, not a swarm group. Approved source is `public/assets/enemies/swarm/source/swarm-seed-01-source.png`; normalized transparent seed is `public/assets/enemies/swarm/swarm-seed-side-01.png`.
+- 2026-06-24: `Тролль` seed approved as the sturdy tank silhouette. Approved source is `public/assets/enemies/tank/source/tank-seed-01-source.png`; normalized transparent seed is `public/assets/enemies/tank/tank-seed-side-01.png`.
+- 2026-06-24: `Нетопырь` seed approved from candidate 2 after rejecting a too-draconic first attempt. Approved source is `public/assets/enemies/flyer/source/flyer-seed-02-source.png`; normalized transparent seed is `public/assets/enemies/flyer/flyer-seed-side-02.png`.
+- 2026-06-24: `Варг` seed approved as the lean fast runner silhouette. Approved source is `public/assets/enemies/runner/source/runner-seed-01-source.png`; normalized transparent seed is `public/assets/enemies/runner/runner-seed-side-01.png`.
+- 2026-06-24: `Грязевик` seed approved as the clay/mud electric-resistant silhouette. Approved source is `public/assets/enemies/insulated/source/insulated-seed-01-source.png`; normalized transparent seed is `public/assets/enemies/insulated/insulated-seed-side-01.png`.
+- 2026-06-24: `Магмень` seed approved as the low basalt/magma crawler. Approved source is `public/assets/enemies/flameproof/source/flameproof-seed-01-source.png`; normalized transparent seed is `public/assets/enemies/flameproof/flameproof-seed-side-01.png`.
+- 2026-06-24: Gate 2 seed approval is complete for all seven normal enemies. All approved seeds are no-shadow 256x256 transparent PNGs; runtime size, height, and shadow stay deferred to the Phaser presenter/facing spike.
+- 2026-06-24: Gate 3 facing spike is prepared for approval using Варг on the real rectangular loop. Runtime now preloads `assetGroups.enemies.runnerSeedSide`, renders only `runner` as a seed sprite, and uses tested `side + horizontal flip` facing from `getEnemySideFacing`; all other enemy archetypes remain procedural until the full move/hit/death integration gate. Browser QA capture: `output/playwright/gate3-runner-facing-fixture.png`. Do not start Gate 4 animation strips until the user approves this facing model.
+- 2026-06-24: Gate 4 `Варг` set approved: 4-frame `move`, `hit`, and `death` full-strip generations normalized to 256x256 bottom-center frames. Preview sheet is `output/enemy-animations/runner/runner-animation-approval-sheet.png`; normalized candidate strips are under `output/enemy-animations/runner/`. Runtime copy into `public/assets/enemies` remains deferred until the rest of Gate 4 is approved.
+- 2026-06-24: Gate 4 `Заморыш` set approved: 4-frame `move`, `hit`, and `death` strips normalized to 256x256 bottom-center frames. Preview sheet is `output/enemy-animations/grunt/grunt-animation-approval-sheet.png`; normalized strips are under `output/enemy-animations/grunt/`.
+- 2026-06-24: Gate 4 first `Кусака` attempt rejected as too варг/canine-like. Stricter rat-like candidate approved under `output/enemy-animations/swarm-rat/`, with preview sheet `output/enemy-animations/swarm-rat/swarm-rat-animation-approval-sheet.png` and normalized `move`, `hit`, and `death` strips.
+- 2026-06-24: Gate 4 `Тролль` set approved: 4-frame `move`, `hit`, and `death` strips normalized to 256x256 bottom-center frames. Preview sheet is `output/enemy-animations/tank/tank-animation-approval-sheet.png`; normalized strips are under `output/enemy-animations/tank/`.
+- 2026-06-24: Gate 4 `Нетопырь` set approved: 4-frame `move`, `hit`, and `death` strips normalized to 256x256 bottom-center frames. Preview sheet is `output/enemy-animations/flyer/flyer-animation-approval-sheet.png`; normalized strips are under `output/enemy-animations/flyer/`.
+- 2026-06-24: Gate 4 `Грязевик` set approved: 4-frame `move`, `hit`, and `death` strips normalized to 256x256 bottom-center frames. Preview sheet is `output/enemy-animations/insulated/insulated-animation-approval-sheet.png`; normalized strips are under `output/enemy-animations/insulated/`.
+- 2026-06-24: Gate 4 `Магмень` set approved: 4-frame `move`, `hit`, and `death` strips normalized to 256x256 bottom-center frames. Preview sheet is `output/enemy-animations/flameproof/flameproof-animation-approval-sheet.png`; normalized strips are under `output/enemy-animations/flameproof/`.
+- 2026-06-24: Gate 4 preview approval is complete for all seven normal enemy archetypes. Runtime integration can now start for C1 normal enemies; C2/Бочкоед remains deferred.
+- 2026-06-24: C1 normal enemy runtime integration prepared for Gate 5 approval. Approved strips were copied into `public/assets/enemies`, `assetGroups.enemies` now exposes `enemies.<id>.<move|hit|death>.side` spritesheets, `RunSceneEnemyPresenter` registers Phaser animations and replaces procedural normal enemy bodies with pooled sprites. Hit/death playback is renderer-local and driven by presentation events. Browser QA capture for user approval: `output/playwright/gate5-c1-all-seven-archetypes-clean.png`; production preview smoke loaded 23 enemy asset responses with no 404s.
+- 2026-06-24: Gate 5 approved after user review on the dedicated `/enemy-demo` route and in-game tuning passes. C1 normal enemy assets and runtime integration are complete; Бочкоед/C2 remains out of scope for this closed slice.
 
 ### Phase C completion summary
 

@@ -1,9 +1,10 @@
 import { BootScene } from "@app/phaser/scenes/BootScene";
+import { EnemyDemoScene } from "@app/phaser/scenes/EnemyDemoScene";
 import { RunScene } from "@app/phaser/scenes/RunScene";
 import { TowerDemoScene } from "@app/phaser/scenes/TowerDemoScene";
 import Phaser from "phaser";
 
-export type PhaserTargetScene = "RunScene" | "TowerDemoScene";
+export type PhaserTargetScene = "RunScene" | "TowerDemoScene" | "EnemyDemoScene";
 
 export function createPhaserGame(parent: HTMLElement, targetScene: PhaserTargetScene = "RunScene"): Phaser.Game {
   return new Phaser.Game({
@@ -20,6 +21,6 @@ export function createPhaserGame(parent: HTMLElement, targetScene: PhaserTargetS
       antialias: true,
       pixelArt: false,
     },
-    scene: [new BootScene(targetScene), RunScene, TowerDemoScene],
+    scene: [new BootScene(targetScene), RunScene, TowerDemoScene, EnemyDemoScene],
   });
 }

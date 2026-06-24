@@ -469,6 +469,26 @@ describe("run simulation", () => {
     expect(reactions[3]).toEqual({ cellIndex: 3, ground: null, air: null });
   });
 
+  it("keeps the upgraded steam contact cell inside the fire vortex", () => {
+    const reactions = resolveReactions(
+      gameConfig.board,
+      [
+        createTower("tower-water-steam", "water", "slot-8-outer"),
+        createTower("tower-heat-steam", "heat", "slot-8-outer"),
+        createTower("tower-oil-fire", "oil", "slot-9-outer"),
+        createTower("tower-heat-fire", "heat", "slot-9-outer"),
+      ],
+      [
+        { upgradeId: "waterCapacity", stacks: 1 },
+        { upgradeId: "heatReach", stacks: 1 },
+      ],
+    );
+
+    expect(reactions[8]).toEqual({ cellIndex: 8, ground: null, air: "fireVortex" });
+    expect(reactions[9]).toEqual({ cellIndex: 9, ground: null, air: "fireVortex" });
+    expect(reactions[10]).toEqual({ cellIndex: 10, ground: null, air: "fireVortex" });
+  });
+
   it("lets earlier same-tier fire vortex consume steam before a later storm cloud", () => {
     const reactions = resolveReactions(
       gameConfig.board,

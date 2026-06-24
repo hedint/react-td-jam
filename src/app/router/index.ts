@@ -13,5 +13,10 @@ export const router = createRouter({
       name: "tower-demo",
       component: () => import("@pages/tower-demo/ui/TowerDemoPage.vue"),
     },
+    {
+      path: "/enemy-demo",
+      name: "enemy-demo",
+      component: () => import("@pages/enemy-demo/ui/EnemyDemoPage.vue"),
+    },
   ],
 });

@@ -10,6 +10,7 @@ const FLOATING_LABEL_TTL_MS = 760;
 const MARK_TTL_MS = 420;
 const MIN_DAMAGE_LABEL_AMOUNT = 1;
 const DAMAGE_LABEL_INTERVAL_MS = 170;
+const DAMAGE_LABELS_ENABLED = false;
 const CORE_Y = 428;
 
 interface ScenePoint {
@@ -99,6 +100,10 @@ export class RunSceneJuicePresenter {
   }
 
   private queueEnemyDamaged(event: Extract<GamePresentationEvent, { readonly type: "enemyDamaged" }>, snapshot: GameSnapshot, visualMs: number): void {
+    if (!DAMAGE_LABELS_ENABLED) {
+      return;
+    }
+
     const point = writePathProgressPoint(snapshot.board.pathCells, event.pathProgress);
     const bucket = this.getDamageBucket(event.enemyInstanceId);
 
@@ -115,7 +120,7 @@ export class RunSceneJuicePresenter {
     const point = writePathProgressPoint(snapshot.board.pathCells, event.pathProgress);
     const bucket = this.damageBuckets.get(event.enemyInstanceId);
 
-    if (bucket && bucket.amount >= 0.5) {
+    if (DAMAGE_LABELS_ENABLED && bucket && bucket.amount >= 0.5) {
       this.queueFloatingLabel(`-${Math.ceil(bucket.amount)}`, point.x, point.y - 36, "#fff2a8", visualMs, 22);
     }
 
@@ -132,7 +137,10 @@ export class RunSceneJuicePresenter {
   }
 
   private queueCoreDamaged(event: Extract<GamePresentationEvent, { readonly type: "coreDamaged" }>, visualMs: number): void {
-    this.queueFloatingLabel(`-${event.amount}`, LOGICAL_WIDTH / 2, CORE_Y - 72, "#ffb15e", visualMs, 24);
+    if (DAMAGE_LABELS_ENABLED) {
+      this.queueFloatingLabel(`-${event.amount}`, LOGICAL_WIDTH / 2, CORE_Y - 72, "#ffb15e", visualMs, 24);
+    }
+
     this.queueMark({
       type: "core",
       createdAt: visualMs,

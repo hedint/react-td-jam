@@ -9,12 +9,18 @@ export interface RenderPoint {
   y: number
 }
 
+export type EnemySideFacing = "left" | "right";
+
 export function writeEnemyPosition(cells: readonly PathCell[], enemy: EnemyState, out: RenderPoint): RenderPoint {
+  return writePathProgressPosition(cells, enemy.pathProgress, out);
+}
+
+export function writePathProgressPosition(cells: readonly PathCell[], pathProgress: number, out: RenderPoint): RenderPoint {
   const coreEntranceCell = getCoreEntrancePathCell(cells);
   const leakTarget = getEnemyLeakTargetPresentation(cells);
 
-  if (coreEntranceCell && leakTarget && enemy.pathProgress >= coreEntranceCell.index) {
-    const amount = clamp(enemy.pathProgress - coreEntranceCell.index, 0, 1);
+  if (coreEntranceCell && leakTarget && pathProgress >= coreEntranceCell.index) {
+    const amount = clamp(pathProgress - coreEntranceCell.index, 0, 1);
 
     out.x = linear(coreEntranceCell.x, leakTarget.x, amount);
     out.y = linear(coreEntranceCell.y, leakTarget.y, amount);
@@ -22,16 +28,37 @@ export function writeEnemyPosition(cells: readonly PathCell[], enemy: EnemyState
     return out;
   }
 
-  const currentIndex = Math.floor(enemy.pathProgress) % cells.length;
+  const currentIndex = Math.floor(pathProgress) % cells.length;
   const nextIndex = (currentIndex + 1) % cells.length;
   const current = cells[currentIndex] ?? cells[0];
   const next = cells[nextIndex] ?? current;
-  const amount = enemy.pathProgress - Math.floor(enemy.pathProgress);
+  const amount = pathProgress - Math.floor(pathProgress);
 
   out.x = linear(current.x, next.x, amount);
   out.y = linear(current.y, next.y, amount);
 
   return out;
+}
+
+export function getEnemySideFacing(cells: readonly PathCell[], pathProgress: number): EnemySideFacing {
+  if (cells.length < 2) {
+    return "right";
+  }
+
+  const normalizedProgress = ((pathProgress % cells.length) + cells.length) % cells.length;
+  const currentIndex = Math.floor(normalizedProgress) % cells.length;
+
+  for (let offset = 0; offset < cells.length; offset += 1) {
+    const from = cells[(currentIndex + offset) % cells.length] ?? cells[0];
+    const to = cells[(currentIndex + offset + 1) % cells.length] ?? from;
+    const deltaX = to.x - from.x;
+
+    if (Math.abs(deltaX) > 1) {
+      return deltaX < 0 ? "left" : "right";
+    }
+  }
+
+  return "right";
 }
 
 export function writeBossPosition(cells: readonly PathCell[], boss: BossState, out: RenderPoint): RenderPoint {
@@ -114,32 +141,6 @@ function clamp(value: number, min: number, max: number): number {
 
 function sineOut(value: number): number {
   return Math.sin(value * Math.PI / 2);
-}
-
-export function getEnemyVisual(enemyId: EnemyState["enemyId"]): {
-  readonly fill: number
-  readonly stroke: number
-  readonly radius: number
-  readonly shape: "circle" | "diamond" | "wing"
-} {
-  switch (enemyId) {
-    case "grunt":
-      return { fill: 0x715640, stroke: 0xE6D3A5, radius: 18, shape: "circle" };
-    case "swarm":
-      return { fill: 0x5A6B3A, stroke: 0xD6E88D, radius: 13, shape: "circle" };
-    case "tank":
-      return { fill: 0x5B5148, stroke: 0xF0D7A0, radius: 24, shape: "diamond" };
-    case "flyer":
-      return { fill: 0x475D85, stroke: 0xB9D5FF, radius: 18, shape: "wing" };
-    case "runner":
-      return { fill: 0x7E6432, stroke: 0xFFD06E, radius: 15, shape: "circle" };
-    case "insulated":
-      return { fill: 0x6C6755, stroke: 0xE0D7B6, radius: 20, shape: "diamond" };
-    case "flameproof":
-      return { fill: 0x743325, stroke: 0xFFB178, radius: 20, shape: "diamond" };
-    default:
-      return enemyId satisfies never;
-  }
 }
 
 export function renderGroundReaction(
@@ -268,77 +269,6 @@ export function renderAirReaction(
       break;
     default:
       break;
-  }
-}
-
-export function renderEnemyAccent(
-  graphics: Phaser.GameObjects.Graphics,
-  enemyId: EnemyState["enemyId"],
-  position: RenderPoint,
-  radius: number,
-): void {
-  graphics.lineStyle(2, 0xF5E6C8, 0.78);
-
-  if (enemyId === "swarm") {
-    graphics.fillStyle(0xD6E88D, 0.9);
-    graphics.fillCircle(position.x - 6, position.y - 2, 3);
-    graphics.fillCircle(position.x + 5, position.y - 5, 3);
-    graphics.fillCircle(position.x + 2, position.y + 6, 3);
-    return;
-  }
-
-  if (enemyId === "runner") {
-    graphics.beginPath();
-    graphics.moveTo(position.x - radius - 8, position.y - 8);
-    graphics.lineTo(position.x - radius + 2, position.y);
-    graphics.lineTo(position.x - radius - 8, position.y + 8);
-    graphics.moveTo(position.x - radius - 16, position.y - 7);
-    graphics.lineTo(position.x - radius - 6, position.y);
-    graphics.lineTo(position.x - radius - 16, position.y + 7);
-    graphics.strokePath();
-    return;
-  }
-
-  if (enemyId === "flyer") {
-    graphics.beginPath();
-    graphics.moveTo(position.x - 19, position.y + 8);
-    graphics.lineTo(position.x - 4, position.y - 2);
-    graphics.lineTo(position.x + 4, position.y - 2);
-    graphics.lineTo(position.x + 19, position.y + 8);
-    graphics.strokePath();
-    return;
-  }
-
-  if (enemyId === "insulated") {
-    graphics.beginPath();
-    graphics.moveTo(position.x - 10, position.y - 8);
-    graphics.lineTo(position.x - 1, position.y - 1);
-    graphics.lineTo(position.x - 8, position.y + 8);
-    graphics.moveTo(position.x + 5, position.y - 10);
-    graphics.lineTo(position.x + 12, position.y - 1);
-    graphics.lineTo(position.x + 4, position.y + 9);
-    graphics.strokePath();
-    return;
-  }
-
-  if (enemyId === "flameproof") {
-    graphics.fillStyle(0xFFB178, 0.82);
-    graphics.beginPath();
-    graphics.moveTo(position.x - 7, position.y + 9);
-    graphics.lineTo(position.x, position.y - 10);
-    graphics.lineTo(position.x + 8, position.y + 9);
-    graphics.closePath();
-    graphics.fillPath();
-    return;
-  }
-
-  if (enemyId === "tank") {
-    graphics.beginPath();
-    graphics.moveTo(position.x - 13, position.y);
-    graphics.lineTo(position.x + 13, position.y);
-    graphics.moveTo(position.x, position.y - 13);
-    graphics.lineTo(position.x, position.y + 13);
-    graphics.strokePath();
   }
 }
 

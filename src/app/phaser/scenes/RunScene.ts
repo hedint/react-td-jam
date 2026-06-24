@@ -14,6 +14,7 @@ import {
   renderPlacementSlotFeedback,
 } from "./runSceneBoardRender";
 import { renderCore } from "./runSceneCoreRender";
+import { registerEnemyAnimations, RunSceneEnemyPresenter } from "./runSceneEnemyPresenter";
 import { RunSceneEntryIntro } from "./runSceneEntryIntro";
 import { renderSceneGrounding } from "./runSceneGround";
 import { RunSceneJuicePresenter } from "./runSceneJuicePresenter";
@@ -23,12 +24,8 @@ import { RunSceneReactionPresenter } from "./runSceneReactionPresenter";
 import { RunSceneReagentPresenter } from "./runSceneReagentRender";
 import {
   findSlotAtPoint,
-  getEnemyVisual,
-  renderEnemyAccent,
   writeBossIntroPosition,
   writeBossPosition,
-  writeEnemyIntroPosition,
-  writeEnemyPosition,
   writeTowerPosition,
 } from "./runSceneRender";
 import {
@@ -57,16 +54,15 @@ export class RunScene extends Phaser.Scene {
   private coreSprite?: Phaser.GameObjects.Image;
   private coreLiquidGraphics?: Phaser.GameObjects.Graphics;
   private bossLabel?: Phaser.GameObjects.Text;
-  private enemyLabels: Phaser.GameObjects.Text[] = [];
   private towerLabels: Phaser.GameObjects.Text[] = [];
   private towerSprites: Phaser.GameObjects.Image[] = [];
   private towerHeadSprites: Phaser.GameObjects.Image[] = [];
   private boardArtPresenter?: RunSceneBoardArtPresenter;
+  private enemyPresenter?: RunSceneEnemyPresenter;
   private reagentPresenter?: RunSceneReagentPresenter;
   private reactionPresenter?: RunSceneReactionPresenter;
   private juicePresenter?: RunSceneJuicePresenter;
   private readonly bossPosition = { x: 0, y: 0 };
-  private readonly enemyPosition = { x: 0, y: 0 };
   private readonly towerPosition = { x: 0, y: 0 };
   private readonly entryIntro = new RunSceneEntryIntro();
   private unsubscribeAction?: Unsubscribe;
@@ -80,6 +76,7 @@ export class RunScene extends Phaser.Scene {
 
   create(): void {
     this.cameras.main.setBackgroundColor("#101217");
+    registerEnemyAnimations(this);
     this.backdropFloor = this.add.image(0, 0, assetGroups.scene.cavernFortressFloor.key)
       .setOrigin(0)
       .setDepth(-30);
@@ -90,6 +87,7 @@ export class RunScene extends Phaser.Scene {
     this.enemyGraphics = this.add.graphics().setDepth(20);
     this.placementGraphics = this.add.graphics().setDepth(35);
     this.boardArtPresenter = new RunSceneBoardArtPresenter(this);
+    this.enemyPresenter = new RunSceneEnemyPresenter(this);
     this.reagentPresenter = new RunSceneReagentPresenter(this);
     this.reactionPresenter = new RunSceneReactionPresenter(this);
     this.juicePresenter = new RunSceneJuicePresenter(this);
@@ -208,6 +206,7 @@ export class RunScene extends Phaser.Scene {
     }
 
     gameEvents.emit("run:presentation-events", events);
+    this.enemyPresenter?.queue(events, next, this.time.now);
     this.juicePresenter?.queue(events, next, this.time.now);
   }
 
@@ -260,68 +259,7 @@ export class RunScene extends Phaser.Scene {
     }
 
     graphics.clear();
-
-    while (this.enemyLabels.length < snapshot.livingEnemies.length) {
-      this.enemyLabels.push(this.add.text(0, 0, "", {
-        align: "center",
-        color: "#ead8b4",
-        fontFamily: "Arial, sans-serif",
-        fontSize: "12px",
-        fontStyle: "700",
-      }).setOrigin(0.5).setDepth(42));
-    }
-
-    this.entryIntro.pruneEnemies(snapshot.livingEnemies);
-
-    snapshot.livingEnemies.forEach((enemy, index) => {
-      const introProgress = this.entryIntro.getEnemyProgress(enemy.id, this.time.now);
-      const position = introProgress < 1
-        ? writeEnemyIntroPosition(snapshot.board.pathCells, enemy, introProgress, this.enemyPosition)
-        : writeEnemyPosition(snapshot.board.pathCells, enemy, this.enemyPosition);
-      const hpRatio = enemy.hp / enemy.maxHp;
-      const label = this.enemyLabels[index];
-      const visual = getEnemyVisual(enemy.enemyId);
-
-      graphics.fillStyle(visual.fill, 1);
-      graphics.lineStyle(3, visual.stroke, 0.9);
-      if (visual.shape === "wing") {
-        graphics.beginPath();
-        graphics.moveTo(position.x, position.y - 18);
-        graphics.lineTo(position.x - 25, position.y + 10);
-        graphics.lineTo(position.x - 5, position.y + 4);
-        graphics.lineTo(position.x, position.y + 20);
-        graphics.lineTo(position.x + 5, position.y + 4);
-        graphics.lineTo(position.x + 25, position.y + 10);
-        graphics.closePath();
-        graphics.fillPath();
-        graphics.strokePath();
-      } else if (visual.shape === "diamond") {
-        graphics.beginPath();
-        graphics.moveTo(position.x, position.y - 20);
-        graphics.lineTo(position.x + 20, position.y);
-        graphics.lineTo(position.x, position.y + 20);
-        graphics.lineTo(position.x - 20, position.y);
-        graphics.closePath();
-        graphics.fillPath();
-        graphics.strokePath();
-      } else {
-        graphics.fillCircle(position.x, position.y, visual.radius);
-        graphics.strokeCircle(position.x, position.y, visual.radius);
-      }
-      renderEnemyAccent(graphics, enemy.enemyId, position, visual.radius);
-      graphics.fillStyle(0x101217, 0.95);
-      graphics.fillRoundedRect(position.x - 22, position.y - 34, 44, 7, 3);
-      graphics.fillStyle(0xCDE6A7, 1);
-      graphics.fillRoundedRect(position.x - 20, position.y - 32, 40 * hpRatio, 3, 2);
-
-      label?.setVisible(true);
-      label?.setPosition(position.x, position.y + 28);
-      label?.setText(enemy.displayName);
-    });
-
-    this.enemyLabels.slice(snapshot.livingEnemies.length).forEach((label) => {
-      label.setVisible(false);
-    });
+    this.enemyPresenter?.render(graphics, snapshot, this.time.now, this.entryIntro);
   }
 
   private renderBoss(snapshot: GameSnapshot, visualMs: number): void {

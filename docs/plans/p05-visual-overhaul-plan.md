@@ -820,13 +820,13 @@ Purpose: create approved source frames and validate the facing model on one crea
 ### Tasks
 
 - [ ] Define final creature scale, anchor, shadow, and lane offset rules.
-- [ ] Generate or produce approved source frames for all seven P0 enemy archetypes: Грунт, Сварм, Танк, Летун, Бегун, Грязевик, Магма-выползень.
+- [x] Generate or produce approved source frames for all seven P0 enemy archetypes: Заморыш, Кусака, Тролль, Нетопырь, Варг, Грязевик, Магмень.
 - [ ] Generate or produce approved source frame for Бочкоед.
-- [ ] Ensure every enemy silhouette maps to its gameplay role: basic, swarm, tank, flying, runner, electric-resistant, fire-resistant.
+- [x] Ensure every enemy silhouette maps to its gameplay role: basic, swarm, tank, flying, runner, electric-resistant, fire-resistant.
 - [ ] Ensure Бочкоед reads as a large deep-cave potion-drinking threat and works on the existing path.
-- [ ] Normalize all approved seed frames to consistent in-game scale and bottom-center anchors.
-- [ ] Build preview sheets for approved seed frames.
-- [ ] Build a facing spike with one representative creature, preferably Бегун or Грунт: source frame, minimal movement loop, in-engine playback on the real loop, and corner transitions.
+- [x] Normalize all approved seed frames to consistent in-game scale and bottom-center anchors.
+- [x] Build preview sheets for approved seed frames.
+- [x] Build a facing spike with one representative creature, preferably Варг or Заморыш: source frame, minimal movement loop, in-engine playback on the real loop, and corner transitions.
 - [ ] Compare facing models in the spike: `left/right + flip`, `4-direction`, and any cheap hybrid needed for Бочкоед.
 - [ ] Choose and document the approved facing model before Phase 8 bulk animation begins.
 - [ ] Default to `left/right + flip` for normal enemies unless the spike proves `4-direction` is worth the extra production and corner-switching cost.
@@ -836,7 +836,7 @@ Purpose: create approved source frames and validate the facing model on one crea
 ### Acceptance Criteria
 
 - [ ] Each creature is readable at game scale before animation.
-- [ ] The seven enemy archetypes are visually distinct without needing labels.
+- [x] The seven enemy archetypes are visually distinct without needing labels.
 - [ ] Бочкоед is visually larger and more important than normal enemies.
 - [ ] Approved seed frames are stable enough to drive animation generation.
 - [ ] Direction/facing changes look acceptable on the real rectangular loop before mass animation production starts.
@@ -844,29 +844,54 @@ Purpose: create approved source frames and validate the facing model on one crea
 
 ### Tests
 
-- [ ] Manifest/typecheck if seed frames are referenced by code.
-- [ ] Direction helper test if the facing spike introduces reusable path-segment-to-facing logic.
+- [x] Manifest/typecheck if seed frames are referenced by code.
+- [x] Direction helper test if the facing spike introduces reusable path-segment-to-facing logic.
 
 ### Verification
 
-- [ ] In-game preview scene or fixture showing all seed frames on the board.
-- [ ] In-game spike capture or screenshot sequence showing the representative creature moving around the real loop.
-- [ ] `npm run typecheck` if code references are added.
+- [x] In-game preview scene or fixture showing all seed frames on the board.
+- [x] In-game spike capture or screenshot sequence showing the representative creature moving around the real loop.
+- [x] `npm run typecheck` if code references are added.
 
 ### Exit gate
 
-- [ ] **Creature facing model approved before bulk animation production.**
+- [x] **Creature facing model approved before bulk animation production.**
 
 ### Phase notes
 
 - Decisions/contradictions:
+  - 2026-06-24: C1 naming gate narrowed normal enemy public names to one-word UI-safe labels: Заморыш, Кусака, Тролль, Нетопырь, Варг, Грязевик, Магмень. Бочкоед stays out of this C1 slice.
+  - 2026-06-24: Заморыш seed direction approved, then regenerated as clean v2 without baked shadow for runtime-friendly Phaser shadow rendering. Approved source copied to `public/assets/enemies/grunt/source/grunt-seed-02-source.png`; normalized transparent seed frame saved as `public/assets/enemies/grunt/grunt-seed-side-02.png` with a 256x256 frame and bottom-center anchor. The earlier v1 seed is retained only as an audit trail, not the current approved candidate.
+  - 2026-06-24: Кусака seed approved as a single compact biting creature, not a pack or multi-headed swarm. Approved source copied to `public/assets/enemies/swarm/source/swarm-seed-01-source.png`; normalized transparent seed frame saved as `public/assets/enemies/swarm/swarm-seed-side-01.png` with a 256x256 frame and no baked shadow.
+  - 2026-06-24: Тролль seed approved as the sturdy tank silhouette. Approved source copied to `public/assets/enemies/tank/source/tank-seed-01-source.png`; normalized transparent seed frame saved as `public/assets/enemies/tank/tank-seed-side-01.png` with a 256x256 frame and no baked shadow.
+  - 2026-06-24: Нетопырь seed approved from the second bat-like candidate, replacing the too-draconic first attempt. Approved source copied to `public/assets/enemies/flyer/source/flyer-seed-02-source.png`; normalized transparent seed frame saved as `public/assets/enemies/flyer/flyer-seed-side-02.png` with a 256x256 frame and no baked shadow.
+  - 2026-06-24: Варг seed approved as the lean fast runner silhouette. Approved source copied to `public/assets/enemies/runner/source/runner-seed-01-source.png`; normalized transparent seed frame saved as `public/assets/enemies/runner/runner-seed-side-01.png` with a 256x256 frame and no baked shadow.
+  - 2026-06-24: Грязевик seed approved as the clay/mud electric-resistant silhouette. Approved source copied to `public/assets/enemies/insulated/source/insulated-seed-01-source.png`; normalized transparent seed frame saved as `public/assets/enemies/insulated/insulated-seed-side-01.png` with a 256x256 frame and no baked shadow.
+  - 2026-06-24: Магмень seed approved as a low basalt/magma crawler, using a tight normalization pass to remove alpha fringe from the raw chroma-key output. Approved source copied to `public/assets/enemies/flameproof/source/flameproof-seed-01-source.png`; normalized transparent seed frame saved as `public/assets/enemies/flameproof/flameproof-seed-side-01.png` with a 256x256 frame and no baked shadow.
+  - 2026-06-24: All seven normal enemy seed frames are now approved as individual no-shadow 256x256 transparent seeds. Runtime size, height, and shadow remain deferred to the Phaser presenter/facing spike.
+  - 2026-06-24: Gate 3 facing spike prepared with Варг on the real rectangular loop using `side + horizontal flip`. The source seed faces right, and `getEnemySideFacing` flips it left on the right/bottom segments by scanning for the next horizontal path segment. Runtime spike wires only `runner` through `assetGroups.enemies.runnerSeedSide`; other enemies stay procedural until the full animation integration gate. Browser QA capture: `output/playwright/gate3-runner-facing-fixture.png`. Gate 3 is awaiting user approval before Phase 8 animation-strip production.
+  - 2026-06-24: Gate 4 runner animation candidate approved. `Варг` has 4-frame full-strip candidates for `move`, `hit`, and `death`, generated as whole strips from the approved seed and normalized to 256x256 bottom-center frames. Approval sheet: `output/enemy-animations/runner/runner-animation-approval-sheet.png`; normalized strips: `output/enemy-animations/runner/runner-move-strip.png`, `output/enemy-animations/runner/runner-hit-strip.png`, `output/enemy-animations/runner/runner-death-strip.png`. Runtime copy into `public/assets/enemies` remains deferred until the rest of Gate 4 is approved.
+  - 2026-06-24: Gate 4 `Заморыш` animation candidate approved. The set includes 4-frame full-strip `move`, `hit`, and `death`, normalized to 256x256 bottom-center frames. Approval sheet: `output/enemy-animations/grunt/grunt-animation-approval-sheet.png`; normalized strips: `output/enemy-animations/grunt/grunt-move-strip.png`, `output/enemy-animations/grunt/grunt-hit-strip.png`, `output/enemy-animations/grunt/grunt-death-strip.png`.
+  - 2026-06-24: First Gate 4 `Кусака` animation attempt rejected because the generated creature drifted into a варг/canine silhouette. Reworked rat-like candidate approved and saved separately under `output/enemy-animations/swarm-rat/`. Approval sheet: `output/enemy-animations/swarm-rat/swarm-rat-animation-approval-sheet.png`; normalized strips: `output/enemy-animations/swarm-rat/swarm-rat-move-strip.png`, `output/enemy-animations/swarm-rat/swarm-rat-hit-strip.png`, `output/enemy-animations/swarm-rat/swarm-rat-death-strip.png`.
+  - 2026-06-24: Gate 4 `Тролль` animation candidate approved. The set includes 4-frame full-strip `move`, `hit`, and `death`, normalized to 256x256 bottom-center frames. The generated production version preserves the large stone tank role and remains one of the large-size trio with `Грязевик` and `Магмень`. Approval sheet: `output/enemy-animations/tank/tank-animation-approval-sheet.png`; normalized strips: `output/enemy-animations/tank/tank-move-strip.png`, `output/enemy-animations/tank/tank-hit-strip.png`, `output/enemy-animations/tank/tank-death-strip.png`.
+  - 2026-06-24: Gate 4 `Нетопырь` animation candidate approved. The set includes 4-frame full-strip `move`, `hit`, and `death`, normalized to 256x256 bottom-center frames. The death strip needed a second generation and a small detached-alpha cleanup to avoid cropped wing fragments. Approval sheet: `output/enemy-animations/flyer/flyer-animation-approval-sheet.png`; normalized strips: `output/enemy-animations/flyer/flyer-move-strip.png`, `output/enemy-animations/flyer/flyer-hit-strip.png`, `output/enemy-animations/flyer/flyer-death-strip.png`.
+  - 2026-06-24: Gate 4 `Грязевик` animation candidate approved. The set includes 4-frame full-strip `move`, `hit`, and `death`, normalized to 256x256 bottom-center frames. The production version keeps the large clay/mud electric-resistant role without adding baked lightning effects; the approved death reads especially well as a mud-body collapse. Approval sheet: `output/enemy-animations/insulated/insulated-animation-approval-sheet.png`; normalized strips: `output/enemy-animations/insulated/insulated-move-strip.png`, `output/enemy-animations/insulated/insulated-hit-strip.png`, `output/enemy-animations/insulated/insulated-death-strip.png`.
+  - 2026-06-24: Gate 4 `Магмень` animation candidate approved. The set includes 4-frame full-strip `move`, `hit`, and `death`, normalized to 256x256 bottom-center frames after a small post-normalize scale/padding pass to avoid edge clipping on the wide crawler silhouette. The production version keeps the low basalt/magma fire-resistant role without external baked fire VFX. Approval sheet: `output/enemy-animations/flameproof/flameproof-animation-approval-sheet.png`; normalized strips: `output/enemy-animations/flameproof/flameproof-move-strip.png`, `output/enemy-animations/flameproof/flameproof-hit-strip.png`, `output/enemy-animations/flameproof/flameproof-death-strip.png`.
+  - 2026-06-24: Gate 4 preview approval is complete for all seven normal enemy archetypes. Runtime integration can now copy the approved strips into `public/assets/enemies` and wire manifest-backed Phaser animations. Бочкоед/C2 remains explicitly out of this C1 slice.
 
 ### Phase completion summary
 
 - Implemented:
+  - All seven normal enemy seeds approved and normalized as no-shadow 256x256 transparent PNGs.
+  - Варг facing spike added through manifest-backed Phaser image rendering and a tested side-facing helper.
+  - Dedicated `/enemy-demo` route added for reviewing all normal enemies on horizontal and vertical road segments using the same combat tile size and runtime presentation scale.
 - Intentionally deferred:
 - Accepted deviations/tradeoffs:
 - Tests/checks run:
+  - `npm run lint:fix`
+  - `npm run typecheck`
+  - `npm run test`
+  - `npm run build`
 
 ## Phase 8 - Creature Animation Strip Production
 
@@ -874,43 +899,45 @@ Purpose: produce full movement, hit, and death/vulnerable animation coverage wit
 
 ### Tasks
 
-- [ ] For each normal enemy, create movement loops using the approved Phase 7 facing model.
-- [ ] For each normal enemy, create hit reaction animation.
-- [ ] For each normal enemy, create death animation.
+- [x] For each normal enemy, create movement loops using the approved Phase 7 facing model.
+- [x] For each normal enemy, create hit reaction animation.
+- [x] For each normal enemy, create death animation.
 - [ ] For Бочкоед, create crawl loops using the Phase 7 boss facing decision.
 - [ ] For Бочкоед, create vulnerable animation or overlay-compatible frames.
 - [ ] For Бочкоед, create death animation.
-- [ ] Use approved seed frames as the first or identity-locking reference for each animation set.
-- [ ] Generate animation strips as full strips, not independent frames.
-- [ ] Normalize each strip with shared scale and bottom-center anchor.
+- [x] Use approved seed frames as the first or identity-locking reference for each animation set.
+- [x] Generate animation strips as full strips, not independent frames.
+- [x] Normalize each strip with shared scale and bottom-center anchor.
 - [ ] Lock frame 01 back to the approved seed frame where continuity matters.
-- [ ] Render preview sheets for each animation set.
-- [ ] Reject and regenerate strips with identity drift, scale drift, bad transparency, bad direction, or unreadable motion.
+- [x] Render preview sheets for each animation set.
+- [x] Reject and regenerate strips with identity drift, scale drift, bad transparency, bad direction, or unreadable motion.
 - [ ] Optimize final PNG/WebP outputs and atlas packing.
 
 ### Acceptance Criteria
 
-- [ ] Every P0 enemy has move, hit, and death coverage using the approved facing model.
+- [x] Every P0 enemy has move, hit, and death coverage using the approved facing model.
 - [ ] Бочкоед has crawl, vulnerable, and death coverage.
-- [ ] Frame-to-frame scale and anchor are stable.
-- [ ] Sprites remain readable under reaction VFX.
+- [x] Frame-to-frame scale and anchor are stable.
+- [x] Sprites remain readable under reaction VFX.
 - [ ] Asset size remains reasonable for a browser game.
 
 ### Tests
 
-- [ ] Add asset manifest coverage tests if animation keys are declarative.
-- [ ] Existing enemy/boss simulation tests remain unchanged and passing.
+- [x] Add asset manifest coverage tests if animation keys are declarative.
+- [x] Existing enemy/boss simulation tests remain unchanged and passing.
 
 ### Verification
 
-- [ ] Preview sheets inspected.
-- [ ] In-game animation fixture inspected.
-- [ ] `npm run typecheck`.
+- [x] Preview sheets inspected.
+- [x] In-game animation fixture inspected.
+- [x] `npm run typecheck`.
 - [ ] `npm run build`.
 
 ### Phase notes
 
 - Decisions/contradictions:
+  - 2026-06-24: C1 normal enemy animation production is complete and approved for all seven archetypes. Бочкоед remains outside this slice, so boss crawl/vulnerable/death coverage stays deferred to C2.
+  - 2026-06-24: Gate 5 approved after final user review on `/enemy-demo`, including horizontal and vertical road placement checks for health bars, labels, sprite scale, and role readability.
 
 ### Phase completion summary
 
@@ -926,11 +953,11 @@ Purpose: replace procedural enemy and boss shapes with sprite animations while p
 ### Tasks
 
 - [ ] Add Phaser animation key registration for all enemy and boss animations.
-- [ ] Select facing based on the approved Phase 7 model and current path segment.
-- [ ] Replace procedural enemy bodies with animated sprites.
-- [ ] Keep or restyle HP bars, resist telegraphs, flying cues, and danger cues.
-- [ ] Add hit feedback when enemies take damage without creating unreadable flicker.
-- [ ] Play death animation or dissolve without blocking simulation cleanup.
+- [x] Select facing based on the approved Phase 7 model and current path segment.
+- [x] Replace procedural enemy bodies with animated sprites.
+- [x] Keep or restyle HP bars, resist telegraphs, flying cues, and danger cues.
+- [x] Add hit feedback when enemies take damage without creating unreadable flicker.
+- [x] Play death animation or dissolve without blocking simulation cleanup.
 - [ ] Replace procedural Бочкоед body with animated boss sprite.
 - [ ] Apply Бочкоед vulnerable visual state through animation or overlay.
 - [ ] Ensure sprite depth sorting keeps air reactions, ground reactions, towers, enemies, and boss readable.
@@ -940,26 +967,29 @@ Purpose: replace procedural enemy and boss shapes with sprite animations while p
 ### Acceptance Criteria
 
 - [ ] Existing enemy and boss behavior is unchanged.
-- [ ] Runtime facing behavior matches the Phase 7 approved spike.
+- [x] Runtime facing behavior matches the Phase 7 approved spike.
 - [ ] Boss and normal enemies remain readable under dense T2/T3 VFX.
-- [ ] No animation state leaks into serializable run state.
+- [x] No animation state leaks into serializable run state.
 
 ### Tests
 
-- [ ] Existing enemy, wave, boss, and save/resume tests remain passing.
-- [ ] Add tests for direction helper if implemented outside Phaser scene code.
+- [x] Existing enemy, wave, boss, and save/resume tests remain passing.
+- [x] Add tests for direction helper if implemented outside Phaser scene code.
 
 ### Verification
 
-- [ ] `npm run lint:fix`.
-- [ ] `npm run typecheck`.
-- [ ] `npm test`.
+- [x] `npm run lint:fix`.
+- [x] `npm run typecheck`.
+- [x] `npm test`.
 - [ ] Manual browser check: waves with all enemy archetypes, boss vulnerable, victory, defeat.
 - [ ] Screenshots or short captures for movement, hit, death, and boss vulnerable.
 
 ### Phase notes
 
 - Decisions/contradictions:
+  - 2026-06-24: C1 normal enemy runtime integration landed with manifest-backed spritesheets copied under `public/assets/enemies/<id>/<id>-<move|hit|death>-side.png`. `RunSceneEnemyPresenter` now registers `enemies.<id>.<anim>.side.anim`, renders pooled live enemy sprites, queues renderer-local hit/death playback from presentation events, keeps runtime shadows/HP bars/labels, adds a flyer cue, and uses the approved `side + horizontal flip` facing helper. Procedural normal enemy bodies were removed from normal play; boss remains procedural for the separate C2 slice.
+  - 2026-06-24: Gate 5 browser QA capture prepared for approval: `output/playwright/gate5-c1-all-seven-archetypes-clean.png`. Additional smoke captures: `output/playwright/gate5-c1-all-enemy-sprites-eventbus.png`, `output/playwright/gate5-c1-enemy-sprites-vfx-eventbus.png`, and `output/playwright/gate5-c1-production-preview-smoke.png`.
+  - 2026-06-24: Gate 5 approved after the user inspected all seven normal enemies on the dedicated `/enemy-demo` route. Follow-up tuning reduced late-wave spawn density, hid damage numbers behind `DAMAGE_LABELS_ENABLED`, limited labels to one per archetype, adjusted health-bar offsets by road direction, and retuned display scale for Заморыш, Тролль, Нетопырь, and Грязевик.
 
 ### Phase completion summary
 
