@@ -2,7 +2,7 @@
   <div class="run-hud">
     <header class="run-hud__top">
       <div class="run-hud__stat run-hud__stat--core">
-        <span>Куб</span>
+        <span>{{ locale.hud.core }}</span>
         <strong>{{ session.coreHp }}</strong>
       </div>
       <div class="run-hud__stat run-hud__stat--wave">
@@ -10,7 +10,7 @@
         <strong>{{ session.waveLabel }}</strong>
       </div>
       <div class="run-hud__stat run-hud__stat--threat">
-        <span>{{ session.phase === "boss" ? "Босс" : "Враг" }}</span>
+        <span>{{ session.phase === "boss" ? locale.hud.boss : locale.hud.enemy }}</span>
         <strong class="run-hud__threat-value">
           <span
             v-if="session.waveThreatEnemyId"
@@ -22,7 +22,7 @@
         </strong>
       </div>
       <div class="run-hud__stat run-hud__stat--speed">
-        <span>Т</span>
+        <span>{{ locale.hud.speed }}</span>
         <strong>x{{ session.speed }}</strong>
       </div>
       <button
@@ -31,7 +31,7 @@
         type="button"
         @click="startWave"
       >
-        Старт
+        {{ locale.hud.start }}
       </button>
       <button
         v-else-if="!session.draftStep"
@@ -39,7 +39,7 @@
         type="button"
         @click="togglePause"
       >
-        {{ session.paused ? "Пуск" : "Пауза" }}
+        {{ session.paused ? locale.hud.resume : locale.hud.pause }}
       </button>
     </header>
 
@@ -76,10 +76,10 @@
       class="run-hud__scrim run-hud__scrim--blocking"
     >
       <section class="run-hud__modal">
-        <h2>Сохранённый ран</h2>
+        <h2>{{ locale.hud.savedRunTitle }}</h2>
         <dl>
           <div>
-            <dt>Seed</dt>
+            <dt>{{ locale.hud.result.seed }}</dt>
             <dd>{{ savedSeed }}</dd>
           </div>
         </dl>
@@ -89,14 +89,14 @@
             type="button"
             @click="resumeSavedRun"
           >
-            Продолжить
+            {{ locale.hud.continueRun }}
           </button>
           <button
             class="run-hud__button"
             type="button"
             @click="startNewRun"
           >
-            Новый ран
+            {{ locale.hud.newRun }}
           </button>
         </div>
       </section>
@@ -109,8 +109,8 @@
       <section class="run-hud__draft">
         <header class="run-hud__draft-header">
           <div>
-            <span>{{ session.draftStep === "tower" ? "Башня" : "Усиление" }}</span>
-            <h2>{{ session.draftStep === "tower" ? "Пополнение мастерской" : "Выберите усиление" }}</h2>
+            <span>{{ session.draftStep === "tower" ? locale.hud.draft.towerEyebrow : locale.hud.draft.upgradeEyebrow }}</span>
+            <h2>{{ session.draftStep === "tower" ? locale.hud.draft.towerTitle : locale.hud.draft.upgradeTitle }}</h2>
           </div>
           <button
             class="run-hud__button"
@@ -118,7 +118,7 @@
             :disabled="!session.canRerollDraft"
             @click="rerollDraft"
           >
-            Реролл {{ session.rerollsRemaining }}
+            {{ locale.hud.draft.reroll(session.rerollsRemaining) }}
           </button>
         </header>
 
@@ -155,7 +155,7 @@
               <strong>{{ offer.label }}</strong>
               <span>{{ getUpgradeDescription(offer.upgradeId) }}</span>
             </span>
-            <span class="run-hud__upgrade-level">Уровень {{ offer.stacks }}/{{ offer.maxStacks }}</span>
+            <span class="run-hud__upgrade-level">{{ locale.hud.draft.upgradeLevel(offer.stacks, offer.maxStacks) }}</span>
           </button>
         </div>
       </section>
@@ -172,31 +172,31 @@
         </p>
         <dl>
           <div>
-            <dt>Seed</dt>
+            <dt>{{ locale.hud.result.seed }}</dt>
             <dd>{{ session.seed }}</dd>
           </div>
           <div>
-            <dt>Волны</dt>
+            <dt>{{ locale.hud.result.waves }}</dt>
             <dd>{{ session.wavesCleared }}/10</dd>
           </div>
           <div>
-            <dt>Утечки</dt>
+            <dt>{{ locale.hud.result.leaks }}</dt>
             <dd>{{ session.leaks }}</dd>
           </div>
           <div>
-            <dt>Урон</dt>
+            <dt>{{ locale.hud.result.damage }}</dt>
             <dd>{{ session.damageLabel }}</dd>
           </div>
           <div>
-            <dt>Break</dt>
+            <dt>{{ locale.hud.result.break }}</dt>
             <dd>{{ session.bossBreaks }}</dd>
           </div>
           <div>
-            <dt>Время</dt>
+            <dt>{{ locale.hud.result.time }}</dt>
             <dd>{{ session.runtimeLabel }}</dd>
           </div>
           <div>
-            <dt>Топ реакция</dt>
+            <dt>{{ locale.hud.result.topReaction }}</dt>
             <dd>{{ session.topReactionLabel }}</dd>
           </div>
         </dl>
@@ -217,14 +217,14 @@
             type="button"
             @click="restartRun"
           >
-            Рестарт
+            {{ locale.hud.restart }}
           </button>
           <button
             class="run-hud__button"
             type="button"
             @click="newRun"
           >
-            Новый ран
+            {{ locale.hud.newRun }}
           </button>
         </div>
       </section>
@@ -237,11 +237,13 @@ import type { EmitterId, UpgradeId } from "@entities/game-session/model/types";
 import { clearSavedRun, hasSavedRun, loadSavedRun } from "@entities/game-session/model/persistence";
 import { useGameSessionStore } from "@entities/game-session/model/store";
 import { useGameSessionBridge } from "@entities/game-session/model/useGameSessionBridge";
+import { ru } from "@shared/i18n/ru";
 import { gameEvents } from "@shared/lib/event-bus/gameEvents";
 import { computed, onMounted, ref } from "vue";
 
 useGameSessionBridge();
 
+const locale = ru;
 const session = useGameSessionStore();
 const resumePromptVisible = ref(false);
 const savedSeed = ref<number | null>(null);
@@ -269,11 +271,11 @@ const reserveTowerStacks = computed(() => {
     selected: session.selectedTowerId !== null && stack.ids.includes(session.selectedTowerId),
   }));
 });
-const resultTitle = computed(() => session.phase === "victory" ? "Бочкоед иссушён" : "Зелье пролито");
+const resultTitle = computed(() => session.phase === "victory" ? locale.hud.result.victoryTitle : locale.hud.result.defeatTitle);
 const resultSubtitle = computed(() =>
   session.phase === "victory"
-    ? "Великий Куб удержан."
-    : "Бочкоед добрался до Куба.",
+    ? locale.hud.result.victorySubtitle
+    : locale.hud.result.defeatSubtitle,
 );
 
 function getEmitterClass(emitterId: EmitterId): string {
@@ -301,24 +303,7 @@ function getUpgradeClass(upgradeId: UpgradeId): string {
 }
 
 function getUpgradeDescription(upgradeId: UpgradeId): string {
-  switch (upgradeId) {
-    case "waterCapacity":
-      return "Водомёт покрывает больше клеток.";
-    case "oilControl":
-      return "Маслонасос покрывает больше клеток.";
-    case "sparkCapacity":
-      return "Разрядник питает больше реакций.";
-    case "heatReach":
-      return "Магмовый кран питает больше реакций.";
-    case "fireCatalyst":
-      return "Пожар наносит больше урона.";
-    case "unlockSlot5":
-    case "unlockSlot9":
-    case "unlockSlot14":
-      return "Открывает угловой слот для башни под двухклеточную контрапцию.";
-    default:
-      return upgradeId satisfies never;
-  }
+  return locale.hud.upgradeDescriptions[upgradeId];
 }
 
 function getDamageSourceClass(sourceId: string): string {

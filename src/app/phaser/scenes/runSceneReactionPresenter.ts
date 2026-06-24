@@ -1,6 +1,7 @@
 import type { GameSnapshot, PathCell, ReactionId } from "@entities/game-session/model/types";
 import type Phaser from "phaser";
 import { assetGroups } from "@shared/assets/manifest";
+import { ru } from "@shared/i18n/ru";
 import {
   drawReactionPoolUnderlay,
   getReactionConnectedPools,
@@ -159,7 +160,7 @@ export class RunSceneReactionPresenter {
 
     if (snapshot.boss) {
       const position = writeBossPosition(snapshot.board.pathCells, snapshot.boss, this.bossPosition);
-      this.queueFieldCallout("Разлом реакции", position.x, position.y - 70, "#fff2a8");
+      this.queueFieldCallout(ru.phaser.bossBreakCallout, position.x, position.y - 70, "#fff2a8");
     }
 
     this.previousBossVulnerable = bossVulnerable;
@@ -174,7 +175,7 @@ export class RunSceneReactionPresenter {
     }
 
     this.lastCoreDangerAt = now;
-    this.queueFieldCallout("Куб трещит", LOGICAL_WIDTH / 2, 428, "#ffb15e");
+    this.queueFieldCallout(ru.phaser.coreDangerCallout, LOGICAL_WIDTH / 2, 428, "#ffb15e");
   }
 
   private queueFieldCallout(text: string, x: number, y: number, color: string): void {

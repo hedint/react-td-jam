@@ -2,8 +2,10 @@ import type { BoardSlot, GameSnapshot, TowerState } from "@entities/game-session
 import type { Unsubscribe } from "@shared/lib/event-bus/createTypedEventBus";
 import { createFixedStepDriver } from "@entities/game-session/model/fixedStepDriver";
 import { hasSavedRun, saveRun } from "@entities/game-session/model/persistence";
+import { derivePresentationEvents } from "@entities/game-session/model/presentationEvents";
 import { applyAction, createRun, createSnapshot, stepRun } from "@entities/game-session/model/simulation";
 import { assetGroups } from "@shared/assets/manifest";
+import { ru } from "@shared/i18n/ru";
 import { gameEvents } from "@shared/lib/event-bus/gameEvents";
 import Phaser from "phaser";
 import { RunSceneBoardArtPresenter } from "./runSceneBoardArt";
@@ -14,6 +16,7 @@ import {
 import { renderCore } from "./runSceneCoreRender";
 import { RunSceneEntryIntro } from "./runSceneEntryIntro";
 import { renderSceneGrounding } from "./runSceneGround";
+import { RunSceneJuicePresenter } from "./runSceneJuicePresenter";
 import { LOGICAL_HEIGHT, LOGICAL_WIDTH } from "./runSceneLayout";
 import { renderPathFlow } from "./runScenePathFlow";
 import { RunSceneReactionPresenter } from "./runSceneReactionPresenter";
@@ -61,6 +64,7 @@ export class RunScene extends Phaser.Scene {
   private boardArtPresenter?: RunSceneBoardArtPresenter;
   private reagentPresenter?: RunSceneReagentPresenter;
   private reactionPresenter?: RunSceneReactionPresenter;
+  private juicePresenter?: RunSceneJuicePresenter;
   private readonly bossPosition = { x: 0, y: 0 };
   private readonly enemyPosition = { x: 0, y: 0 };
   private readonly towerPosition = { x: 0, y: 0 };
@@ -88,6 +92,7 @@ export class RunScene extends Phaser.Scene {
     this.boardArtPresenter = new RunSceneBoardArtPresenter(this);
     this.reagentPresenter = new RunSceneReagentPresenter(this);
     this.reactionPresenter = new RunSceneReactionPresenter(this);
+    this.juicePresenter = new RunSceneJuicePresenter(this);
 
     this.coreSprite = this.add.image(0, 0, assetGroups.board.greatStillCore.key)
       .setOrigin(0.5)
@@ -103,6 +108,7 @@ export class RunScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(42);
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      const previousSnapshot = createSnapshot(this.driver.state);
       const tap = {
         x: Math.round(pointer.worldX),
         y: Math.round(pointer.worldY),
@@ -116,22 +122,30 @@ export class RunScene extends Phaser.Scene {
         this.saveCurrentRun();
       }
       gameEvents.emit("pointer:tap", tap);
-      this.renderSnapshot(createSnapshot(this.driver.state));
+      const nextSnapshot = createSnapshot(this.driver.state);
+      this.emitPresentationEvents(previousSnapshot, nextSnapshot);
+      this.renderSnapshot(nextSnapshot);
       this.publishSnapshot();
     });
 
     this.unsubscribeAction = gameEvents.on("run:action", (action) => {
+      const previousSnapshot = createSnapshot(this.driver.state);
       this.driver.replaceState(applyAction(this.driver.state, action));
       this.autosaveEnabled = true;
       this.saveCurrentRun();
-      this.renderSnapshot(createSnapshot(this.driver.state));
+      const nextSnapshot = createSnapshot(this.driver.state);
+      this.emitPresentationEvents(previousSnapshot, nextSnapshot);
+      this.renderSnapshot(nextSnapshot);
       this.publishSnapshot();
     });
     this.unsubscribeLoad = gameEvents.on("run:load", (state) => {
+      const previousSnapshot = createSnapshot(this.driver.state);
       this.driver.replaceState(state);
       this.autosaveEnabled = true;
       this.saveCurrentRun();
-      this.renderSnapshot(createSnapshot(this.driver.state));
+      const nextSnapshot = createSnapshot(this.driver.state);
+      this.emitPresentationEvents(previousSnapshot, nextSnapshot);
+      this.renderSnapshot(nextSnapshot);
       this.publishSnapshot();
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -146,9 +160,11 @@ export class RunScene extends Phaser.Scene {
   }
 
   update(_time: number, deltaMs: number): void {
+    const previousSnapshot = createSnapshot(this.driver.state);
     const state = this.driver.stepFrame(deltaMs);
     const snapshot = createSnapshot(state);
 
+    this.emitPresentationEvents(previousSnapshot, snapshot);
     this.renderSnapshot(snapshot);
     this.publishSnapshot(snapshot);
     this.autosaveMs += deltaMs;
@@ -181,6 +197,18 @@ export class RunScene extends Phaser.Scene {
     this.renderBoss(snapshot, visualMs);
     this.renderTowers(snapshot.placedTowers, snapshot.board.slots, snapshot.board.pathCells, snapshot.selectedTowerId, visualMs);
     this.renderPlacementFeedback(snapshot);
+    this.juicePresenter?.render(visualMs);
+  }
+
+  private emitPresentationEvents(previous: GameSnapshot, next: GameSnapshot): void {
+    const events = derivePresentationEvents(previous, next);
+
+    if (events.length === 0) {
+      return;
+    }
+
+    gameEvents.emit("run:presentation-events", events);
+    this.juicePresenter?.queue(events, next, this.time.now);
   }
 
   private renderBoard(snapshot: GameSnapshot, visualMs: number): void {
@@ -360,7 +388,7 @@ export class RunScene extends Phaser.Scene {
 
     this.bossLabel?.setVisible(true);
     this.bossLabel?.setPosition(position.x, position.y + 46);
-    this.bossLabel?.setText(vulnerable ? "Уязвим" : `Круг ${snapshot.boss.lap}`);
+    this.bossLabel?.setText(vulnerable ? ru.phaser.bossVulnerable : ru.phaser.bossLap(snapshot.boss.lap));
   }
 
   private renderTowers(

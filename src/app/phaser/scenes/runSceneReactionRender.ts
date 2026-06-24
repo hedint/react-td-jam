@@ -2,6 +2,7 @@ import type { CellReactionState, PathCell, ReactionId } from "@entities/game-ses
 import type { AssetDefinition } from "@shared/assets/manifest";
 import { gameConfig } from "@entities/game-session/model/config";
 import { assetGroups } from "@shared/assets/manifest";
+import { ru } from "@shared/i18n/ru";
 import { getPathTilePresentation } from "./runScenePathTiles";
 
 type ReactionLayer = NonNullable<CellReactionState["ground"]> | NonNullable<CellReactionState["air"]>;
@@ -43,7 +44,7 @@ export const reactionVfxRegistry = {
     asset: assetGroups.reactions.electroPuddle,
     layer: "ground",
     tier: 1,
-    callout: "Электролужа",
+    callout: ru.reactions.electroPuddle,
     width: 104,
     height: 56,
     yOffset: 8,
@@ -61,7 +62,7 @@ export const reactionVfxRegistry = {
     asset: assetGroups.reactions.steam,
     layer: "air",
     tier: 1,
-    callout: "Пар",
+    callout: ru.reactions.steam,
     width: 92,
     height: 86,
     yOffset: 0,
@@ -79,7 +80,7 @@ export const reactionVfxRegistry = {
     asset: assetGroups.reactions.fire,
     layer: "ground",
     tier: 1,
-    callout: "Пожар",
+    callout: ru.reactions.fire,
     width: 100,
     height: 60,
     yOffset: 9,
@@ -97,7 +98,7 @@ export const reactionVfxRegistry = {
     asset: assetGroups.reactions.stormCloud,
     layer: "air",
     tier: 2,
-    callout: "Грозовое облако",
+    callout: ru.reactions.stormCloud,
     width: 104,
     height: 88,
     yOffset: 0,
@@ -115,7 +116,7 @@ export const reactionVfxRegistry = {
     asset: assetGroups.reactions.fireVortex,
     layer: "air",
     tier: 2,
-    callout: "Огненный вихрь",
+    callout: ru.reactions.fireVortex,
     width: 96,
     height: 96,
     yOffset: 0,
@@ -133,7 +134,7 @@ export const reactionVfxRegistry = {
     asset: assetGroups.reactions.fireStorm,
     layer: "air",
     tier: 3,
-    callout: "Огненный Шторм",
+    callout: ru.reactions.fireStorm,
     width: 124,
     height: 112,
     yOffset: 0,
@@ -187,7 +188,7 @@ export function getReactionSpritePresentation(
 
 export function getReactionDisplayName(reactionId: ReactionId): string {
   return gameConfig.reactions.find(reaction => reaction.id === reactionId)?.displayName
-    ?? reactionVfxRegistry[reactionId].callout;
+    ?? ru.reactions[reactionId];
 }
 
 function clamp(value: number, min: number, max: number): number {

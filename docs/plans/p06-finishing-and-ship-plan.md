@@ -200,20 +200,21 @@ Purpose: make the now-frozen gameplay feel good and finish all player-facing sur
 ### B1 - Game-feel / juice layer (new)
 
 #### Tasks
-- [ ] Add floating damage numbers, enemy hit-flash, kill puff, screen shake on T3 / boss-break / core damage, and core-hit feedback.
-- [ ] Drive juice off the `gameEvents` bus; render in the Phaser presenters (`RunScene.ts`, `RunSceneReactionPresenter`, `runSceneTowerRender.ts`).
-- [ ] Respect the perf budget defined in `renderPerformance.ts`.
+- [x] Add floating damage numbers, kill puff, screen shake on T3 / boss-break / core damage, and core-hit feedback.
+- [ ] Revisit enemy hit-flash / hit-ring after final creature assets land; current procedural enemy shapes make it read as visual noise.
+- [x] Drive juice off the `gameEvents` bus; render in the Phaser presenters (`RunScene.ts`, `RunSceneReactionPresenter`, `runSceneTowerRender.ts`).
+- [x] Respect the perf budget defined in `renderPerformance.ts`.
 
 #### Acceptance Criteria
-- [ ] Big reactions, kills, boss break, and core damage each have clear, satisfying feedback without tanking frame rate.
+- [x] Big reactions, kills, boss break, and core damage each have clear, satisfying feedback without tanking frame rate.
 
 ### B2 - Locale extraction
 
 #### Tasks
-- [ ] Move hardcoded Russian UI strings into a central locale file (RU-only). Covers `RunHud.vue`, result/draft/pause text, and Phaser-drawn labels.
+- [x] Move hardcoded Russian UI strings into a central locale file (RU-only). Covers `RunHud.vue`, result/draft/pause text, and Phaser-drawn labels.
 
 #### Acceptance Criteria
-- [ ] No user-facing string literals remain scattered in components; swapping the locale file changes all UI text.
+- [x] No user-facing string literals remain scattered in components; swapping the locale file changes all UI text.
 
 ### B3 - Finalize all UI
 
@@ -234,7 +235,9 @@ Purpose: make the now-frozen gameplay feel good and finish all player-facing sur
 
 ### Phase B notes
 
-_(record divergences here)_
+- 2026-06-24: B1/B2 implementation pass added a typed pure presentation-event derivation layer plus a Phaser juice presenter for floating damage labels, kill puffs, core-hit feedback, and short shakes for `fireStorm`, boss break, and core damage. Enemy hit-ring / hit-flash was deferred until final creature assets exist because it reads noisy over the current procedural enemy shapes. The event batch is emitted through `gameEvents` as `run:presentation-events`, while effects remain renderer-only and outside serializable run state.
+- 2026-06-24: Normal player-facing HUD/store/Phaser labels touched by B2 now read from `src/shared/i18n/ru.ts`; config display names remain centralized content data, and the debug HUD remains intentionally unlocalized. B3/B4 surfaces are still deferred.
+- Checks run for B1/B2: `npm run lint:fix`, `npm run typecheck`, `npm run test` (9 files / 144 tests).
 
 ### Phase B completion summary
 
@@ -251,10 +254,12 @@ Ship gate: C1/C2 final enemy and boss runtime integration must be complete befor
 ### C1 - Final monster assets + integration
 
 #### Tasks
+- [ ] Run a final naming pass for all 7 enemy archetypes before asset approval; specifically reconsider awkward placeholder-feeling names such as `Грунт`.
 - [ ] Approve seed frames + facing model, animate move/hit/death, and replace procedural enemy shapes in `RunScene.ts` (~270-298).
 - [ ] Wire through `src/shared/assets/manifest.ts` (`enemies.<id>.<anim>.<dir>` keys).
 
 #### Acceptance Criteria
+- [ ] Enemy display names are approved as final Russian fiction names before public-demo ship.
 - [ ] All 7 enemy archetypes render as animated sprites with correct facing; no procedural fallback shapes in normal play.
 
 ### C2 - Final boss assets + abilities + animations

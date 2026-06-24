@@ -2,6 +2,7 @@ import type { BoardSlot, PathCell, TowerState } from "@entities/game-session/mod
 import type Phaser from "phaser";
 import type { RenderPoint } from "./runSceneRender";
 import { assetGroups } from "@shared/assets/manifest";
+import { ru } from "@shared/i18n/ru";
 
 export type TowerDirection = "up" | "upRight" | "right" | "downRight" | "down" | "downLeft" | "left" | "upLeft";
 
@@ -34,18 +35,7 @@ const DIRECTION_ROTATION: Record<TowerDirection, number> = {
 const TOWER_HEAD_SWAY_AMPLITUDE = 0.055;
 
 export function getTowerFieldLabel(emitterId: TowerState["emitterId"]): string {
-  switch (emitterId) {
-    case "water":
-      return "Вода";
-    case "oil":
-      return "Нефть";
-    case "spark":
-      return "Искра";
-    case "heat":
-      return "Жар";
-    default:
-      return emitterId satisfies never;
-  }
+  return ru.phaser.towerFields[emitterId];
 }
 
 export function getTowerSpriteRenderConfig(

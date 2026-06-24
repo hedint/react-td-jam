@@ -1,4 +1,5 @@
 import type { DamageSourceId, DraftRole, DraftStep, EmitterId, EnemyId, RunPhase, RuntimeSnapshot, StagePoint, UpgradeId, ViewportSize } from "./types";
+import { ru } from "@shared/i18n/ru";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { gameConfig } from "./config";
@@ -50,19 +51,19 @@ export const useGameSessionStore = defineStore("game-session", () => {
   const phaseLabel = computed(() => {
     switch (phase.value) {
       case "ready":
-        return "Ожидание";
+        return ru.session.phases.ready;
       case "countdown":
-        return `Старт ${Math.ceil(countdownMs.value / 1000)}`;
+        return ru.session.phases.countdown(Math.ceil(countdownMs.value / 1000));
       case "wave":
-        return "Волна";
+        return ru.session.phases.wave;
       case "draft":
-        return "Драфт";
+        return ru.session.phases.draft;
       case "boss":
-        return bossVulnerableMs.value > 0 ? "Уязв." : "Босс";
+        return bossVulnerableMs.value > 0 ? ru.session.phases.bossVulnerable : ru.session.phases.boss;
       case "victory":
-        return "Победа";
+        return ru.session.phases.victory;
       case "defeat":
-        return "Поражение";
+        return ru.session.phases.defeat;
       default:
         return phase.value satisfies never;
     }
@@ -71,8 +72,8 @@ export const useGameSessionStore = defineStore("game-session", () => {
   const canRerollDraft = computed(() => phase.value === "draft" && rerollsRemaining.value > 0);
   const damageLabel = computed(() => Math.round(totalDamage.value).toString());
   const bossHpLabel = computed(() => `${Math.ceil(bossHp.value)}/${bossMaxHp.value}`);
-  const runtimeLabel = computed(() => `${(elapsedMs.value / 1000).toFixed(1)} с`);
-  const topReactionLabel = computed(() => reactionStats.value[0]?.label ?? "нет");
+  const runtimeLabel = computed(() => ru.session.seconds((elapsedMs.value / 1000).toFixed(1)));
+  const topReactionLabel = computed(() => reactionStats.value[0]?.label ?? ru.session.noReaction);
   const lastTapLabel = computed(() => {
     if (!lastTap.value) {
       return "none";
@@ -221,9 +222,9 @@ function getWaveThreatEnemyId(waveIndex: number): EnemyId | null {
 function getDamageSourceLabel(sourceId: DamageSourceId): string {
   switch (sourceId) {
     case "rawSpark":
-      return "Искра";
+      return ru.session.damageSources.rawSpark;
     case "rawHeat":
-      return "Жар";
+      return ru.session.damageSources.rawHeat;
     default:
       return gameConfig.reactions.find(reaction => reaction.id === sourceId)?.displayName ?? sourceId;
   }
@@ -240,11 +241,11 @@ function getEmitterTowerLabel(emitterId: EmitterId): string {
 function getDraftRoleLabel(role: DraftRole): string {
   switch (role) {
     case "support":
-      return "связка";
+      return ru.session.draftRoles.support;
     case "generic":
-      return "запас";
+      return ru.session.draftRoles.generic;
     case "pivot":
-      return "поворот";
+      return ru.session.draftRoles.pivot;
     default:
       return role satisfies never;
   }
