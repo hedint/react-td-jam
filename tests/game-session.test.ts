@@ -862,6 +862,24 @@ describe("run simulation", () => {
     expect(next.stats.damageBySource.rawSpark).toBeUndefined();
   });
 
+  it("starts ground reaction damage when the enemy visually enters the next cell", () => {
+    const state = createRun(1, {
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-1-outer"),
+        createTower("tower-spark-a", "spark", "slot-1-outer"),
+      ],
+      enemies: [
+        createGrunt({ hp: 100, maxHp: 100, pathProgress: 0.7 }),
+      ],
+    });
+    const next = stepRun(state, 100);
+
+    expect(state.reactions[1]?.ground).toBe("electroPuddle");
+    expect(next.enemies[0]?.hp).toBeCloseTo(98.5);
+    expect(next.enemies[0]?.currentCellIndex).toBe(1);
+    expect(next.stats.damageBySource.electroPuddle).toBeCloseTo(1.5);
+  });
+
   it("suppresses raw energy consumed through nested air reaction inputs", () => {
     const state = createRun(1, {
       placedTowers: [

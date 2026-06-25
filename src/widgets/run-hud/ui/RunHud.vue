@@ -1,109 +1,123 @@
 <template>
   <div class="run-hud">
     <header class="run-hud__top">
-      <div class="run-hud__stat run-hud__stat--core">
-        <span>{{ locale.hud.core }}</span>
-        <strong>{{ session.coreHp }}</strong>
-      </div>
-      <div class="run-hud__stat run-hud__stat--wave">
-        <span>{{ session.phaseLabel }}</span>
-        <strong>{{ session.waveLabel }}</strong>
-      </div>
-      <div class="run-hud__stat run-hud__stat--threat">
-        <span>{{ session.phase === "boss" ? locale.hud.boss : locale.hud.enemy }}</span>
-        <strong class="run-hud__threat-value">
+      <button
+        class="run-hud__action-button"
+        type="button"
+        :aria-label="actionAriaLabel"
+        :disabled="hudActionDisabled"
+        @click="activatePrimaryAction"
+      >
+        <span
+          class="run-hud__action-icon"
+          :class="actionIconClass"
+          aria-hidden="true"
+        />
+        <span>{{ actionLabel }}</span>
+      </button>
+      <div
+        class="run-hud__panel run-hud__panel--core"
+        :aria-label="locale.hud.aria.coreHp(session.coreHp, coreMaxHp)"
+      >
+        <div class="run-hud__core-main">
           <span
-            v-if="session.waveThreatEnemyId"
-            class="run-hud__enemy-icon"
-            :class="`run-hud__enemy-icon--${session.waveThreatEnemyId}`"
+            class="run-hud__heart"
             aria-hidden="true"
           />
-          <span>{{ session.phase === "boss" ? session.bossHpLabel : session.waveThreatLabel }}</span>
-        </strong>
+          <strong>{{ session.coreHp }}</strong>
+        </div>
+        <span
+          class="run-hud__core-bar"
+          aria-hidden="true"
+        >
+          <span :style="{ width: coreHpPercent }" />
+        </span>
       </div>
-      <div class="run-hud__stat run-hud__stat--speed">
-        <span>{{ locale.hud.speed }}</span>
-        <strong>x{{ session.speed }}</strong>
+      <div class="run-hud__panel run-hud__panel--status">
+        <div class="run-hud__wave">
+          <span class="run-hud__eyebrow">{{ waveEyebrow }}</span>
+          <strong>{{ waveCountLabel }}</strong>
+        </div>
+        <div class="run-hud__threat">
+          <template v-if="session.phase === 'boss'">
+            <span class="run-hud__eyebrow">{{ locale.hud.boss }}</span>
+            <span
+              class="run-hud__enemy run-hud__enemy--boss-ogre"
+              :title="gameConfig.boss.displayName"
+              :aria-label="gameConfig.boss.displayName"
+            />
+            <strong class="run-hud__threat-value">{{ session.bossHpLabel }}</strong>
+          </template>
+          <div
+            v-else
+            class="run-hud__enemies"
+            role="list"
+            :aria-label="locale.hud.enemy"
+          >
+            <span
+              v-for="enemyId in waveEnemyIds"
+              :key="enemyId"
+              class="run-hud__enemy"
+              role="listitem"
+              :class="`run-hud__enemy--${enemyId}`"
+              :title="enemyName(enemyId)"
+              :aria-label="enemyName(enemyId)"
+            />
+          </div>
+        </div>
       </div>
+
       <button
-        v-if="session.canStartWave"
-        class="run-hud__button"
+        class="run-hud__mute-button"
         type="button"
-        @click="startWave"
+        :aria-label="muteAriaLabel"
+        :aria-pressed="muted"
+        :title="muteAriaLabel"
+        @click="toggleMute"
       >
-        {{ locale.hud.start }}
-      </button>
-      <button
-        v-else-if="!session.draftStep"
-        class="run-hud__button"
-        type="button"
-        @click="togglePause"
-      >
-        {{ session.paused ? locale.hud.resume : locale.hud.pause }}
+        <MuteIcon :muted="muted" />
       </button>
     </header>
 
-    <section
-      v-if="reserveTowerStacks.length > 0"
-      class="run-hud__bottom"
-      :class="{ 'run-hud__bottom--locked': session.draftStep }"
-    >
-      <div class="run-hud__bench">
-        <button
-          v-for="tower in reserveTowerStacks"
-          :key="tower.emitterId"
-          class="run-hud__tower"
-          :class="[
-            getEmitterClass(tower.emitterId),
-            { 'run-hud__tower--selected': !session.draftStep && tower.selected },
-          ]"
-          :disabled="Boolean(session.draftStep)"
-          type="button"
-          @click="selectTowerStack(tower)"
-        >
-          <span class="run-hud__tower-name">{{ tower.label }}</span>
-          <span class="run-hud__tower-art" aria-hidden="true" />
-          <span
-            v-if="tower.count > 1"
-            class="run-hud__tower-count"
-          >x{{ tower.count }}</span>
-        </button>
-      </div>
-    </section>
-
-    <div
-      v-if="resumePromptVisible"
-      class="run-hud__scrim run-hud__scrim--blocking"
-    >
-      <section class="run-hud__modal">
-        <h2>{{ locale.hud.savedRunTitle }}</h2>
-        <dl>
-          <div>
-            <dt>{{ locale.hud.result.seed }}</dt>
-            <dd>{{ savedSeed }}</dd>
-          </div>
-        </dl>
-        <div class="run-hud__modal-actions">
+    <Transition name="run-hud-bench-slide">
+      <section
+        v-if="reserveTowerStacks.length > 0"
+        class="run-hud__bottom"
+        :class="{ 'run-hud__bottom--locked': session.draftStep }"
+      >
+        <div class="run-hud__bench">
           <button
-            class="run-hud__button run-hud__button--primary"
+            v-for="tower in reserveTowerStacks"
+            :key="tower.emitterId"
+            class="run-hud__tower"
+            :class="[
+              getEmitterClass(tower.emitterId),
+              { 'run-hud__tower--selected': !session.draftStep && tower.selected },
+            ]"
+            :disabled="Boolean(session.draftStep)"
             type="button"
-            @click="resumeSavedRun"
+            @click="selectTowerStack(tower)"
           >
-            {{ locale.hud.continueRun }}
-          </button>
-          <button
-            class="run-hud__button"
-            type="button"
-            @click="startNewRun"
-          >
-            {{ locale.hud.newRun }}
+            <span class="run-hud__tower-card">
+              <span class="run-hud__tower-header">
+                <span class="run-hud__tower-name">{{ tower.label }}</span>
+              </span>
+              <span
+                class="run-hud__tower-art"
+                aria-hidden="true"
+              />
+              <span
+                v-if="tower.count > 1"
+                class="run-hud__tower-count"
+              >x{{ tower.count }}</span>
+            </span>
           </button>
         </div>
       </section>
-    </div>
+    </Transition>
 
     <div
-      v-else-if="session.draftStep"
+      v-if="session.draftStep"
       class="run-hud__scrim run-hud__scrim--blocking run-hud__scrim--draft"
     >
       <section class="run-hud__draft">
@@ -113,18 +127,27 @@
             <h2>{{ session.draftStep === "tower" ? locale.hud.draft.towerTitle : locale.hud.draft.upgradeTitle }}</h2>
           </div>
           <button
-            class="run-hud__button"
+            class="run-hud__button run-hud__reroll-button"
             type="button"
             :disabled="!session.canRerollDraft"
+            :aria-label="locale.hud.draft.reroll"
             @click="rerollDraft"
           >
-            {{ locale.hud.draft.reroll(session.rerollsRemaining) }}
+            <svg
+              class="run-hud__reroll-icon"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+              <path d="M20 4v6h-6" />
+            </svg>
+            <span>{{ locale.hud.draft.reroll }}</span>
           </button>
         </header>
 
         <div
           v-if="session.draftStep === 'tower'"
-          class="run-hud__draft-grid"
+          class="run-hud__draft-strip"
         >
           <button
             v-for="offer in session.draftTowerOffers"
@@ -134,14 +157,18 @@
             type="button"
             @click="chooseDraftTower(offer.emitterId)"
           >
-            <span class="run-hud__draft-card-art" aria-hidden="true" />
-            <strong>{{ offer.label }}</strong>
+            <span class="run-hud__tower-card run-hud__draft-card-shell">
+              <span class="run-hud__tower-header">
+                <span class="run-hud__tower-name">{{ offer.label }}</span>
+              </span>
+              <span class="run-hud__tower-art" aria-hidden="true" />
+            </span>
           </button>
         </div>
 
         <div
           v-else
-          class="run-hud__draft-grid run-hud__draft-grid--upgrade"
+          class="run-hud__draft-strip run-hud__draft-strip--upgrade"
         >
           <button
             v-for="offer in session.draftUpgradeOffers"
@@ -151,15 +178,26 @@
             type="button"
             @click="chooseDraftUpgrade(offer.upgradeId)"
           >
-            <span class="run-hud__draft-card-main">
-              <strong>{{ offer.label }}</strong>
-              <span>{{ getUpgradeDescription(offer.upgradeId) }}</span>
+            <span class="run-hud__tower-card run-hud__draft-card-shell run-hud__draft-card-shell--upgrade">
+              <span class="run-hud__tower-header">
+                <span class="run-hud__tower-name">{{ offer.label }}</span>
+              </span>
+              <span class="run-hud__draft-card-main">
+                <span>{{ getUpgradeDescription(offer.upgradeId) }}</span>
+              </span>
+              <span class="run-hud__tower-count run-hud__upgrade-level">{{ locale.hud.draft.upgradeLevel(offer.stacks, offer.maxStacks) }}</span>
             </span>
-            <span class="run-hud__upgrade-level">{{ locale.hud.draft.upgradeLevel(offer.stacks, offer.maxStacks) }}</span>
           </button>
         </div>
       </section>
     </div>
+
+    <section
+      v-else-if="session.paused"
+      class="run-hud__pause-chip"
+    >
+      <span>{{ locale.hud.pause }}</span>
+    </section>
 
     <div
       v-else-if="session.phase === 'victory' || session.phase === 'defeat'"
@@ -233,20 +271,23 @@
 </template>
 
 <script setup lang="ts">
-import type { EmitterId, UpgradeId } from "@entities/game-session/model/types";
-import { clearSavedRun, hasSavedRun, loadSavedRun } from "@entities/game-session/model/persistence";
+import type { EmitterId, EnemyId, UpgradeId } from "@entities/game-session/model/types";
+import { gameConfig } from "@entities/game-session/model/config";
+import { clearSavedRun } from "@entities/game-session/model/persistence";
 import { useGameSessionStore } from "@entities/game-session/model/store";
 import { useGameSessionBridge } from "@entities/game-session/model/useGameSessionBridge";
 import { ru } from "@shared/i18n/ru";
 import { gameEvents } from "@shared/lib/event-bus/gameEvents";
 import { computed, onMounted, ref } from "vue";
+import MuteIcon from "./MuteIcon.vue";
 
 useGameSessionBridge();
 
 const locale = ru;
 const session = useGameSessionStore();
-const resumePromptVisible = ref(false);
-const savedSeed = ref<number | null>(null);
+const muted = ref(false);
+const coreMaxHp = gameConfig.balance.coreHp;
+const muteStorageKey = "jam-td:muted";
 const reserveTowerStacks = computed(() => {
   const stacks = new Map<EmitterId, { emitterId: EmitterId, label: string, ids: string[] }>();
 
@@ -271,6 +312,61 @@ const reserveTowerStacks = computed(() => {
     selected: session.selectedTowerId !== null && stack.ids.includes(session.selectedTowerId),
   }));
 });
+const coreHpPercent = computed(() => `${Math.max(0, Math.min(1, session.coreHp / coreMaxHp)) * 100}%`);
+const totalWaves = gameConfig.waves.length;
+const previewWaveIndex = computed(() => {
+  if (session.phase === "draft") {
+    return Math.min(session.waveIndex + 1, totalWaves - 1);
+  }
+
+  return Math.min(session.waveIndex, totalWaves - 1);
+});
+const waveEyebrow = computed(() => locale.hud.wave);
+const waveCountLabel = computed(() => {
+  if (session.phase === "boss") {
+    return session.waveLabel;
+  }
+
+  const waveNumber = previewWaveIndex.value + 1;
+
+  return `${waveNumber}/${totalWaves}`;
+});
+const waveEnemyIds = computed<readonly EnemyId[]>(() => {
+  const wave = gameConfig.waves[previewWaveIndex.value];
+
+  if (!wave) {
+    return [];
+  }
+
+  const ids = wave.telegraphEnemyIds && wave.telegraphEnemyIds.length > 0
+    ? wave.telegraphEnemyIds
+    : wave.spawnGroups.map(group => group.enemyId);
+
+  return [...new Set(ids)];
+});
+const actionLabel = computed(() => {
+  if (session.canStartWave) {
+    return locale.hud.start;
+  }
+
+  return session.paused ? locale.hud.resume : locale.hud.pause;
+});
+const actionAriaLabel = computed(() => {
+  if (session.canStartWave) {
+    return locale.hud.aria.startWave;
+  }
+
+  return session.paused ? locale.hud.aria.resumeRun : locale.hud.aria.pauseRun;
+});
+const actionIconClass = computed(() => {
+  if (session.canStartWave || session.paused) {
+    return "run-hud__action-icon--play";
+  }
+
+  return "run-hud__action-icon--pause";
+});
+const hudActionDisabled = computed(() => Boolean(session.draftStep) || session.phase === "victory" || session.phase === "defeat");
+const muteAriaLabel = computed(() => muted.value ? locale.hud.aria.unmute : locale.hud.aria.mute);
 const resultTitle = computed(() => session.phase === "victory" ? locale.hud.result.victoryTitle : locale.hud.result.defeatTitle);
 const resultSubtitle = computed(() =>
   session.phase === "victory"
@@ -280,6 +376,10 @@ const resultSubtitle = computed(() =>
 
 function getEmitterClass(emitterId: EmitterId): string {
   return `run-hud--${emitterId}`;
+}
+
+function enemyName(enemyId: EnemyId): string {
+  return gameConfig.enemies.find(enemy => enemy.id === enemyId)?.displayName ?? "";
 }
 
 function getUpgradeClass(upgradeId: UpgradeId): string {
@@ -325,10 +425,8 @@ function getDamageSourceClass(sourceId: string): string {
 }
 
 onMounted(() => {
-  const savedRun = loadSavedRun();
-
-  resumePromptVisible.value = hasSavedRun();
-  savedSeed.value = savedRun?.seed ?? null;
+  muted.value = window.localStorage.getItem(muteStorageKey) === "1";
+  gameEvents.emit("audio:mute-changed", { muted: muted.value });
 });
 
 function togglePause(): void {
@@ -337,6 +435,21 @@ function togglePause(): void {
 
 function startWave(): void {
   gameEvents.emit("run:action", { type: "startWave" });
+}
+
+function activatePrimaryAction(): void {
+  if (session.canStartWave) {
+    startWave();
+    return;
+  }
+
+  togglePause();
+}
+
+function toggleMute(): void {
+  muted.value = !muted.value;
+  window.localStorage.setItem(muteStorageKey, muted.value ? "1" : "0");
+  gameEvents.emit("audio:mute-changed", { muted: muted.value });
 }
 
 function selectTowerStack(tower: { readonly ids: readonly string[], readonly selected: boolean }): void {
@@ -366,22 +479,6 @@ function restartRun(): void {
 
 function newRun(): void {
   clearSavedRun();
-  gameEvents.emit("run:action", { type: "restart", seed: Date.now() % 100000 });
-}
-
-function resumeSavedRun(): void {
-  const savedRun = loadSavedRun();
-
-  if (savedRun) {
-    gameEvents.emit("run:load", savedRun);
-  }
-
-  resumePromptVisible.value = false;
-}
-
-function startNewRun(): void {
-  clearSavedRun();
-  resumePromptVisible.value = false;
   gameEvents.emit("run:action", { type: "restart", seed: Date.now() % 100000 });
 }
 </script>

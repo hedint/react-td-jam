@@ -25,6 +25,7 @@
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html,
@@ -43,4 +44,18 @@ body {
 
 button {
   font: inherit;
+  outline: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+a,
+button,
+input,
+select,
+textarea,
+[role="button"],
+[tabindex] {
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
 }

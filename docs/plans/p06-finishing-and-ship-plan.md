@@ -43,7 +43,7 @@ The game is mechanically and feature-complete for P0 (10 waves + boss, the full 
 - **Enemy/boss art gate**: final creature and boss sprites are a public-demo ship blocker, but not a blocker for Phase A/B balance and UI work. Boss abilities may be prototyped before final art through simulation/events and temporary telegraph overlays.
 - **Game feel**: a dedicated lightweight juice pass (separate from asset work).
 - **UI finalization**: covers everything - top/bottom in-run bars, draft cards, pause overlay, and victory/defeat result screens.
-- **Meta shell**: minimal title screen (New run / Continue) plus a credits panel.
+- **Meta shell**: minimal first-screen title overlay (New run / Continue). Credits were cut from the Phase B4 ship slice.
 - **Audio**: required for ship, but scoped small: music/ambience, key SFX, UI feedback, and a persistent mute button in the top HUD. No dedicated settings screen, mixer, complex dynamic music, or large variant library.
 - **Localization**: Russian-only ships, but strings are extracted into a central locale file.
 - **Onboarding**: a small first-run tutorial is required, but it is implemented near the end after gameplay, UI, and visuals are stable. Hints support the tutorial; they do not replace it.
@@ -219,25 +219,28 @@ Purpose: make the now-frozen gameplay feel good and finish all player-facing sur
 ### B3 - Finalize all UI
 
 #### Tasks
-- [ ] One polish pass over top + bottom in-run bars, draft cards, pause overlay, and victory/defeat result screens in `RunHud.vue` (+ CSS) after B2 locale extraction.
-- [ ] Add a small mute button to the top HUD, wired to the (future) audio system; safe no-op until audio lands.
+- [x] Polish the top + bottom in-run bars in `RunHud.vue` (+ CSS) after B2 locale extraction.
+- [x] Polish draft cards, pause overlay, and victory/defeat result screens in `RunHud.vue` (+ CSS).
+- [x] Add a small mute button to the top HUD, wired to the (future) audio system; safe no-op until audio lands.
 
 #### Acceptance Criteria
-- [ ] Every UI surface reads as finished and consistent with the iron/brass skin; mute toggle present and persistent.
+- [x] Every UI surface reads as finished and consistent with the iron/brass skin; mute toggle present and persistent.
 
 ### B4 - Meta shell
 
 #### Tasks
-- [ ] Add a title screen (New run / Continue, reusing the existing save check in `persistence.ts`) and a credits panel, alongside `src/pages/game` and the router.
+- [x] Add a title screen (New run / Continue, reusing the existing save check in `persistence.ts`) as a simple first-screen overlay in `src/pages/game`; credits are intentionally out of scope.
 
 #### Acceptance Criteria
-- [ ] App boots to a title screen; Continue resumes a saved run; credits reachable.
+- [x] App boots to a title screen; Continue resumes a saved run; credits are intentionally out of scope.
 
 ### Phase B notes
 
 - 2026-06-24: B1/B2 implementation pass added a typed pure presentation-event derivation layer plus a Phaser juice presenter for floating damage labels, kill puffs, core-hit feedback, and short shakes for `fireStorm`, boss break, and core damage. Enemy hit-ring / hit-flash was deferred until final creature assets exist because it reads noisy over the current procedural enemy shapes. The event batch is emitted through `gameEvents` as `run:presentation-events`, while effects remain renderer-only and outside serializable run state.
 - 2026-06-24: Normal player-facing HUD/store/Phaser labels touched by B2 now read from `src/shared/i18n/ru.ts`; config display names remain centralized content data, and the debug HUD remains intentionally unlocalized. B3/B4 surfaces are still deferred.
 - Checks run for B1/B2: `npm run lint:fix`, `npm run typecheck`, `npm run test` (9 files / 144 tests).
+- 2026-06-25: B3 top/bottom HUD slice implemented and accepted as a good intermediate result, but B3 remains open for draft cards, pause overlay, and victory/defeat result screens. The in-run top HUD now uses one shared PNG-framed iron/brass rail, removes the normal speed display, shows compact cube HP + wave/threat previews, puts the dominant Start/Pause button first, and includes a persistent mute toggle that emits `audio:mute-changed` as a no-op integration point for Phase D audio. The bottom reserve tower bench now uses portrait tower cards without the heavy PNG card border, supports selected-card float animation, and slides fully off-screen when no reserve towers remain. Mobile layout was adjusted for real Android Chrome `visualViewport` behavior, tap/focus browser highlights were removed for mobile-first play, and the target mobile minimum for this HUD pass is 360px wide, not 320px.
+- 2026-06-25: B3/B4 completion slice finished the remaining player-facing UI surfaces and simplified the meta shell. Draft tower and upgrade cards now use the same horizontal card-strip language as the lower HUD bench, so portrait screens spend width instead of height; the pause state uses a compact non-blocking chip; victory/defeat results share the same iron/brass modal styling. During draft, the top HUD now previews `waveIndex + 1` enemies and labels the wave as `Далее`, because the simulation keeps `waveIndex` on the cleared wave until `advanceAfterDraft`. The first screen is now a simple title overlay in `GamePage`; Phaser is not mounted until New Run or Continue is chosen, preventing a stale seed-1 autosave before player intent. Credits were intentionally cut from B4.
 
 ### Phase B completion summary
 
@@ -278,7 +281,8 @@ Ship gate: C1/C2 final enemy and boss runtime integration must be complete befor
 #### Tasks
 - [ ] For T3 `fireStorm`, decide whether the neighboring-pool climax needs a multi-cell pool underlay beyond the existing sprite VFX; add it only if the playtest/readability pass proves the extra layer is needed.
 - [ ] Asset-size / load optimization pass for the web build.
-- [ ] Run an early `npm run build` + static preview smoke after the major B/C integrations to catch base path, asset loading, mobile viewport, and audio gesture issues before final Phase D polish.
+- [x] Run an early `npm run build` after the major B/C integrations to catch compile, asset reference, and bundling issues before final Phase D polish.
+- [ ] Run a static preview smoke after the major B/C integrations to catch base path, asset loading, mobile viewport, and audio gesture issues before final Phase D polish.
 
 #### Acceptance Criteria
 - [ ] All in-scope reactions have complete VFX; build asset size is reasonable for web; the early static build loads and plays through a smoke flow.
@@ -310,6 +314,7 @@ Ship gate: C1/C2 final enemy and boss runtime integration must be complete befor
 - 2026-06-24: Boss visual direction changed to a large cave ogre with a heavy club. Seed-draft approval is now mandatory before any animation strip generation. Draft approval sheet generated for review; do not create crawl/hit/vulnerable/death/set-piece strips until one seed candidate is approved.
 - 2026-06-24: Бочкоед seed `output/boss-drafts/barrel-eater-ogre-seed-draft-hybrid-02.png` approved after the back-vat size pass. The approved 384x384 seed was normalized to `public/assets/enemies/boss-ogre/boss-ogre-seed-approved-384.png`; 4-frame strips for `crawl`, `hit`, `vulnerable`, `death`, `leap-prepare`, `leap-air`, `smash`, `blackout-cast`, and `summon-roar` were generated as whole strips, cleaned to transparent 384x384 frames, and copied into `public/assets/enemies/boss-ogre/boss-ogre-<anim>-side.png`. `assetGroups.enemies` now exposes manifest-backed boss spritesheets, `RunSceneBossPresenter` registers `enemies.boss-ogre.<anim>.side.anim`, and normal boss play no longer uses the placeholder/procedural body.
 - 2026-06-25: C2 closure pass complete. Бочкоед is now included on `/enemy-demo` beside a tower-layer fixture for HP-bar/scale checks, `RunSceneBossPresenter` renders the boss sprite above tower body/head layers, and `gameConfig.boss.hp` was raised from `620` to `1000` for a higher final challenge. Verification run for the closure pass: `npm run lint:fix`, `npm run typecheck`, `npm run test` (158 tests), `npm run balance:quick`, and `npm run build`. Browser screenshot QA for `/enemy-demo` remains a presentation follow-up only, not a C2 implementation blocker.
+- 2026-06-25: B3 HUD work incidentally exercised the C3 early-build gate: repeated `npm run build` runs stayed green after enemy/boss/HUD asset integrations, with only the known large Phaser chunk warning. Real-device-inspired mobile viewport behavior was also fixed through `visualViewport` sizing after Pixel 9 Chrome QA exposed layout drift. C3 remains open because no dedicated static preview smoke or asset-size/load optimization pass has been completed.
 
 ### Phase C completion summary
 

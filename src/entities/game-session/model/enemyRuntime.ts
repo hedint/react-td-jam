@@ -16,6 +16,8 @@ import { getCellDamageEntries } from "./damage";
 import { getCellSpeedMultiplier } from "./reactions";
 import { getDamageBySource, updateWaveStats } from "./stats";
 
+const ENEMY_EFFECT_CONTACT_PROGRESS = 0.35;
+
 export interface SpawnRuntimeResult {
   readonly waveId: string | null
   readonly runtime: WaveRuntimeState | null
@@ -121,7 +123,7 @@ export function stepActiveEnemies(
     }
 
     const enemyDefinition = getEnemyDefinition(enemy.enemyId, options.config);
-    const currentCellIndex = getCurrentPathCellIndex(enemy.pathProgress, state.board.pathCells.length);
+    const currentCellIndex = getEnemyEffectCellIndex(enemy.pathProgress, state.board.pathCells.length);
     const speedMultiplier = getEnemySpeedMultiplier(
       enemyDefinition,
       options.reagentProjection[currentCellIndex],
@@ -141,7 +143,7 @@ export function stepActiveEnemies(
       return [];
     }
 
-    const cellIndex = getCurrentPathCellIndex(pathProgress, state.board.pathCells.length);
+    const cellIndex = getEnemyEffectCellIndex(pathProgress, state.board.pathCells.length);
     const damageEntries = getCellDamageEntries(
       options.reactions[cellIndex]!,
       options.reagentProjection[cellIndex],
@@ -229,6 +231,10 @@ export function getWaveSpawnedCount(waveRuntime: WaveRuntimeState | null): numbe
 
 export function getCurrentPathCellIndex(pathProgress: number, pathCellCount: number): number {
   return Math.max(0, Math.min(pathCellCount - 1, Math.floor(pathProgress)));
+}
+
+export function getEnemyEffectCellIndex(pathProgress: number, pathCellCount: number): number {
+  return getCurrentPathCellIndex(pathProgress + ENEMY_EFFECT_CONTACT_PROGRESS, pathCellCount);
 }
 
 function getEnemyDefinition(enemyId: EnemyId, config: GameConfig): EnemyDefinition {

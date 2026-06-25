@@ -77,6 +77,16 @@ function bossSpriteSheetAsset(animationName: BossSpriteAnim): SpriteSheetAsset &
   };
 }
 
+function enemyHudPreviewAsset(enemyId: EnemySpriteAssetId | "boss-ogre"): ImageAsset & { readonly group: "enemies" } {
+  return {
+    type: "image",
+    group: "enemies",
+    key: `enemies.${enemyId}.hud-preview`,
+    src: `/assets/enemies/hud/${enemyId}-preview.png`,
+    usage: "css",
+  };
+}
+
 export const assetGroups = {
   scene: {
     cavernFortressFloor: {
@@ -266,6 +276,14 @@ export const assetGroups = {
     flameproofMoveSide: enemySpriteSheetAsset("flameproof", "move"),
     flameproofHitSide: enemySpriteSheetAsset("flameproof", "hit"),
     flameproofDeathSide: enemySpriteSheetAsset("flameproof", "death"),
+    gruntHudPreview: enemyHudPreviewAsset("grunt"),
+    swarmHudPreview: enemyHudPreviewAsset("swarm"),
+    tankHudPreview: enemyHudPreviewAsset("tank"),
+    flyerHudPreview: enemyHudPreviewAsset("flyer"),
+    runnerHudPreview: enemyHudPreviewAsset("runner"),
+    insulatedHudPreview: enemyHudPreviewAsset("insulated"),
+    flameproofHudPreview: enemyHudPreviewAsset("flameproof"),
+    bossOgreHudPreview: enemyHudPreviewAsset("boss-ogre"),
     bossOgreCrawlSide: bossSpriteSheetAsset("crawl"),
     bossOgreHitSide: bossSpriteSheetAsset("hit"),
     bossOgreVulnerableSide: bossSpriteSheetAsset("vulnerable"),

@@ -1,24 +1,36 @@
 import type { DamageSourceId, DraftRole, EmitterId, ReactionId, UpgradeId } from "@entities/game-session/model/types";
 
 export const ru = {
+  title: {
+    name: "React TD",
+    subtitle: "Последняя Варка",
+  },
   hud: {
     core: "Куб",
+    wave: "Волна",
     boss: "Босс",
     enemy: "Враг",
     speed: "Т",
     start: "Старт",
     resume: "Пуск",
     pause: "Пауза",
-    savedRunTitle: "Сохранённый ран",
     continueRun: "Продолжить",
     newRun: "Новый ран",
     restart: "Рестарт",
+    aria: {
+      coreHp: (current: number, max: number) => `Здоровье Куба ${current} из ${max}`,
+      startWave: "Запустить волну",
+      pauseRun: "Поставить ран на паузу",
+      resumeRun: "Продолжить ран",
+      mute: "Выключить звук",
+      unmute: "Включить звук",
+    },
     draft: {
       towerEyebrow: "Башня",
       upgradeEyebrow: "Усиление",
       towerTitle: "Пополнение мастерской",
       upgradeTitle: "Выберите усиление",
-      reroll: (remaining: number) => `Реролл ${remaining}`,
+      reroll: "Реролл",
       upgradeLevel: (stacks: number, maxStacks: number) => `Уровень ${stacks}/${maxStacks}`,
     },
     result: {

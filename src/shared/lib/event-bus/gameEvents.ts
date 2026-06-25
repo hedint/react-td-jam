@@ -6,6 +6,7 @@ export interface GameEventMap {
   "session:snapshot": RuntimeSnapshot
   "viewport:resize": ViewportSize
   "pointer:tap": StagePoint
+  "audio:mute-changed": { readonly muted: boolean }
   "run:action": GameAction
   "run:load": RunState
   "run:presentation-events": readonly GamePresentationEvent[]

@@ -1,4 +1,4 @@
-import type { BoardSlot, GameSnapshot, PathCell } from "@entities/game-session/model/types";
+import type { GameSnapshot, PathCell } from "@entities/game-session/model/types";
 import type Phaser from "phaser";
 import { getCoreEntrancePathCell } from "@entities/game-session/model/boardGeometry";
 import { assetGroups } from "@shared/assets/manifest";
@@ -7,6 +7,9 @@ const FALLBACK_ROAD_TILE_SIZE = 76;
 const ROAD_TILE_OVERLAP = 6;
 const SLOT_DISPLAY_SIZE = 52;
 const CORNER_SLOT_DISPLAY_SIZE = 62;
+const SLOT_IDLE_ALPHA = 0.6;
+const SLOT_ACTIVE_ALPHA = 0.92;
+const SLOT_LOCKED_ALPHA = 0.25;
 const MARKER_DISPLAY_SIZE = 94;
 const EXIT_MARKER_DISPLAY_SIZE = 86;
 const ENTRANCE_MARKER_Y_OFFSET_TILES = -1 / 3;
@@ -37,7 +40,7 @@ export class RunSceneBoardArtPresenter {
 
   render(snapshot: GameSnapshot): void {
     this.renderRoad(snapshot.board.pathCells);
-    this.renderSlots(snapshot.board.slots);
+    this.renderSlots(snapshot);
     this.renderMarkers(snapshot.board.pathCells);
   }
 
@@ -64,7 +67,12 @@ export class RunSceneBoardArtPresenter {
     this.roadSprites.slice(cells.length).forEach(sprite => sprite.setVisible(false));
   }
 
-  private renderSlots(slots: readonly BoardSlot[]): void {
+  private renderSlots(snapshot: GameSnapshot): void {
+    const slots = snapshot.board.slots;
+    const unlockedSlotAlpha = snapshot.selectedTowerId !== null || snapshot.paused
+      ? SLOT_ACTIVE_ALPHA
+      : SLOT_IDLE_ALPHA;
+
     while (this.slotSprites.length < slots.length) {
       this.slotSprites.push(this.scene.add.image(0, 0, assetGroups.board.slotSocket.key)
         .setOrigin(0.5)
@@ -81,7 +89,7 @@ export class RunSceneBoardArtPresenter {
         .setPosition(slot.x, slot.y)
         .setDisplaySize(size, size)
         .setRotation(slot.isCorner ? Math.PI / 4 : 0)
-        .setAlpha(slot.locked ? 0.25 : 0.92)
+        .setAlpha(slot.locked ? SLOT_LOCKED_ALPHA : unlockedSlotAlpha)
         .setDepth(3 + slot.y / 10000);
     });
 
