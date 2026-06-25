@@ -387,11 +387,12 @@ function getUpgradeClass(upgradeId: UpgradeId): string {
     case "waterCapacity":
       return getEmitterClass("water");
     case "oilControl":
-    case "fireCatalyst":
       return getEmitterClass("oil");
     case "sparkCapacity":
+    case "sparkCatalyst":
       return getEmitterClass("spark");
     case "heatReach":
+    case "fireCatalyst":
       return getEmitterClass("heat");
     case "unlockSlot5":
     case "unlockSlot9":

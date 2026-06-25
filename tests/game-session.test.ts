@@ -1,7 +1,8 @@
-import type { EmitterId, GameAction, GameConfig, ReactionDefinition, RunState } from "@entities/game-session/model/types";
+import type { EmitterId, GameAction, GameConfig, ReactionDefinition, ReactionId, RunState, UpgradeStackState } from "@entities/game-session/model/types";
 import { renderPerformanceBudget } from "@app/phaser/scenes/renderPerformance";
 import { createStadiumLoopBoard, defaultBoardGeometryConfig } from "@entities/game-session/model/boardGeometry";
 import { gameConfig, validateGameConfig } from "@entities/game-session/model/config";
+import { getReactionDamageEntries } from "@entities/game-session/model/damage";
 import { applyUpgradeToState, createDraftState } from "@entities/game-session/model/draft";
 import { createFixedStepDriver } from "@entities/game-session/model/fixedStepDriver";
 import { runHeadlessRun, runHeadlessStrategy } from "@entities/game-session/model/headlessRun";
@@ -25,6 +26,10 @@ import {
 import { useGameSessionStore } from "@entities/game-session/model/store";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it } from "vitest";
+
+function getReactionDamage(reactionId: ReactionId, upgrades: readonly UpgradeStackState[] = []): number {
+  return getReactionDamageEntries({ cellIndex: 0, ground: reactionId, air: null }, 1000, upgrades)[0]?.amount ?? 0;
+}
 
 describe("run simulation", () => {
   it("creates a serializable deterministic initial run state", () => {
@@ -741,6 +746,31 @@ describe("run simulation", () => {
 
     expect(maxT1).toBeLessThan(minT2);
     expect(maxT2).toBeLessThan(minT3);
+  });
+
+  it("boosts tier 1 and tier 2 reactions that include the catalyst element", () => {
+    const fireCatalyst = [{ upgradeId: "fireCatalyst", stacks: 1 }] as const;
+    const sparkCatalyst = [{ upgradeId: "sparkCatalyst", stacks: 1 }] as const;
+
+    expect(getReactionDamage("steam", fireCatalyst)).toBeCloseTo(8.75);
+    expect(getReactionDamage("fire", fireCatalyst)).toBeCloseTo(25);
+    expect(getReactionDamage("stormCloud", fireCatalyst)).toBeCloseTo(40);
+    expect(getReactionDamage("fireVortex", fireCatalyst)).toBeCloseTo(47.5);
+    expect(getReactionDamage("electroPuddle", fireCatalyst)).toBeCloseTo(15);
+
+    expect(getReactionDamage("electroPuddle", sparkCatalyst)).toBeCloseTo(18.75);
+    expect(getReactionDamage("stormCloud", sparkCatalyst)).toBeCloseTo(40);
+    expect(getReactionDamage("steam", sparkCatalyst)).toBeCloseTo(7);
+    expect(getReactionDamage("fireVortex", sparkCatalyst)).toBeCloseTo(38);
+  });
+
+  it("does not boost tier 3 reactions with element catalyst upgrades", () => {
+    const catalysts = [
+      { upgradeId: "fireCatalyst", stacks: 1 },
+      { upgradeId: "sparkCatalyst", stacks: 1 },
+    ] as const;
+
+    expect(getReactionDamage("fireStorm", catalysts)).toBeCloseTo(48);
   });
 
   it("consumes the ground fire catalyst when fire vortex forms on the same cell", () => {

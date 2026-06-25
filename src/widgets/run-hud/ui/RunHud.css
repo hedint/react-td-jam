@@ -516,16 +516,17 @@ dd {
 }
 
 .run-hud__bench::before {
-  inset: 42px 0 0;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 7%), transparent 30%),
-    linear-gradient(90deg, rgb(0 0 0 / 16%), transparent 13% 87%, rgb(0 0 0 / 18%)),
-    linear-gradient(180deg, rgb(45 42 36 / 95%), rgb(13 13 12 / 97%));
+  inset: 34px -12px -10px;
+  display: block;
+  background: linear-gradient(180deg, transparent 0%, rgb(0 0 0 / 16%) 44%, rgb(0 0 0 / 48%) 100%);
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .run-hud__bench::after {
-  inset: 42px 0 0;
-  border-image-source: url("/assets/ui/hud-panel-border.png");
+  display: none;
+  background: none;
+  border-image-source: none;
 }
 
 .run-hud__bench::-webkit-scrollbar {
@@ -1199,11 +1200,15 @@ dd {
     min-height: 182px;
   }
 
+  .run-hud__bench::before {
+    inset-inline: -14px;
+  }
+
   .run-hud__tower {
     min-height: 172px;
   }
 
-  .run-hud__tower-card {
+  .run-hud__tower > .run-hud__tower-card {
     min-height: 160px;
   }
 
@@ -1278,6 +1283,10 @@ dd {
     gap: 7px;
     min-height: 170px;
     padding: 0 9px 9px;
+  }
+
+  .run-hud__bench::before {
+    inset-inline: -8px;
   }
 }
 

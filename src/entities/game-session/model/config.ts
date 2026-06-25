@@ -154,7 +154,8 @@ export const gameConfig: GameConfig = {
     { id: "oilControl", displayName: "Подача маслонасоса", maxStacks: 2, emitterId: "oil", effect: { type: "substanceCoverage", amount: 1 } },
     { id: "sparkCapacity", displayName: "Емкость разрядника", maxStacks: 3, emitterId: "spark", effect: { type: "energyCapacity", amount: 1 } },
     { id: "heatReach", displayName: "Жаровая тяга", maxStacks: 2, emitterId: "heat", effect: { type: "energyCapacity", amount: 1 } },
-    { id: "fireCatalyst", displayName: "Пламенная присадка", maxStacks: 2, emitterId: "oil", effect: { type: "reactionDps", reactionId: "fire", amount: 4 } },
+    { id: "fireCatalyst", displayName: "Пламенная присадка", maxStacks: 2, emitterId: "heat", effect: { type: "reactionDamageMultiplier", emitterId: "heat", amount: 0.25 } },
+    { id: "sparkCatalyst", displayName: "Искровой катализатор", maxStacks: 2, emitterId: "spark", effect: { type: "reactionDamageMultiplier", emitterId: "spark", amount: 0.25 } },
     { id: "unlockSlot5", displayName: "Открыть северо-западный угловой слот для башни", maxStacks: 1, effect: { type: "unlockSlot", slotId: "slot-5-inner", amount: 1 } },
     { id: "unlockSlot9", displayName: "Открыть северо-восточный угловой слот для башни", maxStacks: 1, effect: { type: "unlockSlot", slotId: "slot-9-inner", amount: 1 } },
     { id: "unlockSlot14", displayName: "Открыть юго-восточный угловой слот для башни", maxStacks: 1, effect: { type: "unlockSlot", slotId: "slot-14-inner", amount: 1 } },
@@ -308,8 +309,8 @@ export function validateGameConfig(config: GameConfig): readonly string[] {
       errors.push(`upgrade ${upgrade.id} must have positive effect amount`);
     }
 
-    if (upgrade.effect.type === "reactionDps" && !reactionIds.has(upgrade.effect.reactionId)) {
-      errors.push(`upgrade ${upgrade.id} references unknown reaction ${upgrade.effect.reactionId}`);
+    if (upgrade.effect.type === "reactionDamageMultiplier" && !emitterIds.has(upgrade.effect.emitterId)) {
+      errors.push(`upgrade ${upgrade.id} references unknown effect emitter ${upgrade.effect.emitterId}`);
     }
   });
 

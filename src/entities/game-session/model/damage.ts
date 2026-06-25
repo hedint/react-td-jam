@@ -6,6 +6,7 @@ import type {
   EmitterId,
   GameConfig,
   ReactionId,
+  ReactionInputId,
   UpgradeStackState,
 } from "./types";
 import { gameConfig } from "./config";
@@ -49,7 +50,7 @@ export function getReactionDamageEntries(
         countsForReactionBreak: true as const,
         layer: entry.layer,
         damageFamily: definition.damageFamily,
-        amount: (definition.dps + getReactionDpsBonus(entry.reactionId, upgrades, config)) * deltaMs / 1000,
+        amount: definition.dps * getReactionDamageMultiplier(entry.reactionId, upgrades, config) * deltaMs / 1000,
       };
     })
     .filter(entry => entry.amount > 0);
@@ -118,14 +119,47 @@ function getRawEnergyDamageSourceId(emitterId: EmitterId): DamageSourceId {
   }
 }
 
-function getReactionDpsBonus(reactionId: ReactionId, upgrades: readonly UpgradeStackState[], config: GameConfig): number {
-  return upgrades.reduce((bonus, stack) => {
+function getReactionDamageMultiplier(reactionId: ReactionId, upgrades: readonly UpgradeStackState[], config: GameConfig): number {
+  const bonus = upgrades.reduce((total, stack) => {
     const definition = config.upgrades.find(upgrade => upgrade.id === stack.upgradeId);
 
-    if (definition?.effect.type !== "reactionDps" || definition.effect.reactionId !== reactionId) {
-      return bonus;
+    if (
+      definition?.effect.type !== "reactionDamageMultiplier"
+      || !doesReactionIncludeEmitter(reactionId, definition.effect.emitterId, config)
+    ) {
+      return total;
     }
 
-    return bonus + definition.effect.amount * stack.stacks;
+    return total + definition.effect.amount * stack.stacks;
   }, 0);
+
+  return 1 + bonus;
+}
+
+function doesReactionIncludeEmitter(
+  reactionId: ReactionId,
+  emitterId: EmitterId,
+  config: GameConfig,
+  visited: ReadonlySet<ReactionId> = new Set(),
+): boolean {
+  if (visited.has(reactionId)) {
+    return false;
+  }
+
+  const definition = getReactionDefinition(reactionId, config);
+
+  if (definition.tier > 2) {
+    return false;
+  }
+
+  const nextVisited = new Set(visited).add(reactionId);
+
+  return definition.inputs.some(input =>
+    input === emitterId
+    || (isReactionId(input, config) && doesReactionIncludeEmitter(input, emitterId, config, nextVisited)),
+  );
+}
+
+function isReactionId(input: ReactionInputId, config: GameConfig): input is ReactionId {
+  return config.reactions.some(reaction => reaction.id === input);
 }

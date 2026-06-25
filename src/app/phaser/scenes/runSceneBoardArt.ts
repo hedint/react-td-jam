@@ -2,9 +2,15 @@ import type { GameSnapshot, PathCell } from "@entities/game-session/model/types"
 import type Phaser from "phaser";
 import { getCoreEntrancePathCell } from "@entities/game-session/model/boardGeometry";
 import { assetGroups } from "@shared/assets/manifest";
+import { renderRoadContrast } from "./runSceneRoadContrast";
 
 const FALLBACK_ROAD_TILE_SIZE = 76;
 const ROAD_TILE_OVERLAP = 6;
+const ROAD_SHADOW_OVERHANG = 10;
+const ROAD_SHADOW_ALPHA = 0.48;
+const ROAD_SURFACE_WASH_ALPHA = 0.18;
+const ROAD_SURFACE_WASH_COLOR = 0x9EA9A4;
+const ROAD_SURFACE_WASH_INSET = 16;
 const SLOT_DISPLAY_SIZE = 52;
 const CORNER_SLOT_DISPLAY_SIZE = 62;
 const SLOT_IDLE_ALPHA = 0.6;
@@ -31,6 +37,9 @@ export interface BoardMarkerPresentation {
 }
 
 export class RunSceneBoardArtPresenter {
+  private roadShadowGraphics?: Phaser.GameObjects.Graphics;
+  private roadSurfaceGraphics?: Phaser.GameObjects.Graphics;
+  private roadEdgeGraphics?: Phaser.GameObjects.Graphics;
   private roadSprites: Phaser.GameObjects.Image[] = [];
   private slotSprites: Phaser.GameObjects.Image[] = [];
   private entranceMarker?: Phaser.GameObjects.Image;
@@ -45,6 +54,8 @@ export class RunSceneBoardArtPresenter {
   }
 
   private renderRoad(cells: readonly PathCell[]): void {
+    this.renderRoadContrast(cells);
+
     while (this.roadSprites.length < cells.length) {
       this.roadSprites.push(this.scene.add.image(0, 0, assetGroups.board.roadStraight.key)
         .setOrigin(0.5)
@@ -65,6 +76,32 @@ export class RunSceneBoardArtPresenter {
     });
 
     this.roadSprites.slice(cells.length).forEach(sprite => sprite.setVisible(false));
+  }
+
+  private renderRoadContrast(cells: readonly PathCell[]): void {
+    if (!this.roadShadowGraphics) {
+      this.roadShadowGraphics = this.scene.add.graphics().setDepth(0.8);
+    }
+
+    if (!this.roadEdgeGraphics) {
+      this.roadEdgeGraphics = this.scene.add.graphics().setDepth(2);
+    }
+
+    if (!this.roadSurfaceGraphics) {
+      this.roadSurfaceGraphics = this.scene.add.graphics().setDepth(1.6);
+    }
+
+    renderRoadContrast({
+      shadow: this.roadShadowGraphics,
+      surface: this.roadSurfaceGraphics,
+      edge: this.roadEdgeGraphics,
+    }, cells, getBoardRoadPiecePresentation, getRoadDisplaySize, {
+      shadowOverhang: ROAD_SHADOW_OVERHANG,
+      shadowAlpha: ROAD_SHADOW_ALPHA,
+      surfaceWashAlpha: ROAD_SURFACE_WASH_ALPHA,
+      surfaceWashColor: ROAD_SURFACE_WASH_COLOR,
+      surfaceWashInset: ROAD_SURFACE_WASH_INSET,
+    });
   }
 
   private renderSlots(snapshot: GameSnapshot): void {

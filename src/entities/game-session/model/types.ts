@@ -18,6 +18,7 @@ export type UpgradeId
     | "sparkCapacity"
     | "heatReach"
     | "fireCatalyst"
+    | "sparkCatalyst"
     | "unlockSlot5"
     | "unlockSlot9"
     | "unlockSlot14";
@@ -344,7 +345,7 @@ export interface UpgradeDefinition {
   readonly effect:
     | { readonly type: "energyCapacity", readonly amount: number }
     | { readonly type: "substanceCoverage", readonly amount: number }
-    | { readonly type: "reactionDps", readonly reactionId: ReactionId, readonly amount: number }
+    | { readonly type: "reactionDamageMultiplier", readonly emitterId: EmitterId, readonly amount: number }
     | { readonly type: "unlockSlot", readonly slotId: string, readonly amount: number }
 }
 

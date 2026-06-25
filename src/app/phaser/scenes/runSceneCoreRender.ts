@@ -4,8 +4,10 @@ import { assetGroups } from "@shared/assets/manifest";
 import Phaser from "phaser";
 import { getBoardCenter } from "./runSceneBoardRender";
 
-const CORE_DISPLAY_SIZE = 204;
+const CORE_BASE_DISPLAY_SIZE = 204;
+const CORE_DISPLAY_SIZE = Math.round(CORE_BASE_DISPLAY_SIZE * 0.92);
 const CORE_LIQUID_MIN_FILL = 0.14;
+const CORE_LIQUID_SCALE = CORE_DISPLAY_SIZE / CORE_BASE_DISPLAY_SIZE;
 
 export function renderCore(options: {
   readonly coreSprite: Phaser.GameObjects.Image | undefined
@@ -36,16 +38,23 @@ function renderCoreLiquid(
   graphics.clear();
 
   const fillRatio = getCoreLiquidFillRatio(snapshot);
-  const chamberTop = center.y - 29;
-  const chamberBottom = center.y + 27;
-  const chamberHalfTop = 33;
-  const chamberHalfBottom = 44;
+  const chamberTop = center.y - 29 * CORE_LIQUID_SCALE;
+  const chamberBottom = center.y + 27 * CORE_LIQUID_SCALE;
+  const chamberHalfTop = 33 * CORE_LIQUID_SCALE;
+  const chamberHalfBottom = 44 * CORE_LIQUID_SCALE;
   const liquidTop = chamberBottom - (chamberBottom - chamberTop) * fillRatio;
-  const topWave = Math.sin(visualMs / 260) * 2;
+  const topWave = Math.sin(visualMs / 260) * 2 * CORE_LIQUID_SCALE;
   const topHalfWidth = Phaser.Math.Linear(chamberHalfTop, chamberHalfBottom, fillRatio);
+  const lineWidth = Math.max(1, 2 * CORE_LIQUID_SCALE);
 
   graphics.fillStyle(0x20130D, 0.56);
-  graphics.fillRoundedRect(center.x - chamberHalfBottom, chamberTop, chamberHalfBottom * 2, chamberBottom - chamberTop, 10);
+  graphics.fillRoundedRect(
+    center.x - chamberHalfBottom,
+    chamberTop,
+    chamberHalfBottom * 2,
+    chamberBottom - chamberTop,
+    10 * CORE_LIQUID_SCALE,
+  );
 
   graphics.fillStyle(0x8E2D12, 0.76);
   graphics.beginPath();
@@ -58,9 +67,9 @@ function renderCoreLiquid(
   graphics.fillPath();
 
   graphics.fillStyle(0xF07824, 0.7);
-  graphics.fillEllipse(center.x, liquidTop + topWave, topHalfWidth * 1.82, 11);
-  graphics.lineStyle(2, 0xFFB15E, 0.58);
-  graphics.strokeEllipse(center.x, liquidTop + topWave, topHalfWidth * 1.78, 10);
+  graphics.fillEllipse(center.x, liquidTop + topWave, topHalfWidth * 1.82, 11 * CORE_LIQUID_SCALE);
+  graphics.lineStyle(lineWidth, 0xFFB15E, 0.58);
+  graphics.strokeEllipse(center.x, liquidTop + topWave, topHalfWidth * 1.78, 10 * CORE_LIQUID_SCALE);
 
   graphics.fillStyle(0xFFB15E, 0.28);
   graphics.fillEllipse(center.x - topHalfWidth * 0.28, (liquidTop + chamberBottom) / 2, topHalfWidth * 0.72, chamberBottom - liquidTop);
