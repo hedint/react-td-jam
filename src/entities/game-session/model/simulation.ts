@@ -1,8 +1,5 @@
-/* eslint-disable max-lines */
 import type {
   CellReactionState,
-  DamageFamily,
-  EnemyDefinition,
   EnemyId,
   EnemyState,
   GameAction,
@@ -13,19 +10,24 @@ import type {
   TowerState,
   WaveRuntimeState,
 } from "./types";
-import { getEnemyLeakPathProgress } from "./boardGeometry";
 import { createBossState, stepBoss } from "./boss";
 import { gameConfig } from "./config";
-import { getCellDamageEntries } from "./damage";
 import { applyUpgradeToState, chooseDraftTower, chooseDraftUpgrade, createDraftState, rerollDraft } from "./draft";
-import { getCellSpeedMultiplier, projectReagents, resolveReactions } from "./reactions";
+import {
+  createEnemy,
+  getWaveSpawnedCount as getSpawnedCount,
+  getWaveTotalSpawnCount as getSpawnGroupTotalCount,
+  spawnEnemiesForGroups,
+  stepActiveEnemies,
+} from "./enemyRuntime";
+import { projectReagents, resolveReactions } from "./reactions";
 import { createRng } from "./rng";
-import { ensureWaveStats, getDamageBySource, normalizeRunStateStats, updateWaveStats } from "./stats";
+import { ensureWaveStats, normalizeRunStateStats } from "./stats";
 import { createTower } from "./towerFactory";
 import { placeSelectedTower, selectTower, tapSlot } from "./towerPlacement";
 
-export { createRng, nextRandom } from "./rng";
-export { createTower } from "./towerFactory";
+export { createEnemy, getCurrentPathCellIndex } from "./enemyRuntime";
+export { getWaveSpawnedCount } from "./enemyRuntime";
 
 export interface SerializedRunPayload {
   readonly schemaVersion: number
@@ -122,90 +124,15 @@ export function stepRun(state: RunState, deltaMs: number, config: GameConfig = g
   const reagentProjection = projectReagents(stateWithDebugTick.board, stateWithDebugTick.placedTowers, stateWithDebugTick.upgrades, config);
   const spawned = spawnWaveEnemies(stateWithDebugTick.waveRuntime, scaledDeltaMs, config);
   const activeEnemies = [...stateWithDebugTick.enemies, ...spawned.enemies];
-  const leakPathProgress = getEnemyLeakPathProgress(stateWithDebugTick.board.pathCells);
-
-  let coreHp = stateWithDebugTick.coreHp;
-  let leaks = stateWithDebugTick.stats.leaks;
-  let kills = stateWithDebugTick.stats.kills;
-  let totalDamage = stateWithDebugTick.stats.totalDamage;
-  const damageBySource = { ...getDamageBySource(stateWithDebugTick.stats) };
-  const damageByReaction = { ...stateWithDebugTick.stats.damageByReaction };
-  let waveStats: RunState["stats"]["waveStats"] = [...stateWithDebugTick.stats.waveStats];
-  const enemies = activeEnemies.flatMap((enemy) => {
-    if (enemy.hp <= 0 || enemy.leaked) {
-      return [];
-    }
-
-    const enemyDefinition = getEnemyDefinition(enemy.enemyId, config);
-    const currentCellIndex = getCurrentPathCellIndex(enemy.pathProgress, stateWithDebugTick.board.pathCells.length);
-    const speedMultiplier = getEnemySpeedMultiplier(enemyDefinition, reagentProjection[currentCellIndex], stateWithDebugTick.upgrades, config, reactions[currentCellIndex]);
-    const pathProgress = enemy.pathProgress + (enemyDefinition?.speedCellsPerSecond ?? 1) * speedMultiplier * scaledDeltaMs / 1000;
-
-    if (pathProgress >= leakPathProgress) {
-      coreHp = stateWithDebugTick.debugCoreHpLocked
-        ? coreHp
-        : Math.max(0, coreHp - (enemyDefinition?.leakDamage ?? config.balance.leakDamage));
-      leaks += 1;
-      waveStats = updateWaveStats(waveStats, spawned.waveId, { leaks: 1 });
-
-      return [];
-    }
-
-    const cellIndex = getCurrentPathCellIndex(pathProgress, stateWithDebugTick.board.pathCells.length);
-    const damageEntries = getCellDamageEntries(reactions[cellIndex]!, reagentProjection[cellIndex], scaledDeltaMs, stateWithDebugTick.upgrades, config);
-    let hp = enemy.hp;
-
-    damageEntries.forEach((entry) => {
-      if (hp <= 0) {
-        return;
-      }
-
-      const rawDamage = isEnemyAffectedByReaction(enemyDefinition, entry.layer)
-        ? entry.amount * getEnemyResistanceMultiplier(enemyDefinition, entry.damageFamily)
-        : 0;
-      const appliedDamage = Math.min(hp, rawDamage);
-
-      if (appliedDamage <= 0) {
-        return;
-      }
-
-      hp = Math.max(0, hp - appliedDamage);
-      totalDamage += appliedDamage;
-      damageBySource[entry.sourceId] = (damageBySource[entry.sourceId] ?? 0) + appliedDamage;
-
-      if (entry.reactionId) {
-        damageByReaction[entry.reactionId] = (damageByReaction[entry.reactionId] ?? 0) + appliedDamage;
-      }
-
-      waveStats = updateWaveStats(waveStats, spawned.waveId, {
-        damage: appliedDamage,
-        damageBySource: {
-          [entry.sourceId]: appliedDamage,
-        },
-        damageByReaction: entry.reactionId
-          ? {
-              [entry.reactionId]: appliedDamage,
-            }
-          : undefined,
-      });
-    });
-
-    if (hp <= 0) {
-      kills += 1;
-      waveStats = updateWaveStats(waveStats, spawned.waveId, { kills: 1 });
-
-      return [];
-    }
-
-    return [
-      {
-        ...enemy,
-        hp,
-        pathProgress,
-        currentCellIndex: cellIndex,
-      },
-    ];
+  const stepped = stepActiveEnemies(stateWithDebugTick, {
+    activeEnemies,
+    reactions,
+    reagentProjection,
+    scaledDeltaMs,
+    statsWaveId: spawned.waveId,
+    config,
   });
+  const { enemies, coreHp } = stepped;
 
   const waveComplete = isWaveComplete(spawned.waveRuntime, enemies.length, config);
   const nextPhase = coreHp <= 0
@@ -235,13 +162,7 @@ export function stepRun(state: RunState, deltaMs: number, config: GameConfig = g
     enemies,
     reactions,
     stats: {
-      ...stateWithDebugTick.stats,
-      leaks,
-      kills,
-      totalDamage,
-      damageBySource,
-      damageByReaction,
-      waveStats,
+      ...stepped.stats,
     },
   };
 }
@@ -348,22 +269,7 @@ export function createGrunt(overrides: Partial<EnemyState> = {}, config: GameCon
   return createEnemy("enemy-grunt-a", "grunt", overrides, config);
 }
 
-export function createEnemy(id: string, enemyId: EnemyId, overrides: Partial<EnemyState> = {}, config: GameConfig = gameConfig): EnemyState {
-  const definition = getEnemyDefinition(enemyId, config);
-  const pathProgress = overrides.pathProgress ?? 0;
-
-  return {
-    id,
-    enemyId,
-    displayName: definition.displayName,
-    hp: definition.hp,
-    maxHp: definition.hp,
-    pathProgress,
-    currentCellIndex: getCurrentPathCellIndex(pathProgress, config.balance.pathCellCount),
-    leaked: false,
-    ...overrides,
-  };
-}
+export { createRng, nextRandom } from "./rng";
 
 function startWave(state: RunState, config: GameConfig): RunState {
   const wave = config.waves[state.waveIndex] ?? config.waves[0]!;
@@ -403,55 +309,21 @@ function spawnWaveEnemies(
   readonly waveRuntime: WaveRuntimeState | null
   readonly enemies: readonly EnemyState[]
 } {
-  if (!waveRuntime) {
+  const wave = waveRuntime ? config.waves.find(candidate => candidate.id === waveRuntime.waveId) : null;
+  if (!waveRuntime || !wave) {
     return {
-      waveId: null,
-      waveRuntime: null,
+      waveId: waveRuntime?.waveId ?? null,
+      waveRuntime: waveRuntime ?? null,
       enemies: [],
     };
   }
 
-  const wave = config.waves.find(candidate => candidate.id === waveRuntime.waveId);
-  if (!wave) {
-    return {
-      waveId: waveRuntime.waveId,
-      waveRuntime,
-      enemies: [],
-    };
-  }
-
-  const elapsedMs = waveRuntime.elapsedMs + deltaMs;
-  const enemies: EnemyState[] = [];
-  const groups = wave.spawnGroups.map((group, groupIndex) => {
-    const runtime = waveRuntime.groups.find(candidate => candidate.groupIndex === groupIndex) ?? {
-      groupIndex,
-      spawnedCount: 0,
-      nextSpawnMs: group.startDelayMs ?? 0,
-    };
-    let spawnedCount = runtime.spawnedCount;
-    let nextSpawnMs = runtime.nextSpawnMs;
-
-    while (spawnedCount < group.count && elapsedMs >= nextSpawnMs) {
-      enemies.push(createEnemy(`${wave.id}-g${groupIndex}-enemy-${spawnedCount}`, group.enemyId, { pathProgress: 0 }, config));
-      spawnedCount += 1;
-      nextSpawnMs += group.spawnIntervalMs;
-    }
-
-    return {
-      groupIndex,
-      spawnedCount,
-      nextSpawnMs,
-    };
-  });
+  const spawned = spawnEnemiesForGroups(waveRuntime, wave.spawnGroups, deltaMs, wave.id, config);
 
   return {
-    waveId: wave.id,
-    waveRuntime: {
-      ...waveRuntime,
-      elapsedMs,
-      groups,
-    },
-    enemies,
+    waveId: spawned.waveId,
+    waveRuntime: spawned.runtime,
+    enemies: spawned.enemies,
   };
 }
 
@@ -462,50 +334,14 @@ function isWaveComplete(waveRuntime: WaveRuntimeState | null, livingEnemyCount: 
 
   const wave = config.waves.find(candidate => candidate.id === waveRuntime.waveId);
 
-  return livingEnemyCount === 0 && getWaveSpawnedCount(waveRuntime) >= (wave ? getWaveTotalSpawnCount(wave) : 0);
+  return livingEnemyCount === 0 && getSpawnedCount(waveRuntime) >= (wave ? getSpawnGroupTotalCount(wave.spawnGroups) : 0);
 }
 
 export function getWaveTotalSpawnCount(wave: GameConfig["waves"][number]): number {
-  return wave.spawnGroups.reduce((total, group) => total + group.count, 0);
+  return getSpawnGroupTotalCount(wave.spawnGroups);
 }
 
-export function getWaveSpawnedCount(waveRuntime: WaveRuntimeState | null): number {
-  return waveRuntime?.groups.reduce((total, group) => total + group.spawnedCount, 0) ?? 0;
-}
-
-export function getCurrentPathCellIndex(pathProgress: number, pathCellCount: number): number {
-  return Math.max(0, Math.min(pathCellCount - 1, Math.floor(pathProgress)));
-}
-
-function getEnemyDefinition(enemyId: EnemyId, config: GameConfig): EnemyDefinition {
-  const definition = config.enemies.find(enemy => enemy.id === enemyId);
-
-  if (!definition) {
-    throw new Error(`Unknown enemy ${enemyId}`);
-  }
-
-  return definition;
-}
-
-function isEnemyAffectedByReaction(enemy: EnemyDefinition, layer: "ground" | "air"): boolean {
-  return !enemy.traits?.includes("flying") || layer === "air";
-}
-
-function getEnemySpeedMultiplier(
-  enemy: EnemyDefinition,
-  projection: Parameters<typeof getCellSpeedMultiplier>[0],
-  upgrades: Parameters<typeof getCellSpeedMultiplier>[1],
-  config: GameConfig,
-  reaction: Parameters<typeof getCellSpeedMultiplier>[3],
-): number {
-  return enemy.traits?.includes("flying")
-    ? 1
-    : getCellSpeedMultiplier(projection, upgrades, config, reaction);
-}
-
-function getEnemyResistanceMultiplier(enemy: EnemyDefinition, damageFamily: DamageFamily): number {
-  return enemy.resistances?.[damageFamily] ?? 1;
-}
+export { createTower } from "./towerFactory";
 
 function stepDebugReactionOverrides(state: RunState, scaledDeltaMs: number): RunState {
   if (state.debugReactionOverrides.length === 0) {

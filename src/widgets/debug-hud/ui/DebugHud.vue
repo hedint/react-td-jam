@@ -1,69 +1,91 @@
 <template>
   <aside
     class="debug-hud"
+    :class="{ 'debug-hud--collapsed': collapsed }"
     aria-label="Debug HUD"
   >
-    <div class="debug-hud__header">
-      <span class="debug-hud__label">runtime</span>
-      <span class="debug-hud__status">ok</span>
-    </div>
-    <dl class="debug-hud__grid">
-      <div>
-        <dt>tick</dt>
-        <dd>{{ session.tick }}</dd>
+    <button
+      v-if="collapsed"
+      class="debug-hud__strip"
+      type="button"
+      aria-label="Expand Debug HUD"
+      @click="collapsed = false"
+    >
+      <span>runtime</span>
+      <strong>{{ debugStatusLabel }}</strong>
+      <span>+</span>
+    </button>
+    <template v-else>
+      <div class="debug-hud__header">
+        <span class="debug-hud__label">runtime</span>
+        <span class="debug-hud__status">{{ debugStatusLabel }}</span>
+        <button
+          class="debug-hud__collapse"
+          type="button"
+          aria-label="Collapse Debug HUD"
+          @click="collapsed = true"
+        >
+          -
+        </button>
       </div>
-      <div>
-        <dt>time</dt>
-        <dd>{{ session.elapsedSeconds }}s</dd>
+      <dl class="debug-hud__grid">
+        <div>
+          <dt>tick</dt>
+          <dd>{{ session.tick }}</dd>
+        </div>
+        <div>
+          <dt>time</dt>
+          <dd>{{ session.elapsedSeconds }}s</dd>
+        </div>
+        <div>
+          <dt>fps</dt>
+          <dd>{{ session.fps }}</dd>
+        </div>
+        <div>
+          <dt>tap</dt>
+          <dd>{{ session.lastTapLabel }}</dd>
+        </div>
+        <div>
+          <dt>stage</dt>
+          <dd>{{ session.viewport.width }}x{{ session.viewport.height }}</dd>
+        </div>
+      </dl>
+      <div class="debug-hud__controls">
+        <button type="button" @click="restartSeed">
+          seed
+        </button>
+        <button type="button" @click="jumpWave">
+          wave
+        </button>
+        <button type="button" @click="jumpBoss">
+          boss
+        </button>
+        <button type="button" @click="toggleGod">
+          {{ session.debugCoreHpLocked ? "god on" : "god off" }}
+        </button>
+        <button type="button" @click="cycleSpeed">
+          x{{ nextSpeed }}
+        </button>
+        <button type="button" @click="spawnEnemy">
+          spawn
+        </button>
+        <button type="button" @click="addTower">
+          tower
+        </button>
+        <button type="button" @click="applyUpgrade">
+          upgrade
+        </button>
+        <button type="button" @click="unlockSlot">
+          unlock
+        </button>
+        <button type="button" @click="forceReaction">
+          react
+        </button>
+        <button type="button" @click="clearReactions">
+          clear
+        </button>
       </div>
-      <div>
-        <dt>fps</dt>
-        <dd>{{ session.fps }}</dd>
-      </div>
-      <div>
-        <dt>tap</dt>
-        <dd>{{ session.lastTapLabel }}</dd>
-      </div>
-      <div>
-        <dt>stage</dt>
-        <dd>{{ session.viewport.width }}x{{ session.viewport.height }}</dd>
-      </div>
-    </dl>
-    <div class="debug-hud__controls">
-      <button type="button" @click="restartSeed">
-        seed
-      </button>
-      <button type="button" @click="jumpWave">
-        wave
-      </button>
-      <button type="button" @click="jumpBoss">
-        boss
-      </button>
-      <button type="button" @click="toggleGod">
-        {{ session.debugCoreHpLocked ? "god on" : "god off" }}
-      </button>
-      <button type="button" @click="cycleSpeed">
-        x{{ nextSpeed }}
-      </button>
-      <button type="button" @click="spawnEnemy">
-        spawn
-      </button>
-      <button type="button" @click="addTower">
-        tower
-      </button>
-      <button type="button" @click="applyUpgrade">
-        upgrade
-      </button>
-      <button type="button" @click="unlockSlot">
-        unlock
-      </button>
-      <button type="button" @click="forceReaction">
-        react
-      </button>
-      <button type="button" @click="clearReactions">
-        clear
-      </button>
-    </div>
+    </template>
   </aside>
 </template>
 
@@ -72,7 +94,7 @@ import type { EmitterId, EnemyId, ReactionId, UpgradeId } from "@entities/game-s
 import { useGameSessionStore } from "@entities/game-session/model/store";
 import { useGameSessionBridge } from "@entities/game-session/model/useGameSessionBridge";
 import { gameEvents } from "@shared/lib/event-bus/gameEvents";
-import { computed, onMounted, ref } from "vue";
+import { computed, ref, watch } from "vue";
 
 useGameSessionBridge();
 
@@ -89,13 +111,21 @@ const upgradeIndex = ref(0);
 const reactionIndex = ref(0);
 const unlockIndex = ref(0);
 const waveTarget = ref(0);
+const collapsed = ref(false);
+const debugStatusLabel = computed(() => session.debugVisible ? "debug on" : "arming");
 const nextSpeed = computed(() => speeds[(speeds.indexOf(session.speed) + 1) % speeds.length] ?? 1);
 
-onMounted(() => {
-  if (!session.debugVisible) {
+watch(
+  () => [session.coreHp, session.debugVisible] as const,
+  () => {
+    if (session.coreHp <= 0 || session.debugVisible) {
+      return;
+    }
+
     gameEvents.emit("run:action", { type: "toggleDebug" });
-  }
-});
+  },
+  { immediate: true },
+);
 
 function restartSeed(): void {
   gameEvents.emit("run:action", { type: "restart", seed: session.seed || 1 });
@@ -168,12 +198,37 @@ function clearReactions(): void {
 .debug-hud {
   position: absolute;
   top: var(--safe-gap);
+  right: auto;
+  bottom: auto;
   left: var(--safe-gap);
   z-index: 2;
   width: min(260px, calc(100% - var(--safe-gap) * 2));
   padding: 10px 12px;
   color: var(--color-text);
   pointer-events: none;
+  background: var(--color-panel);
+  border: 1px solid var(--color-panel-border);
+  border-radius: 8px;
+}
+
+.debug-hud--collapsed {
+  width: min(210px, calc(100% - var(--safe-gap) * 2));
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+.debug-hud__strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  width: 100%;
+  min-height: 28px;
+  gap: 8px;
+  padding: 6px 9px;
+  color: var(--color-text);
+  pointer-events: auto;
+  cursor: pointer;
   background: var(--color-panel);
   border: 1px solid var(--color-panel-border);
   border-radius: 8px;
@@ -199,15 +254,28 @@ function clearReactions(): void {
   border-radius: 5px;
 }
 
+.debug-hud__collapse {
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  color: var(--color-text);
+  pointer-events: auto;
+  cursor: pointer;
+  background: rgb(255 255 255 / 8%);
+  border: 1px solid var(--color-panel-border);
+  border-radius: 5px;
+}
+
 .debug-hud__header {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   margin-bottom: 8px;
 }
 
 .debug-hud__label,
+.debug-hud__strip span,
 .debug-hud__status,
 dt {
   color: var(--color-text-muted);
@@ -218,6 +286,13 @@ dt {
 
 .debug-hud__status {
   color: var(--color-accent-strong);
+}
+
+.debug-hud__strip strong {
+  color: var(--color-accent-strong);
+  font-size: 10px;
+  line-height: 1.2;
+  text-transform: uppercase;
 }
 
 .debug-hud__grid {
@@ -249,6 +324,11 @@ dd {
   .debug-hud {
     width: min(220px, calc(100% - var(--safe-gap) * 2));
     padding: 8px 10px;
+  }
+
+  .debug-hud--collapsed {
+    width: min(210px, calc(100% - var(--safe-gap) * 2));
+    padding: 0;
   }
 
   .debug-hud__grid {

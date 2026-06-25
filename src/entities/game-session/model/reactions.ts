@@ -205,31 +205,31 @@ function resolveReactionModel(
 
   const emitterTokens = createEmitterTokens(board, placedTowers, upgrades, config);
   const tierOneCandidates = createTierOneCandidatesForConfig(board, emitterTokens, upgrades, config);
-  const tierOneReactionTokens = createReactionTokens(tierOneCandidates);
+  const tierOneAccepted = acceptCandidates(tierOneCandidates, emitterTokens);
+  const tierOneReactionTokens = createReactionTokens(tierOneAccepted.acceptedCandidates);
   const tierTwoCandidates = createHigherTierCandidatesForConfig(board, tierOneReactionTokens, emitterTokens, 2, config);
-  const lowerTierCandidates = [
-    ...tierOneCandidates,
+  const lowerTierAccepted = acceptCandidates([
+    ...tierOneAccepted.acceptedCandidates,
     ...tierTwoCandidates,
-  ];
-  const lowerTierAccepted = acceptCandidates(lowerTierCandidates, [
+  ], [
     ...emitterTokens,
     ...tierOneReactionTokens,
   ]);
-  const fireStormAccepted = acceptFireStormCollisionCandidates(
-    createFireStormCollisionCandidates(board, lowerTierAccepted.acceptedCandidates, config),
-  );
-  const consumedReactionTokenIds = new Set([
-    ...lowerTierAccepted.consumedReactionTokenIds,
-    ...fireStormAccepted.consumedReactionTokenIds,
-  ]);
-  const acceptedCandidates = [
+  const lowerTierReactionTokens = createReactionTokens(lowerTierAccepted.acceptedCandidates);
+  const fireStormCandidates = createFireStormCandidates(board, lowerTierAccepted.acceptedCandidates, config);
+  const fireStormReactionTokens = createReactionTokens(fireStormCandidates);
+  const accepted = acceptCandidates([
     ...lowerTierAccepted.acceptedCandidates,
-    ...fireStormAccepted.acceptedCandidates,
-  ];
+    ...fireStormCandidates,
+  ], [
+    ...emitterTokens,
+    ...lowerTierReactionTokens,
+    ...fireStormReactionTokens,
+  ]);
 
   const model = {
-    projection: createProjection(board, emitterTokens, acceptedCandidates),
-    reactions: createReactionState(board, acceptedCandidates, consumedReactionTokenIds),
+    projection: createProjection(board, emitterTokens, accepted.acceptedCandidates),
+    reactions: createReactionState(board, accepted.acceptedCandidates, accepted.consumedReactionTokenIds),
   };
 
   lastReactionModelCache = {
@@ -655,7 +655,7 @@ function createFireStormCollisionCandidates(
         id,
         reactionId: definitionEntry.definition.id,
         reactionIndex: definitionEntry.reactionIndex,
-        selectionRank: -producedCellIndexes.length,
+        selectionRank: getFireStormSelectionRank(producedCellIndexes),
         tier: definitionEntry.definition.tier,
         layer: definitionEntry.definition.layer,
         anchorCellIndex: Math.min(collision.spreadCellIndex, collision.catalystCellIndex),
@@ -668,6 +668,94 @@ function createFireStormCollisionCandidates(
   });
 
   return [...candidates.values()];
+}
+
+function createFireStormCandidates(
+  board: BoardState,
+  acceptedCandidates: readonly AllocationCandidate[],
+  config: GameConfig,
+): readonly AllocationCandidate[] {
+  let candidates = createFireStormCollisionCandidates(board, acceptedCandidates, config);
+
+  for (let iteration = 0; iteration < board.pathCells.length; iteration += 1) {
+    const expanded = createFireStormExpansionCandidates(board, [
+      ...acceptedCandidates,
+      ...candidates,
+    ], config);
+    const merged = new Map([...candidates, ...expanded].map(candidate => [candidate.id, candidate]));
+
+    if (merged.size === candidates.length) {
+      break;
+    }
+
+    candidates = [...merged.values()];
+  }
+
+  return candidates;
+}
+
+function createFireStormExpansionCandidates(
+  board: BoardState,
+  acceptedCandidates: readonly AllocationCandidate[],
+  config: GameConfig,
+): readonly AllocationCandidate[] {
+  const definitionEntry = config.reactions
+    .map((definition, reactionIndex) => ({ definition, reactionIndex }))
+    .find(entry => entry.definition.id === "fireStorm");
+
+  if (!definitionEntry) {
+    return [];
+  }
+
+  const fireStormCandidates = acceptedCandidates.filter(candidate => candidate.reactionId === "fireStorm");
+  const tierTwoCandidates = acceptedCandidates.filter(candidate => candidate.reactionId === "fireVortex" || candidate.reactionId === "stormCloud");
+  const candidates = new Map<string, AllocationCandidate>();
+
+  fireStormCandidates.forEach((fireStorm) => {
+    tierTwoCandidates.forEach((tierTwo) => {
+      const collision = getPoolCollision(board.pathCells.length, fireStorm.producedCellIndexes, tierTwo.producedCellIndexes);
+
+      if (!collision) {
+        return;
+      }
+
+      const producedCellIndexes = sortCellIndexes([...new Set([
+        ...fireStorm.producedCellIndexes,
+        ...tierTwo.producedCellIndexes,
+      ])]);
+
+      if (producedCellIndexes.length === fireStorm.producedCellIndexes.length) {
+        return;
+      }
+
+      const consumedTokenIds = [...new Set([
+        ...fireStorm.producedTokenIds,
+        ...tierTwo.producedTokenIds,
+      ])];
+      const originOrder = fireStorm.originOrder;
+      const id = `allocation:fireStorm:expand:${fireStorm.id}:${tierTwo.id}:${producedCellIndexes.join("-")}`;
+
+      candidates.set(id, {
+        id,
+        reactionId: definitionEntry.definition.id,
+        reactionIndex: definitionEntry.reactionIndex,
+        selectionRank: getFireStormSelectionRank(producedCellIndexes),
+        tier: definitionEntry.definition.tier,
+        layer: definitionEntry.definition.layer,
+        anchorCellIndex: Math.min(collision.spreadCellIndex, collision.catalystCellIndex),
+        originOrder,
+        consumedTokenIds,
+        producedCellIndexes,
+        producedTokenIds: producedCellIndexes.map(cellIndex => createReactionTokenId(id, definitionEntry.definition.id, cellIndex)),
+      });
+    });
+  });
+
+  return [...candidates.values()];
+}
+
+function getFireStormSelectionRank(cellIndexes: readonly number[]): number {
+  return -cellIndexes.length * 2 + (cellIndexes.includes(0) ? 1 : 0);
 }
 
 function getPoolCollision(
@@ -684,25 +772,6 @@ function getPoolCollision(
   }
 
   return null;
-}
-
-function acceptFireStormCollisionCandidates(candidates: readonly AllocationCandidate[]): {
-  readonly acceptedCandidates: readonly AllocationCandidate[]
-  readonly consumedReactionTokenIds: ReadonlySet<string>
-} {
-  const consumedReactionTokenIds = new Set<string>();
-  const acceptedCandidates: AllocationCandidate[] = [];
-
-  getAllocationPriorityOrder(candidates).forEach((candidate) => {
-    if (candidate.consumedTokenIds.some(tokenId => consumedReactionTokenIds.has(tokenId))) {
-      return;
-    }
-
-    candidate.consumedTokenIds.forEach(tokenId => consumedReactionTokenIds.add(tokenId));
-    acceptedCandidates.push(candidate);
-  });
-
-  return { acceptedCandidates, consumedReactionTokenIds };
 }
 
 function acceptCandidates(
@@ -1100,8 +1169,8 @@ function getAllocationPriorityOrder(candidates: readonly AllocationCandidate[]):
     right.tier - left.tier
     || left.originOrder - right.originOrder
     || right.reactionIndex - left.reactionIndex
-    || left.anchorCellIndex - right.anchorCellIndex
     || left.selectionRank - right.selectionRank
+    || left.anchorCellIndex - right.anchorCellIndex
     || right.consumedTokenIds.length - left.consumedTokenIds.length
     || right.producedCellIndexes.length - left.producedCellIndexes.length
     || left.id.localeCompare(right.id),

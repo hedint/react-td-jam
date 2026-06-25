@@ -1,4 +1,4 @@
-import type { EnemyId, GameSnapshot, ReactionId } from "./types";
+import type { BossAbilityId, EnemyId, GameSnapshot, ReactionId } from "./types";
 
 export type GamePresentationEvent
   = | {
@@ -26,6 +26,29 @@ export type GamePresentationEvent
   | {
     readonly type: "bossBreak"
     readonly pathProgress: number
+  }
+  | {
+    readonly type: "bossDamaged"
+    readonly amount: number
+    readonly pathProgress: number
+  }
+  | {
+    readonly type: "bossKilled"
+    readonly pathProgress: number
+  }
+  | {
+    readonly type: "bossAbilityStarted"
+    readonly abilityId: BossAbilityId
+    readonly pathProgress: number
+  }
+  | {
+    readonly type: "bossAbilityImpact"
+    readonly abilityId: BossAbilityId
+    readonly pathProgress: number
+  }
+  | {
+    readonly type: "bossSuppressionStarted"
+    readonly cellIndexes: readonly number[]
   };
 
 export function derivePresentationEvents(
@@ -39,6 +62,8 @@ export function derivePresentationEvents(
   events.push(...deriveCoreDamageEvents(previous, next));
   events.push(...deriveReactionBurstEvents(previous, next));
   events.push(...deriveBossBreakEvents(previous, next));
+  events.push(...deriveBossDamageEvents(previous, next));
+  events.push(...deriveBossAbilityEvents(previous, next));
 
   return events;
 }
@@ -126,6 +151,85 @@ function deriveBossBreakEvents(previous: GameSnapshot, next: GameSnapshot): read
     type: "bossBreak",
     pathProgress: next.boss?.pathProgress ?? previous.boss?.pathProgress ?? 0,
   }];
+}
+
+function deriveBossDamageEvents(previous: GameSnapshot, next: GameSnapshot): readonly GamePresentationEvent[] {
+  const previousBoss = previous.boss;
+  const nextBoss = next.boss;
+
+  if (!previousBoss || !nextBoss) {
+    return [];
+  }
+
+  const amount = previousBoss.hp - nextBoss.hp;
+  const events: GamePresentationEvent[] = [];
+
+  if (amount > 0) {
+    events.push({
+      type: "bossDamaged",
+      amount,
+      pathProgress: nextBoss.pathProgress,
+    });
+  }
+
+  if (previousBoss.hp > 0 && nextBoss.hp <= 0) {
+    events.push({
+      type: "bossKilled",
+      pathProgress: nextBoss.pathProgress,
+    });
+  }
+
+  return events;
+}
+
+function deriveBossAbilityEvents(previous: GameSnapshot, next: GameSnapshot): readonly GamePresentationEvent[] {
+  const previousBoss = previous.boss;
+  const nextBoss = next.boss;
+
+  if (!nextBoss) {
+    return [];
+  }
+
+  const events: GamePresentationEvent[] = [];
+  const previousAbility = previousBoss?.activeAbility ?? null;
+  const nextAbility = nextBoss.activeAbility;
+
+  if (nextAbility && previousAbility?.id !== nextAbility.id) {
+    events.push({
+      type: "bossAbilityStarted",
+      abilityId: nextAbility.id,
+      pathProgress: nextBoss.pathProgress,
+    });
+  }
+
+  if (previousAbility && !previousAbility.impactApplied && nextAbility?.id === previousAbility.id && nextAbility.impactApplied) {
+    events.push({
+      type: "bossAbilityImpact",
+      abilityId: nextAbility.id,
+      pathProgress: nextAbility.id === "exitSmash" ? next.board.pathCells.length : nextBoss.pathProgress,
+    });
+  }
+
+  if ((previousBoss?.suppressionRemainingMs ?? 0) <= 0 && nextBoss.suppressionRemainingMs > 0) {
+    events.push({
+      type: "bossAbilityImpact",
+      abilityId: "rightSideSuppression",
+      pathProgress: nextBoss.pathProgress,
+    }, {
+      type: "bossSuppressionStarted",
+      cellIndexes: [10, 11, 12, 13, 14],
+    });
+  }
+
+  if (!previousBoss?.summonRuntime && nextBoss.summonRuntime) {
+    events.push({
+      type: "bossAbilityImpact",
+      abilityId: "summonWave",
+      pathProgress: nextBoss.pathProgress,
+    });
+  }
+
+  return events;
 }
 
 function getActiveReactionKeys(snapshot: GameSnapshot): readonly string[] {

@@ -6,7 +6,6 @@
         <RunHud class="stage__hud" />
         <DebugHud
           v-if="debugEnabled"
-          class="stage__debug"
         />
       </div>
     </div>
@@ -67,8 +66,7 @@ const debugEnabled = new URLSearchParams(window.location.search).get("debug") ==
   inset: 0;
 }
 
-.stage__hud,
-.stage__debug {
+.stage__hud {
   position: absolute;
   inset: 0;
 }

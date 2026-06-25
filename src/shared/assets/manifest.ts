@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 export type AssetGroup = "scene" | "board" | "towers" | "enemies" | "reactions" | "ui";
 export type AssetUsage = "phaser" | "css" | "both";
 
@@ -42,6 +44,7 @@ type ManifestGroups = {
 
 type EnemySpriteAssetId = "grunt" | "swarm" | "tank" | "flyer" | "runner" | "insulated" | "flameproof";
 type EnemySpriteAnim = "move" | "hit" | "death";
+type BossSpriteAnim = "crawl" | "hit" | "vulnerable" | "death" | "leap-prepare" | "leap-air" | "smash" | "blackout-cast" | "summon-roar";
 
 function enemySpriteSheetAsset(
   enemyId: EnemySpriteAssetId,
@@ -55,6 +58,20 @@ function enemySpriteSheetAsset(
     frame: {
       width: 256,
       height: 256,
+    },
+    usage: "phaser",
+  };
+}
+
+function bossSpriteSheetAsset(animationName: BossSpriteAnim): SpriteSheetAsset & { readonly group: "enemies" } {
+  return {
+    type: "spritesheet",
+    group: "enemies",
+    key: `enemies.boss-ogre.${animationName}.side`,
+    src: `/assets/enemies/boss-ogre/boss-ogre-${animationName}-side.png`,
+    frame: {
+      width: 384,
+      height: 384,
     },
     usage: "phaser",
   };
@@ -249,6 +266,25 @@ export const assetGroups = {
     flameproofMoveSide: enemySpriteSheetAsset("flameproof", "move"),
     flameproofHitSide: enemySpriteSheetAsset("flameproof", "hit"),
     flameproofDeathSide: enemySpriteSheetAsset("flameproof", "death"),
+    bossOgreCrawlSide: bossSpriteSheetAsset("crawl"),
+    bossOgreHitSide: bossSpriteSheetAsset("hit"),
+    bossOgreVulnerableSide: bossSpriteSheetAsset("vulnerable"),
+    bossOgreDeathSide: bossSpriteSheetAsset("death"),
+    bossOgreLeapPrepareSide: bossSpriteSheetAsset("leap-prepare"),
+    bossOgreLeapAirSide: bossSpriteSheetAsset("leap-air"),
+    bossOgreSmashSide: bossSpriteSheetAsset("smash"),
+    bossOgreBlackoutCastSide: bossSpriteSheetAsset("blackout-cast"),
+    bossOgreSummonRoarSide: bossSpriteSheetAsset("summon-roar"),
+    bossOgrePlaceholder: {
+      type: "svg",
+      group: "enemies",
+      key: "enemies.boss-ogre.placeholder",
+      src: "/assets/enemies/boss-ogre-placeholder.svg",
+      width: 384,
+      height: 384,
+      usage: "phaser",
+      placeholder: true,
+    },
     runnerSeedSide: {
       type: "image",
       group: "enemies",

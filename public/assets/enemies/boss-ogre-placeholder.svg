@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="384" height="384" viewBox="0 0 384 384" role="img" aria-label="Boss ogre placeholder">
+  <g fill="none" fill-rule="evenodd">
+    <ellipse cx="188" cy="326" rx="94" ry="18" fill="#050403" opacity=".35"/>
+    <path d="M254 93c24-28 52-38 70-28 15 9 16 31 2 46l-65 71-29-26 22-63Z" fill="#4c2d1d" stroke="#8e6a3c" stroke-width="10" stroke-linejoin="round"/>
+    <path d="M296 54c8-11 22-16 34-11 14 6 20 22 14 36l-17 40c-4 9-16 11-23 4l-28-27c-8-8-9-21-2-30l22-12Z" fill="#6d4b28" stroke="#c69b56" stroke-width="8"/>
+    <path d="M144 88c-29 11-52 43-55 87-3 53 25 107 76 120 60 15 116-21 130-78 16-66-14-127-68-140-28-7-57 1-83 11Z" fill="#4f6250" stroke="#1d241d" stroke-width="10"/>
+    <path d="M118 153c-27 17-43 42-43 68 0 29 21 47 48 41 17-4 26-19 21-34-5-16-21-24-36-19 5-17 20-32 42-43l-32-13Z" fill="#374438" stroke="#171c17" stroke-width="8"/>
+    <path d="M217 191c21 2 38 17 44 39 8 31-11 57-43 69-24 8-53 2-73-14l25-38c12 9 25 12 37 8 9-3 14-10 12-18-2-9-10-14-23-15l21-31Z" fill="#3a463a" stroke="#171c17" stroke-width="8"/>
+    <path d="M143 84c11-24 25-33 42-26 10 4 17 13 20 26 13-16 28-18 45-6 16 11 25 29 27 54l-43-14c-26-8-54-5-91 8V84Z" fill="#2c342d" stroke="#111611" stroke-width="8"/>
+    <path d="M142 143c21-17 49-24 80-15 26 7 43 25 49 51-43-15-82-15-118 0l-11-36Z" fill="#657a62"/>
+    <circle cx="173" cy="156" r="8" fill="#ffdd8b"/>
+    <circle cx="231" cy="156" r="7" fill="#ffdd8b"/>
+    <path d="M183 192c17 8 35 7 52-3" stroke="#25160f" stroke-width="9" stroke-linecap="round"/>
+    <path d="M194 183c-7 14-6 25 2 34" stroke="#c8a76a" stroke-width="6" stroke-linecap="round"/>
+    <path d="M129 280c-9 19-13 39-11 61h47c1-17 5-33 13-48l-49-13Z" fill="#303a31" stroke="#161b16" stroke-width="8"/>
+    <path d="M215 287c11 18 17 36 18 54h48c-1-29-8-53-22-73l-44 19Z" fill="#303a31" stroke="#161b16" stroke-width="8"/>
+    <path d="M119 109c-9 5-19 8-30 8 5 11 13 18 25 21m151-25c11 3 21 2 30-3-2 13-9 23-20 30" stroke="#c8a76a" stroke-width="8" stroke-linecap="round"/>
+  </g>
+</svg>

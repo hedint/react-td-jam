@@ -4,8 +4,8 @@
 
 ## Status
 
-- Current phase: Phase A - Lock the gameplay (implementation in progress)
-- Overall status: P0 complete; Phase 0.5 visual overhaul phases 0-6 complete (phases 7-10 pending in `p05-visual-overhaul-plan.md`); this is the main ship roadmap for everything still needed to reach a shippable demo.
+- Current phase: Phase C / C3 - VFX decisions and asset optimization
+- Overall status: P0 complete; Phase A/B complete; Phase C1/C2 complete; Phase C3 and Phase D remain before a shippable demo. Phase 0.5 visual overhaul phases 7-9 are complete in `p05-visual-overhaul-plan.md`; Phase 10 final polish remains.
 - Source docs: `docs/design.md`, `docs/setting.md`, `docs/plans/p0-implementation-plan.md`, `docs/plans/p05-visual-overhaul-plan.md`.
 - Goal: take the feature-complete-but-unpolished P0 to a finished, self-hosted, mobile-first web demo. Includes re-enabling the disabled upgrade economy, a new slot-unlock progression, a wave pacing / mixed-wave balance pass, a game-feel pass, UI finalization, a meta shell, and onboarding/audio.
 
@@ -265,11 +265,13 @@ Ship gate: C1/C2 final enemy and boss runtime integration must be complete befor
 ### C2 - Final boss assets + abilities + animations
 
 #### Tasks
-- [ ] Final boss art + crawl / vulnerable / death animations (replaces the procedural ellipse, `RunScene.ts:314-379`).
-- [ ] Design and implement the A5-approved boss kit in `boss.ts` (+ balance tuning): at least 1 telegraphed combat ability plus at least 1 bespoke scripted animation event (e.g. post-lap exit smash).
+- [x] Final boss art + crawl / vulnerable / death animations (replaces the procedural ellipse, `RunScene.ts:314-379`).
+- [x] Design and implement the A5-approved boss kit in `boss.ts` (+ balance tuning): at least 1 telegraphed combat ability plus at least 1 bespoke scripted animation event (e.g. post-lap exit smash).
+- [x] Add Бочкоед to the monster demo page for scale / HP-bar tuning, render him above tower sprites, and raise boss HP to `1000`.
 
 #### Acceptance Criteria
-- [ ] Boss is fully animated; at least 1 combat ability is readable, telegraphed, and balanced; at least 1 scripted set-piece fires on its event.
+- [x] Boss is fully animated; at least 1 combat ability is readable, telegraphed, and balanced; at least 1 scripted set-piece fires on its event.
+- [x] Boss assets load through the manifest, no procedural boss body remains in normal play, and Бочкоед is available on `/enemy-demo` for presentation tuning.
 
 ### C3 - VFX decisions and asset optimization
 
@@ -283,7 +285,7 @@ Ship gate: C1/C2 final enemy and boss runtime integration must be complete befor
 
 ### Phase C notes
 
-- 2026-06-24: C1 naming gate approved one-word public enemy names for UI safety: `grunt` -> `Заморыш`, `swarm` -> `Кусака`, `tank` -> `Тролль`, `flyer` -> `Нетопырь`, `runner` -> `Варг`, `insulated` -> `Грязевик`, `flameproof` -> `Магмень`. Internal ids remain unchanged. Бочкоед remains deferred to a separate C2 iteration.
+- 2026-06-24: C1 naming gate approved one-word public enemy names for UI safety: `grunt` -> `Заморыш`, `swarm` -> `Кусака`, `tank` -> `Тролль`, `flyer` -> `Нетопырь`, `runner` -> `Варг`, `insulated` -> `Грязевик`, `flameproof` -> `Магмень`. Internal ids remain unchanged. Бочкоед was deferred from C1 into the later C2 slice.
 - 2026-06-24: Gate 2 shifted to one-creature approval slices. `Заморыш` seed direction approved first, then regenerated as clean v2 without baked shadow so Phaser can render consistent runtime shadows. Approved source is `public/assets/enemies/grunt/source/grunt-seed-02-source.png`; normalized transparent seed is `public/assets/enemies/grunt/grunt-seed-side-02.png`. Remaining normal enemy seeds stay pending.
 - 2026-06-24: `Кусака` seed approved as one compact biting creature, not a swarm group. Approved source is `public/assets/enemies/swarm/source/swarm-seed-01-source.png`; normalized transparent seed is `public/assets/enemies/swarm/swarm-seed-side-01.png`.
 - 2026-06-24: `Тролль` seed approved as the sturdy tank silhouette. Approved source is `public/assets/enemies/tank/source/tank-seed-01-source.png`; normalized transparent seed is `public/assets/enemies/tank/tank-seed-side-01.png`.
@@ -300,13 +302,18 @@ Ship gate: C1/C2 final enemy and boss runtime integration must be complete befor
 - 2026-06-24: Gate 4 `Нетопырь` set approved: 4-frame `move`, `hit`, and `death` strips normalized to 256x256 bottom-center frames. Preview sheet is `output/enemy-animations/flyer/flyer-animation-approval-sheet.png`; normalized strips are under `output/enemy-animations/flyer/`.
 - 2026-06-24: Gate 4 `Грязевик` set approved: 4-frame `move`, `hit`, and `death` strips normalized to 256x256 bottom-center frames. Preview sheet is `output/enemy-animations/insulated/insulated-animation-approval-sheet.png`; normalized strips are under `output/enemy-animations/insulated/`.
 - 2026-06-24: Gate 4 `Магмень` set approved: 4-frame `move`, `hit`, and `death` strips normalized to 256x256 bottom-center frames. Preview sheet is `output/enemy-animations/flameproof/flameproof-animation-approval-sheet.png`; normalized strips are under `output/enemy-animations/flameproof/`.
-- 2026-06-24: Gate 4 preview approval is complete for all seven normal enemy archetypes. Runtime integration can now start for C1 normal enemies; C2/Бочкоед remains deferred.
+- 2026-06-24: Gate 4 preview approval completed for all seven normal enemy archetypes. Runtime integration then moved into C1 normal enemies; C2/Бочкоед stayed out of that C1 slice.
 - 2026-06-24: C1 normal enemy runtime integration prepared for Gate 5 approval. Approved strips were copied into `public/assets/enemies`, `assetGroups.enemies` now exposes `enemies.<id>.<move|hit|death>.side` spritesheets, `RunSceneEnemyPresenter` registers Phaser animations and replaces procedural normal enemy bodies with pooled sprites. Hit/death playback is renderer-local and driven by presentation events. Browser QA capture for user approval: `output/playwright/gate5-c1-all-seven-archetypes-clean.png`; production preview smoke loaded 23 enemy asset responses with no 404s.
-- 2026-06-24: Gate 5 approved after user review on the dedicated `/enemy-demo` route and in-game tuning passes. C1 normal enemy assets and runtime integration are complete; Бочкоед/C2 remains out of scope for this closed slice.
+- 2026-06-24: Gate 5 approved after user review on the dedicated `/enemy-demo` route and in-game tuning passes. C1 normal enemy assets and runtime integration completed; Бочкоед/C2 stayed out of that closed slice.
+- 2026-06-24: C2 boss mechanics/runtime first pass implemented the A5 kit as serializable simulation state. Бочкоед now has one-shot triggered abilities, an active ability timer, right-side reaction suppression, and a boss summon runtime. Lap 1 midpoint starts the exit smash set-piece and deals 2 core damage on impact; lap 2 midpoint casts temporary suppression on cells 10-14; lap 3 start holds for 2 seconds and starts a small Кусака/Варг summon pack. Normal waves and boss summons now share the same enemy stepping helper for damage, slow, resistances, leaks, kills, and stats.
+- 2026-06-24: Runtime rendering moved boss presentation out of the old `RunScene` procedural ellipse into `RunSceneBossPresenter`. Before seed approval, normal play used a manifest-backed placeholder ogre asset plus telegraphs/overlays for smash, suppression, summon, vulnerability, HP, and labels.
+- 2026-06-24: Boss visual direction changed to a large cave ogre with a heavy club. Seed-draft approval is now mandatory before any animation strip generation. Draft approval sheet generated for review; do not create crawl/hit/vulnerable/death/set-piece strips until one seed candidate is approved.
+- 2026-06-24: Бочкоед seed `output/boss-drafts/barrel-eater-ogre-seed-draft-hybrid-02.png` approved after the back-vat size pass. The approved 384x384 seed was normalized to `public/assets/enemies/boss-ogre/boss-ogre-seed-approved-384.png`; 4-frame strips for `crawl`, `hit`, `vulnerable`, `death`, `leap-prepare`, `leap-air`, `smash`, `blackout-cast`, and `summon-roar` were generated as whole strips, cleaned to transparent 384x384 frames, and copied into `public/assets/enemies/boss-ogre/boss-ogre-<anim>-side.png`. `assetGroups.enemies` now exposes manifest-backed boss spritesheets, `RunSceneBossPresenter` registers `enemies.boss-ogre.<anim>.side.anim`, and normal boss play no longer uses the placeholder/procedural body.
+- 2026-06-25: C2 closure pass complete. Бочкоед is now included on `/enemy-demo` beside a tower-layer fixture for HP-bar/scale checks, `RunSceneBossPresenter` renders the boss sprite above tower body/head layers, and `gameConfig.boss.hp` was raised from `620` to `1000` for a higher final challenge. Verification run for the closure pass: `npm run lint:fix`, `npm run typecheck`, `npm run test` (158 tests), `npm run balance:quick`, and `npm run build`. Browser screenshot QA for `/enemy-demo` remains a presentation follow-up only, not a C2 implementation blocker.
 
 ### Phase C completion summary
 
-_(fill on completion)_
+Phase C remains open for C3 VFX / asset-size / broader static-preview work. C1 and C2 are complete: all normal enemies and Бочкоед now use manifest-backed spritesheets in normal play, and the A5 boss kit is implemented in simulation with renderer-only presentation.
 
 ---
 

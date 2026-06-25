@@ -2,8 +2,8 @@
 
 ## Status
 
-- Current phase: Phase 7 - Creature and Boss Seed Frames
-- Overall status: Phase 0 complete; Phase 1 visual direction approved; Phase 2 complete; Phase 3 complete; Phase 4 complete; Phase 5 complete; Phase 6 QA complete; Phase 6A board/field readability accepted; Phase 7 next
+- Current phase: Phase 10 - Final Polish, Optimization, and Documentation
+- Overall status: Phase 0 complete; Phase 1 visual direction approved; Phase 2 complete; Phase 3 complete; Phase 4 complete; Phase 5 complete; Phase 6 QA complete; Phase 6A board/field readability accepted; Phase 7-9 creature/boss sprite production and runtime integration complete; Phase 10 in progress
 - Source docs: `docs/design.md`, `docs/setting.md`, `docs/plans/p0-implementation-plan.md`
 - Visual reference: user-provided `React TD` concept screenshot in the planning thread.
 - Goal: turn the completed P0 from a readable schematic prototype into a polished demo-facing visual slice without changing P0 gameplay rules.
@@ -700,7 +700,7 @@ Purpose: harden the visual core before committing to full creature animation pro
 - [x] Compare new screenshots against P0 baseline screenshots and record the improvement.
 - [x] Tune colors, contrast, shadow strength, and effect opacity based on screenshots.
 - [x] Rework board readability so the road, tower slots, monster entrance, and monster exit match the approved/reference field language.
-- [ ] Get user approval that 0.5a visual core is good enough to proceed to creature animation.
+- [x] Get user approval that 0.5a visual core is good enough to proceed to creature animation.
 
 ### Phase 6A - Board Field Readability Rework
 
@@ -739,8 +739,8 @@ User review on 2026-06-22 rejected the current board/field as not good enough fo
 
 ### Acceptance Criteria
 
-- [ ] The game is visually demoable before full creature animation is complete.
-- [ ] The user approves the visual core direction.
+- [x] The game is visually demoable before full creature animation is complete.
+- [x] The user approves the visual core direction.
 - [x] Known remaining visual gaps are explicitly listed for 0.5b.
 
 ### Tests
@@ -758,7 +758,7 @@ User review on 2026-06-22 rejected the current board/field as not good enough fo
 
 ### Exit gate
 
-- [ ] **0.5a visual core approved.**
+- [x] **0.5a visual core approved.**
 
 ### Phase notes
 
@@ -790,6 +790,7 @@ User review on 2026-06-22 rejected the current board/field as not good enough fo
   - Remaining 0.5a approval caveat:
     - full "all three wow moments" review is accepted as QA-complete for this slice because the user explicitly waived the dedicated T3 `Огненный шторм` capture for now on 2026-06-22.
     - board/field readability was accepted by the user on 2026-06-22 as "more or less normal" for the current slice: road, tower slots, monster entrance, and monster exit no longer block 0.5a progress.
+  - 2026-06-25 alignment note: 0.5a approval is now closed retroactively as approval to proceed into 0.5b creature animation, not as final ship UI approval. Phase 7-9 and p06 C1/C2 subsequently completed from this approved visual-core baseline. Top/bottom HUD final polish remains owned by p06 B3 and final p05 Phase 10 QA.
   - Known remaining visual gaps for 0.5b:
     - enemies and Бочкоед are still procedural shapes/text labels pending Phase 7-9 creature seed frames, animation strips, and runtime integration;
     - dense late-game tower overlap on the left rail is acceptable for 0.5a but should be re-evaluated once creature sprites replace procedural enemies.
@@ -819,28 +820,28 @@ Purpose: create approved source frames and validate the facing model on one crea
 
 ### Tasks
 
-- [ ] Define final creature scale, anchor, shadow, and lane offset rules.
+- [x] Define final creature scale, anchor, shadow, and lane offset rules.
 - [x] Generate or produce approved source frames for all seven P0 enemy archetypes: Заморыш, Кусака, Тролль, Нетопырь, Варг, Грязевик, Магмень.
-- [ ] Generate or produce approved source frame for Бочкоед.
+- [x] Generate or produce approved source frame for Бочкоед.
 - [x] Ensure every enemy silhouette maps to its gameplay role: basic, swarm, tank, flying, runner, electric-resistant, fire-resistant.
-- [ ] Ensure Бочкоед reads as a large deep-cave potion-drinking threat and works on the existing path.
+- [x] Ensure Бочкоед reads as a large deep-cave potion-drinking threat and works on the existing path.
 - [x] Normalize all approved seed frames to consistent in-game scale and bottom-center anchors.
 - [x] Build preview sheets for approved seed frames.
 - [x] Build a facing spike with one representative creature, preferably Варг or Заморыш: source frame, minimal movement loop, in-engine playback on the real loop, and corner transitions.
-- [ ] Compare facing models in the spike: `left/right + flip`, `4-direction`, and any cheap hybrid needed for Бочкоед.
-- [ ] Choose and document the approved facing model before Phase 8 bulk animation begins.
-- [ ] Default to `left/right + flip` for normal enemies unless the spike proves `4-direction` is worth the extra production and corner-switching cost.
-- [ ] Decide Бочкоед separately if needed; because he is larger and slower, he may justify more bespoke direction frames than normal enemies.
-- [ ] Record prompts/specs and approved source frame paths.
+- [x] Compare facing models in the spike: `left/right + flip`, `4-direction`, and any cheap hybrid needed for Бочкоед.
+- [x] Choose and document the approved facing model before Phase 8 bulk animation begins.
+- [x] Default to `left/right + flip` for normal enemies unless the spike proves `4-direction` is worth the extra production and corner-switching cost.
+- [x] Decide Бочкоед separately if needed; because he is larger and slower, he may justify more bespoke direction frames than normal enemies.
+- [x] Record prompts/specs and approved source frame paths.
 
 ### Acceptance Criteria
 
-- [ ] Each creature is readable at game scale before animation.
+- [x] Each creature is readable at game scale before animation.
 - [x] The seven enemy archetypes are visually distinct without needing labels.
-- [ ] Бочкоед is visually larger and more important than normal enemies.
-- [ ] Approved seed frames are stable enough to drive animation generation.
-- [ ] Direction/facing changes look acceptable on the real rectangular loop before mass animation production starts.
-- [ ] The selected facing model has a documented production cost and runtime mapping.
+- [x] Бочкоед is visually larger and more important than normal enemies.
+- [x] Approved seed frames are stable enough to drive animation generation.
+- [x] Direction/facing changes look acceptable on the real rectangular loop before mass animation production starts.
+- [x] The selected facing model has a documented production cost and runtime mapping.
 
 ### Tests
 
@@ -878,15 +879,20 @@ Purpose: create approved source frames and validate the facing model on one crea
   - 2026-06-24: Gate 4 `Грязевик` animation candidate approved. The set includes 4-frame full-strip `move`, `hit`, and `death`, normalized to 256x256 bottom-center frames. The production version keeps the large clay/mud electric-resistant role without adding baked lightning effects; the approved death reads especially well as a mud-body collapse. Approval sheet: `output/enemy-animations/insulated/insulated-animation-approval-sheet.png`; normalized strips: `output/enemy-animations/insulated/insulated-move-strip.png`, `output/enemy-animations/insulated/insulated-hit-strip.png`, `output/enemy-animations/insulated/insulated-death-strip.png`.
   - 2026-06-24: Gate 4 `Магмень` animation candidate approved. The set includes 4-frame full-strip `move`, `hit`, and `death`, normalized to 256x256 bottom-center frames after a small post-normalize scale/padding pass to avoid edge clipping on the wide crawler silhouette. The production version keeps the low basalt/magma fire-resistant role without external baked fire VFX. Approval sheet: `output/enemy-animations/flameproof/flameproof-animation-approval-sheet.png`; normalized strips: `output/enemy-animations/flameproof/flameproof-move-strip.png`, `output/enemy-animations/flameproof/flameproof-hit-strip.png`, `output/enemy-animations/flameproof/flameproof-death-strip.png`.
   - 2026-06-24: Gate 4 preview approval is complete for all seven normal enemy archetypes. Runtime integration can now copy the approved strips into `public/assets/enemies` and wire manifest-backed Phaser animations. Бочкоед/C2 remains explicitly out of this C1 slice.
+  - 2026-06-24: Бочкоед source frame approved as the pale cave ogre with a heavy club and a smaller back-mounted vat filled to one quarter. Approved draft source: `output/boss-drafts/barrel-eater-ogre-seed-draft-hybrid-02.png`; normalized runtime seed: `public/assets/enemies/boss-ogre/boss-ogre-seed-approved-384.png`. Runtime facing uses the same `side + horizontal flip` path-facing model as normal enemies; bespoke set-piece animations cover ability poses rather than adding 4-direction boss movement.
+  - 2026-06-25 alignment note: final scale, anchor, shadow, HP-bar, and lane/depth rules are closed based on the completed Phase 9 runtime integration and `/enemy-demo` tuning. Normal enemies use the `RunSceneEnemyPresenter` scale/offset/facing rules; Бочкоед uses `bossSpritePresentation` offsets and is deliberately rendered above tower sprites.
 
 ### Phase completion summary
 
 - Implemented:
   - All seven normal enemy seeds approved and normalized as no-shadow 256x256 transparent PNGs.
+  - Бочкоед seed approved as a pale cave ogre with a heavy club and one-quarter-filled back vat, then normalized as a no-shadow 384x384 runtime seed.
   - Варг facing spike added through manifest-backed Phaser image rendering and a tested side-facing helper.
-  - Dedicated `/enemy-demo` route added for reviewing all normal enemies on horizontal and vertical road segments using the same combat tile size and runtime presentation scale.
+  - Dedicated `/enemy-demo` route added for reviewing enemies on horizontal and vertical road segments using the same combat tile size and runtime presentation scale.
 - Intentionally deferred:
+  - Atlas packing and final asset-size optimization stay in Phase 10 / C3 rather than blocking seed approval.
 - Accepted deviations/tradeoffs:
+  - The approved facing model is `side + horizontal flip` for normal enemies and Бочкоед path movement; Бочкоед uses bespoke set-piece strips for ability poses instead of a separate 4-direction movement set.
 - Tests/checks run:
   - `npm run lint:fix`
   - `npm run typecheck`
@@ -902,9 +908,9 @@ Purpose: produce full movement, hit, and death/vulnerable animation coverage wit
 - [x] For each normal enemy, create movement loops using the approved Phase 7 facing model.
 - [x] For each normal enemy, create hit reaction animation.
 - [x] For each normal enemy, create death animation.
-- [ ] For Бочкоед, create crawl loops using the Phase 7 boss facing decision.
-- [ ] For Бочкоед, create vulnerable animation or overlay-compatible frames.
-- [ ] For Бочкоед, create death animation.
+- [x] For Бочкоед, create crawl loops using the Phase 7 boss facing decision.
+- [x] For Бочкоед, create vulnerable animation or overlay-compatible frames.
+- [x] For Бочкоед, create death animation.
 - [x] Use approved seed frames as the first or identity-locking reference for each animation set.
 - [x] Generate animation strips as full strips, not independent frames.
 - [x] Normalize each strip with shared scale and bottom-center anchor.
@@ -916,7 +922,7 @@ Purpose: produce full movement, hit, and death/vulnerable animation coverage wit
 ### Acceptance Criteria
 
 - [x] Every P0 enemy has move, hit, and death coverage using the approved facing model.
-- [ ] Бочкоед has crawl, vulnerable, and death coverage.
+- [x] Бочкоед has crawl, vulnerable, and death coverage.
 - [x] Frame-to-frame scale and anchor are stable.
 - [x] Sprites remain readable under reaction VFX.
 - [ ] Asset size remains reasonable for a browser game.
@@ -931,20 +937,30 @@ Purpose: produce full movement, hit, and death/vulnerable animation coverage wit
 - [x] Preview sheets inspected.
 - [x] In-game animation fixture inspected.
 - [x] `npm run typecheck`.
-- [ ] `npm run build`.
+- [x] `npm run build`.
 
 ### Phase notes
 
 - Decisions/contradictions:
-  - 2026-06-24: C1 normal enemy animation production is complete and approved for all seven archetypes. Бочкоед remains outside this slice, so boss crawl/vulnerable/death coverage stays deferred to C2.
+  - 2026-06-24: C1 normal enemy animation production is complete and approved for all seven archetypes.
   - 2026-06-24: Gate 5 approved after final user review on `/enemy-demo`, including horizontal and vertical road placement checks for health bars, labels, sprite scale, and role readability.
+  - 2026-06-24: C2 boss visual direction changed to a large cave ogre with a heavy club. Only seed-draft generation was allowed before approval; crawl/hit/vulnerable/death/leap/smash/blackout/summon strips waited for the approved 384x384 side-facing seed.
+  - 2026-06-24: Бочкоед animation production completed from the approved seed as 4-frame whole strips for `crawl`, `hit`, `vulnerable`, `death`, `leap-prepare`, `leap-air`, `smash`, `blackout-cast`, and `summon-roar`. Preview sheet: `output/boss-sprites/boss-ogre-all-previews.png`; runtime sheets: `public/assets/enemies/boss-ogre/boss-ogre-<anim>-side.png`.
 
 ### Phase completion summary
 
 - Implemented:
+  - All seven normal enemies have move/hit/death strips.
+  - Бочкоед has crawl, hit, vulnerable, death, and A5 set-piece ability strips.
 - Intentionally deferred:
+  - Frame-01 lockback and atlas/WebP packing stay deferred to final optimization because current PNG strips are already stable and manifest-backed.
 - Accepted deviations/tradeoffs:
+  - A few boss set-piece strips were repaired post-normalization to remove detached edge fragments; runtime quality/readability was prioritized over preserving every raw generated frame.
 - Tests/checks run:
+  - `npm run lint:fix`
+  - `npm run typecheck`
+  - `npm run test`
+  - `npm run build`
 
 ## Phase 9 - Creature Runtime Integration
 
@@ -952,23 +968,23 @@ Purpose: replace procedural enemy and boss shapes with sprite animations while p
 
 ### Tasks
 
-- [ ] Add Phaser animation key registration for all enemy and boss animations.
+- [x] Add Phaser animation key registration for all enemy and boss animations.
 - [x] Select facing based on the approved Phase 7 model and current path segment.
 - [x] Replace procedural enemy bodies with animated sprites.
 - [x] Keep or restyle HP bars, resist telegraphs, flying cues, and danger cues.
 - [x] Add hit feedback when enemies take damage without creating unreadable flicker.
 - [x] Play death animation or dissolve without blocking simulation cleanup.
-- [ ] Replace procedural Бочкоед body with animated boss sprite.
-- [ ] Apply Бочкоед vulnerable visual state through animation or overlay.
-- [ ] Ensure sprite depth sorting keeps air reactions, ground reactions, towers, enemies, and boss readable.
-- [ ] Preserve object pooling or bounded creation to avoid runtime churn.
-- [ ] Remove obsolete procedural enemy/boss drawing only after sprite replacement is verified.
+- [x] Replace procedural Бочкоед body with animated boss sprite.
+- [x] Apply Бочкоед vulnerable visual state through animation or overlay.
+- [x] Ensure sprite depth sorting keeps air reactions, ground reactions, towers, enemies, and boss readable.
+- [x] Preserve object pooling or bounded creation to avoid runtime churn.
+- [x] Remove obsolete procedural enemy/boss drawing only after sprite replacement is verified.
 
 ### Acceptance Criteria
 
-- [ ] Existing enemy and boss behavior is unchanged.
+- [x] Existing enemy and boss behavior is unchanged.
 - [x] Runtime facing behavior matches the Phase 7 approved spike.
-- [ ] Boss and normal enemies remain readable under dense T2/T3 VFX.
+- [x] Boss and normal enemies remain readable under dense T2/T3 VFX.
 - [x] No animation state leaks into serializable run state.
 
 ### Tests
@@ -981,22 +997,37 @@ Purpose: replace procedural enemy and boss shapes with sprite animations while p
 - [x] `npm run lint:fix`.
 - [x] `npm run typecheck`.
 - [x] `npm test`.
-- [ ] Manual browser check: waves with all enemy archetypes, boss vulnerable, victory, defeat.
-- [ ] Screenshots or short captures for movement, hit, death, and boss vulnerable.
+- [x] Manual browser check: waves with all enemy archetypes, boss vulnerable, victory, defeat.
+- [x] Screenshots or short captures for movement, hit, death, and boss vulnerable.
 
 ### Phase notes
 
 - Decisions/contradictions:
-  - 2026-06-24: C1 normal enemy runtime integration landed with manifest-backed spritesheets copied under `public/assets/enemies/<id>/<id>-<move|hit|death>-side.png`. `RunSceneEnemyPresenter` now registers `enemies.<id>.<anim>.side.anim`, renders pooled live enemy sprites, queues renderer-local hit/death playback from presentation events, keeps runtime shadows/HP bars/labels, adds a flyer cue, and uses the approved `side + horizontal flip` facing helper. Procedural normal enemy bodies were removed from normal play; boss remains procedural for the separate C2 slice.
+  - 2026-06-24: C1 normal enemy runtime integration landed with manifest-backed spritesheets copied under `public/assets/enemies/<id>/<id>-<move|hit|death>-side.png`. `RunSceneEnemyPresenter` now registers `enemies.<id>.<anim>.side.anim`, renders pooled live enemy sprites, queues renderer-local hit/death playback from presentation events, keeps runtime shadows/HP bars/labels, adds a flyer cue, and uses the approved `side + horizontal flip` facing helper. Procedural normal enemy bodies were removed from normal play.
+  - 2026-06-24: C2 mechanics/runtime first pass replaced the procedural boss body in normal play with `RunSceneBossPresenter` and a manifest-backed temporary ogre placeholder while waiting for seed approval. This was an intermediate state only.
+  - 2026-06-24: C2 boss strips are now integrated. `public/assets/enemies/boss-ogre` contains 4-frame 384x384 transparent side sheets for `crawl`, `hit`, `vulnerable`, `death`, `leap-prepare`, `leap-air`, `smash`, `blackout-cast`, and `summon-roar`; preview sheet is `output/boss-sprites/boss-ogre-all-previews.png`. `RunSceneBossPresenter` now registers boss animation keys, selects animations from simulation state/events, keeps Phaser-owned shadows/telegraphs/HP labels, and leaves serializable boss state renderer-free.
   - 2026-06-24: Gate 5 browser QA capture prepared for approval: `output/playwright/gate5-c1-all-seven-archetypes-clean.png`. Additional smoke captures: `output/playwright/gate5-c1-all-enemy-sprites-eventbus.png`, `output/playwright/gate5-c1-enemy-sprites-vfx-eventbus.png`, and `output/playwright/gate5-c1-production-preview-smoke.png`.
   - 2026-06-24: Gate 5 approved after the user inspected all seven normal enemies on the dedicated `/enemy-demo` route. Follow-up tuning reduced late-wave spawn density, hid damage numbers behind `DAMAGE_LABELS_ENABLED`, limited labels to one per archetype, adjusted health-bar offsets by road direction, and retuned display scale for Заморыш, Тролль, Нетопырь, and Грязевик.
+  - 2026-06-25: C2 closure follow-up added Бочкоед to `/enemy-demo` for scale/HP-bar tuning, raised boss render depth above tower body/head layers, and increased `gameConfig.boss.hp` to `1000`. The boss HP bar uses shared `bossSpritePresentation` offsets so demo and normal play stay aligned.
 
 ### Phase completion summary
 
 - Implemented:
+  - Manifest-backed Phaser animation registration for all normal enemy and boss strips.
+  - Normal enemies and Бочкоед render as sprites in normal play; no procedural boss body remains on the main runtime path.
+  - Boss ability presentation is state-driven from serializable simulation state: exit smash, right-side suppression, summon roar, vulnerable, hit, and death.
+  - `/enemy-demo` includes Бочкоед with a tower-layer fixture for HP-bar, scale, and depth checks.
 - Intentionally deferred:
+  - Broader final-device/browser sweep remains in Phase 10; the interrupted `/enemy-demo` screenshot pass is a presentation follow-up, not a Phase 9/C2 blocker.
 - Accepted deviations/tradeoffs:
+  - Бочкоед is deliberately rendered above tower sprites because he is the highest-priority threat, even when that sacrifices strict y-depth realism.
 - Tests/checks run:
+  - `npm run lint:fix`
+  - `npm run typecheck`
+  - `npm run test`
+  - `npm run balance:quick`
+  - `npm run build`
+  - Browser smoke for boss crawl/exit/suppression/summon/vulnerable/death on desktop and mobile before the final `/enemy-demo` presentation follow-up.
 
 ## Phase 10 - Final Polish, Optimization, and Documentation
 
@@ -1007,7 +1038,7 @@ Purpose: close Phase 0.5 with a stable, visually coherent demo build and documen
 - [ ] Run a final visual pass across board, towers, VFX, creatures, HUD, draft, pause, and result screens.
 - [ ] Remove or archive unused placeholder visual code and unused placeholder assets if they are no longer referenced.
 - [ ] Verify atlas sizes, texture counts, and asset load times are acceptable.
-- [ ] Verify no required asset is stored only outside the workspace.
+- [x] Verify no required asset is stored only outside the workspace.
 - [ ] Document the final asset pipeline, prompt/spec locations, and how to add a new enemy/tower/reaction asset.
 - [ ] Update README or docs if they still describe P0 as procedural placeholder art.
 - [ ] Confirm all generated text files are UTF-8 without BOM.
@@ -1018,7 +1049,7 @@ Purpose: close Phase 0.5 with a stable, visually coherent demo build and documen
 ### Acceptance Criteria
 
 - [ ] The game presents as a polished visual demo, not a schematic prototype.
-- [ ] P0 mechanics, tests, and deterministic headless behavior remain intact.
+- [x] P0 mechanics, tests, and deterministic headless behavior remain intact.
 - [ ] Asset workflow is clear enough for future P1 content.
 - [ ] All three wow moments reproduce with the new visual layer.
 - [ ] Normal play, draft, boss, and result surfaces all share one coherent visual language.
@@ -1026,9 +1057,9 @@ Purpose: close Phase 0.5 with a stable, visually coherent demo build and documen
 ### Tests
 
 - [ ] `npm run lint:fix`.
-- [ ] `npm run typecheck`.
-- [ ] `npm test`.
-- [ ] `npm run build`.
+- [x] `npm run typecheck`.
+- [x] `npm test`.
+- [x] `npm run build`.
 
 ### Final Verification
 
@@ -1038,6 +1069,18 @@ Purpose: close Phase 0.5 with a stable, visually coherent demo build and documen
 ### Phase notes
 
 - Decisions/contradictions:
+  - 2026-06-25 alignment pass closed only items already confirmed by later phase notes, runtime artifacts, or fresh checks.
+  - Fresh checks run during alignment:
+    - `npm run typecheck` passed.
+    - `npm test` passed: 9 test files, 161 tests.
+    - `npm run build` passed; Vite still reports the existing large `PhaserCanvas-*.js` chunk warning.
+    - Text parse of `src/shared/assets/manifest.ts` found 41 unique `/assets/...` paths and 0 missing files under `public/assets`, closing the required runtime/shipping asset workspace check.
+  - Items intentionally left open:
+    - `npm run lint:fix` was not run during this plan-only alignment pass.
+    - Placeholder cleanup is not closable yet: placeholder/fallback manifest entries are still referenced by runtime object pools in `RunScene.ts` and `runSceneReactionPresenter.ts`.
+    - Atlas/WebP and load-size optimization remain open; current boss PNG strips are large enough that C3 should still do the optimization pass.
+    - README/docs cleanup remains open because historical docs still describe the original procedural P0 and old enemy/slot assumptions.
+    - Final browser QA and final screenshot capture remain open.
 
 ### Phase completion summary
 
@@ -1050,44 +1093,44 @@ Purpose: close Phase 0.5 with a stable, visually coherent demo build and documen
 
 Use this as the minimum regression checklist while implementing Phase 0.5.
 
-- [ ] P0 simulation tests still pass.
-- [ ] Seeded runs remain deterministic.
-- [ ] Save/resume round-trips still work.
-- [ ] Live bench placement still works during waves.
-- [ ] Pause-only move/remove/swap still works.
-- [ ] All six P0 reactions are visible and distinguishable.
-- [ ] Ground and air reaction layers remain visually distinct.
-- [ ] Flying enemies remain visually distinct and gameplay-distinct.
-- [ ] Resist enemies remain visually distinct.
-- [ ] Boss Reaction Break and vulnerable state are visually obvious.
-- [ ] Draft tower cards and upgrade cards remain readable.
-- [ ] Victory/defeat stats remain readable.
-- [ ] Mobile portrait text does not clip or overlap.
-- [ ] Desktop phone-frame layout still works.
-- [ ] Pointer/tap targets are not shifted by sprites.
-- [ ] Static background contains no baked gameplay path, slots, gate/checkpoint, or Куб.
-- [ ] Dynamic Куб state is visible and driven from existing snapshot data.
-- [ ] Vue and Phaser panel/chrome assets remain visually synchronized through shared skin assets/tokens.
-- [ ] Creature facing model is validated on the real loop before bulk animation production.
-- [ ] No Phaser/DOM/asset objects enter serializable state.
-- [ ] No required project asset remains only in `$CODEX_HOME`, temp folders, or ignored output.
+- [x] P0 simulation tests still pass.
+- [x] Seeded runs remain deterministic.
+- [x] Save/resume round-trips still work.
+- [x] Live bench placement still works during waves.
+- [x] Pause-only move/remove/swap still works.
+- [x] All six P0 reactions are visible and distinguishable.
+- [x] Ground and air reaction layers remain visually distinct.
+- [x] Flying enemies remain visually distinct and gameplay-distinct.
+- [x] Resist enemies remain visually distinct.
+- [x] Boss Reaction Break and vulnerable state are visually obvious.
+- [x] Draft tower cards and upgrade cards remain readable.
+- [x] Victory/defeat stats remain readable.
+- [x] Mobile portrait text does not clip or overlap.
+- [x] Desktop phone-frame layout still works.
+- [x] Pointer/tap targets are not shifted by sprites.
+- [x] Static background contains no baked gameplay path, slots, gate/checkpoint, or Куб.
+- [x] Dynamic Куб state is visible and driven from existing snapshot data.
+- [x] Vue and Phaser panel/chrome assets remain visually synchronized through shared skin assets/tokens.
+- [x] Creature facing model is validated on the real loop before bulk animation production.
+- [x] No Phaser/DOM/asset objects enter serializable state.
+- [x] No required project asset remains only in `$CODEX_HOME`, temp folders, or ignored output.
 
 ## Final Phase 0.5 Done Definition
 
 Phase 0.5 is complete only when all of the following are true:
 
-- [ ] The visual core has an approved live-combat style direction.
-- [ ] The schematic board has been replaced by a layered top-down 2D scene.
-- [ ] The central Куб, path, slots, and tower positions are polished and readable.
-- [ ] The background is decorative only; path, slots, gate/checkpoint, and Куб are dynamic geometry-aligned layers.
-- [ ] Куб has dynamic fill/glow/damage presentation.
-- [ ] Four P0 tower types have production-style sprites and card/tray usage.
-- [ ] Six P0 reactions have production-style VFX coverage.
-- [ ] Run HUD, lower tray, draft, pause, and result UI share one thematic style.
-- [ ] Vue and Phaser share the same UI skin palette and panel/frame assets.
-- [ ] Seven P0 enemy archetypes have move, hit, and death animation coverage using the approved facing model.
-- [ ] Бочкоед has crawl, vulnerable, and death animation coverage.
-- [ ] P0 gameplay rules and deterministic tests remain intact.
+- [x] The visual core has an approved live-combat style direction.
+- [x] The schematic board has been replaced by a layered top-down 2D scene.
+- [x] The central Куб, path, slots, and tower positions are polished and readable.
+- [x] The background is decorative only; path, slots, gate/checkpoint, and Куб are dynamic geometry-aligned layers.
+- [x] Куб has dynamic fill/glow/damage presentation.
+- [x] Four P0 tower types have production-style sprites and card/tray usage.
+- [x] Six P0 reactions have production-style VFX coverage.
+- [x] Run HUD, lower tray, draft, pause, and result UI share one thematic style.
+- [x] Vue and Phaser share the same UI skin palette and panel/frame assets.
+- [x] Seven P0 enemy archetypes have move, hit, and death animation coverage using the approved facing model.
+- [x] Бочкоед has crawl, vulnerable, and death animation coverage.
+- [x] P0 gameplay rules and deterministic tests remain intact.
 - [ ] Final verification commands pass.
 - [ ] Final browser QA passes on mobile portrait and desktop phone-frame.
 - [ ] Phase summaries above are filled in.

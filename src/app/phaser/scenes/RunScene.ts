@@ -5,7 +5,6 @@ import { hasSavedRun, saveRun } from "@entities/game-session/model/persistence";
 import { derivePresentationEvents } from "@entities/game-session/model/presentationEvents";
 import { applyAction, createRun, createSnapshot, stepRun } from "@entities/game-session/model/simulation";
 import { assetGroups } from "@shared/assets/manifest";
-import { ru } from "@shared/i18n/ru";
 import { gameEvents } from "@shared/lib/event-bus/gameEvents";
 import Phaser from "phaser";
 import { RunSceneBoardArtPresenter } from "./runSceneBoardArt";
@@ -13,6 +12,7 @@ import {
   renderBoardSlots,
   renderPlacementSlotFeedback,
 } from "./runSceneBoardRender";
+import { registerBossAnimations, RunSceneBossPresenter } from "./runSceneBossPresenter";
 import { renderCore } from "./runSceneCoreRender";
 import { registerEnemyAnimations, RunSceneEnemyPresenter } from "./runSceneEnemyPresenter";
 import { RunSceneEntryIntro } from "./runSceneEntryIntro";
@@ -24,8 +24,6 @@ import { RunSceneReactionPresenter } from "./runSceneReactionPresenter";
 import { RunSceneReagentPresenter } from "./runSceneReagentRender";
 import {
   findSlotAtPoint,
-  writeBossIntroPosition,
-  writeBossPosition,
   writeTowerPosition,
 } from "./runSceneRender";
 import {
@@ -53,16 +51,15 @@ export class RunScene extends Phaser.Scene {
   private backdropFloor?: Phaser.GameObjects.Image;
   private coreSprite?: Phaser.GameObjects.Image;
   private coreLiquidGraphics?: Phaser.GameObjects.Graphics;
-  private bossLabel?: Phaser.GameObjects.Text;
   private towerLabels: Phaser.GameObjects.Text[] = [];
   private towerSprites: Phaser.GameObjects.Image[] = [];
   private towerHeadSprites: Phaser.GameObjects.Image[] = [];
   private boardArtPresenter?: RunSceneBoardArtPresenter;
+  private bossPresenter?: RunSceneBossPresenter;
   private enemyPresenter?: RunSceneEnemyPresenter;
   private reagentPresenter?: RunSceneReagentPresenter;
   private reactionPresenter?: RunSceneReactionPresenter;
   private juicePresenter?: RunSceneJuicePresenter;
-  private readonly bossPosition = { x: 0, y: 0 };
   private readonly towerPosition = { x: 0, y: 0 };
   private readonly entryIntro = new RunSceneEntryIntro();
   private unsubscribeAction?: Unsubscribe;
@@ -77,6 +74,7 @@ export class RunScene extends Phaser.Scene {
   create(): void {
     this.cameras.main.setBackgroundColor("#101217");
     registerEnemyAnimations(this);
+    registerBossAnimations(this);
     this.backdropFloor = this.add.image(0, 0, assetGroups.scene.cavernFortressFloor.key)
       .setOrigin(0)
       .setDepth(-30);
@@ -87,6 +85,7 @@ export class RunScene extends Phaser.Scene {
     this.enemyGraphics = this.add.graphics().setDepth(20);
     this.placementGraphics = this.add.graphics().setDepth(35);
     this.boardArtPresenter = new RunSceneBoardArtPresenter(this);
+    this.bossPresenter = new RunSceneBossPresenter(this);
     this.enemyPresenter = new RunSceneEnemyPresenter(this);
     this.reagentPresenter = new RunSceneReagentPresenter(this);
     this.reactionPresenter = new RunSceneReactionPresenter(this);
@@ -96,14 +95,6 @@ export class RunScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(8);
     this.coreLiquidGraphics = this.add.graphics().setDepth(7.9);
-
-    this.bossLabel = this.add.text(0, 0, "", {
-      align: "center",
-      color: "#ffe0a6",
-      fontFamily: "Arial, sans-serif",
-      fontSize: "14px",
-      fontStyle: "700",
-    }).setOrigin(0.5).setDepth(42);
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       const previousSnapshot = createSnapshot(this.driver.state);
@@ -207,6 +198,7 @@ export class RunScene extends Phaser.Scene {
 
     gameEvents.emit("run:presentation-events", events);
     this.enemyPresenter?.queue(events, next, this.time.now);
+    this.bossPresenter?.queue(events, this.time.now);
     this.juicePresenter?.queue(events, next, this.time.now);
   }
 
@@ -264,69 +256,12 @@ export class RunScene extends Phaser.Scene {
 
   private renderBoss(snapshot: GameSnapshot, visualMs: number): void {
     const graphics = this.enemyGraphics;
-    if (!graphics || !snapshot.boss || snapshot.phase !== "boss") {
-      this.bossLabel?.setVisible(false);
-      this.entryIntro.clearBoss();
+
+    if (!graphics) {
       return;
     }
 
-    const introProgress = this.entryIntro.getBossProgress(this.time.now);
-    const position = introProgress < 1
-      ? writeBossIntroPosition(snapshot.board.pathCells, snapshot.boss, introProgress, this.bossPosition)
-      : writeBossPosition(snapshot.board.pathCells, snapshot.boss, this.bossPosition);
-    const hpRatio = snapshot.boss.hp / snapshot.boss.maxHp;
-    const vulnerable = snapshot.boss.vulnerableMs > 0;
-    const pulse = 3 + Math.sin(visualMs / 90) * 3;
-
-    if (vulnerable) {
-      graphics.fillStyle(0xFFF2A8, 0.2);
-      graphics.fillCircle(position.x, position.y, 46 + pulse);
-      graphics.lineStyle(4, 0xFFF2A8, 0.9);
-      graphics.strokeCircle(position.x, position.y, 48 + pulse);
-    }
-
-    graphics.fillStyle(0x4A2419, 1);
-    graphics.lineStyle(4, vulnerable ? 0xFFF2A8 : 0xE39A56, 0.95);
-    graphics.fillEllipse(position.x, position.y, 74, 54);
-    graphics.strokeEllipse(position.x, position.y, 74, 54);
-    graphics.lineStyle(3, 0x7C3E25, 0.9);
-    graphics.beginPath();
-    graphics.moveTo(position.x - 30, position.y - 18);
-    graphics.lineTo(position.x - 24, position.y + 22);
-    graphics.moveTo(position.x + 30, position.y - 18);
-    graphics.lineTo(position.x + 24, position.y + 22);
-    graphics.strokePath();
-    graphics.fillStyle(0x6A3320, 0.95);
-    graphics.fillRoundedRect(position.x - 21, position.y - 29, 42, 9, 3);
-    graphics.fillRoundedRect(position.x - 27, position.y + 20, 54, 8, 3);
-    graphics.fillStyle(0x20110E, 0.95);
-    graphics.fillCircle(position.x - 17, position.y - 7, 8);
-    graphics.fillCircle(position.x + 17, position.y - 7, 8);
-    graphics.lineStyle(3, 0x8D4B2E, 0.95);
-    graphics.beginPath();
-    graphics.moveTo(position.x - 27, position.y + 13);
-    graphics.lineTo(position.x - 9, position.y + 24);
-    graphics.lineTo(position.x + 9, position.y + 24);
-    graphics.lineTo(position.x + 27, position.y + 13);
-    graphics.strokePath();
-    if (vulnerable) {
-      graphics.lineStyle(2, 0xFFF2A8, 0.95);
-      graphics.beginPath();
-      graphics.moveTo(position.x - 8, position.y - 24);
-      graphics.lineTo(position.x + 2, position.y - 9);
-      graphics.lineTo(position.x - 3, position.y + 5);
-      graphics.lineTo(position.x + 10, position.y + 18);
-      graphics.strokePath();
-    }
-
-    graphics.fillStyle(0x101217, 0.96);
-    graphics.fillRoundedRect(position.x - 39, position.y - 47, 78, 8, 3);
-    graphics.fillStyle(vulnerable ? 0xFFF2A8 : 0xECA35E, 1);
-    graphics.fillRoundedRect(position.x - 36, position.y - 45, 72 * hpRatio, 4, 2);
-
-    this.bossLabel?.setVisible(true);
-    this.bossLabel?.setPosition(position.x, position.y + 46);
-    this.bossLabel?.setText(vulnerable ? ru.phaser.bossVulnerable : ru.phaser.bossLap(snapshot.boss.lap));
+    this.bossPresenter?.render(graphics, snapshot, visualMs, this.entryIntro);
   }
 
   private renderTowers(

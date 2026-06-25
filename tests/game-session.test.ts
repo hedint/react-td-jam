@@ -409,6 +409,26 @@ describe("run simulation", () => {
     expect(upgradedStorm.filter(reaction => reaction.air === "stormCloud").map(reaction => reaction.cellIndex)).toEqual([1, 2, 3]);
   });
 
+  it("keeps storm clouds on the accepted steam cells when a corner spark is added", () => {
+    const steamTowers = [
+      createTower("tower-water-a", "water", "slot-5-outer"),
+      createTower("tower-heat-a", "heat", "slot-5-inner"),
+    ];
+    const upgrades = [
+      { upgradeId: "waterCapacity" as const, stacks: 1 },
+      { upgradeId: "heatReach" as const, stacks: 1 },
+    ];
+    const steam = resolveReactions(gameConfig.board, steamTowers, upgrades);
+    const storm = resolveReactions(gameConfig.board, [
+      ...steamTowers,
+      createTower("tower-spark-a", "spark", "slot-5-inner"),
+    ], upgrades);
+
+    expect(steam.filter(reaction => reaction.air === "steam").map(reaction => reaction.cellIndex)).toEqual([5, 6, 7]);
+    expect(storm.filter(reaction => reaction.air === "stormCloud").map(reaction => reaction.cellIndex)).toEqual([5, 6, 7]);
+    expect(storm[8]).toEqual({ cellIndex: 8, ground: null, air: null });
+  });
+
   it("does not let one energy tower directly feed both tier 1 and tier 2 reactions", () => {
     const state = createRun(1, {
       placedTowers: [
@@ -616,9 +636,63 @@ describe("run simulation", () => {
       reactions: resolveReactions(base.board, base.placedTowers, upgrades),
     };
 
-    expect(fireStormState.reactions.filter(reaction => reaction.air === "fireStorm").map(reaction => reaction.cellIndex)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(fireStormState.reactions.filter(reaction => reaction.air === "fireStorm").map(reaction => reaction.cellIndex)).toEqual([1, 2, 3, 4, 5]);
     expect(fireStormState.reactions.some(reaction => reaction.air === "fireVortex")).toBe(false);
     expect(fireStormState.reactions.some(reaction => reaction.air === "stormCloud")).toBe(false);
+  });
+
+  it("lets a corner spark reserve the full storm cloud before fire storm consumes it", () => {
+    const reactions = resolveReactions(
+      gameConfig.board,
+      [
+        createTower("tower-water-a", "water", "slot-1-outer"),
+        createTower("tower-water-b", "water", "slot-2-outer"),
+        createTower("tower-water-c", "water", "slot-3-outer"),
+        createTower("tower-water-d", "water", "slot-4-outer"),
+        createTower("tower-water-e", "water", "slot-5-outer"),
+        createTower("tower-heat-steam", "heat", "slot-2-outer"),
+        createTower("tower-oil-fire", "oil", "slot-1-outer"),
+        createTower("tower-heat-fire", "heat", "slot-1-outer"),
+        createTower("tower-spark-corner", "spark", "slot-5-outer"),
+      ],
+      [
+        { upgradeId: "heatReach", stacks: 2 },
+        { upgradeId: "waterCapacity", stacks: 2 },
+      ],
+    );
+
+    expect(reactions.filter(reaction => reaction.air === "fireStorm").map(reaction => reaction.cellIndex)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(reactions.some(reaction => reaction.air === "steam")).toBe(false);
+    expect(reactions.some(reaction => reaction.air === "fireVortex")).toBe(false);
+    expect(reactions.some(reaction => reaction.air === "stormCloud")).toBe(false);
+  });
+
+  it("expands an existing fire storm when a new storm cloud touches it", () => {
+    const reactions = resolveReactions(
+      gameConfig.board,
+      [
+        createTower("tower-water-a", "water", "slot-1-outer"),
+        createTower("tower-heat-a", "heat", "slot-1-outer"),
+        createTower("tower-water-b", "water", "slot-3-outer"),
+        createTower("tower-heat-b", "heat", "slot-3-outer"),
+        createTower("tower-water-c", "water", "slot-4-outer"),
+        createTower("tower-heat-c", "heat", "slot-4-outer"),
+        createTower("tower-oil-a", "oil", "slot-1-outer"),
+        createTower("tower-heat-d", "heat", "slot-1-outer"),
+        createTower("tower-spark-a", "spark", "slot-4-outer"),
+        createTower("tower-water-d", "water", "slot-5-outer"),
+        createTower("tower-heat-e", "heat", "slot-5-inner"),
+        createTower("tower-spark-b", "spark", "slot-5-inner"),
+        createTower("tower-spark-c", "spark", "slot-7-inner"),
+      ],
+      [
+        { upgradeId: "waterCapacity", stacks: 2 },
+        { upgradeId: "heatReach", stacks: 2 },
+      ],
+    );
+
+    expect(reactions.filter(reaction => reaction.air === "fireStorm").map(reaction => reaction.cellIndex)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(reactions.some(reaction => reaction.air === "stormCloud")).toBe(false);
   });
 
   it("resolves reactions independently from placed tower iteration order", () => {
@@ -697,7 +771,7 @@ describe("run simulation", () => {
 
     expect(next.stats.totalDamage).toBe(0);
     expect(next.enemies[0]?.hp).toBe(30);
-    expect(next.enemies[0]?.pathProgress).toBeCloseTo(1 / 30);
+    expect(next.enemies[0]?.pathProgress).toBeCloseTo(0.75 / 30);
   });
 
   it("stacks water and oil slow without creating a reaction", () => {
@@ -745,7 +819,7 @@ describe("run simulation", () => {
 
     expect(state.reactions[1]).toEqual({ cellIndex: 1, ground: null, air: null });
     expect(next.enemies[0]?.hp).toBe(25);
-    expect(next.enemies[0]?.pathProgress).toBeCloseTo(1.7);
+    expect(next.enemies[0]?.pathProgress).toBeCloseTo(1.525);
     expect(next.stats.damageBySource.rawSpark).toBe(5);
     expect(next.stats.damageByReaction.electroPuddle).toBeUndefined();
   });
@@ -842,7 +916,7 @@ describe("run simulation", () => {
         createGrunt({ hp: 100 }),
       ],
     });
-    const next = stepMany(state, 550);
+    const next = stepMany(state, 750);
 
     expect(next.enemies).toEqual([]);
     expect(next.coreHp).toBe(14);
@@ -856,7 +930,7 @@ describe("run simulation", () => {
         createGrunt({ pathProgress: 1.9 }),
       ],
     });
-    const next = stepRun(state, 100);
+    const next = stepRun(state, 200);
 
     expect(getCurrentPathCellIndex(0, 16)).toBe(0);
     expect(getCurrentPathCellIndex(15.99, 16)).toBe(15);
@@ -908,8 +982,8 @@ describe("run simulation", () => {
       ],
     });
 
-    expect(stepRun(groundSubstances, 1000).enemies[0]?.pathProgress).toBeCloseTo(2.12);
-    expect(stepRun(groundReaction, 1000).enemies[0]?.pathProgress).toBeCloseTo(2.12);
+    expect(stepRun(groundSubstances, 1000).enemies[0]?.pathProgress).toBeCloseTo(1.84);
+    expect(stepRun(groundReaction, 1000).enemies[0]?.pathProgress).toBeCloseTo(1.84);
   });
 
   it("does not damage flying enemies with raw ground energy", () => {
@@ -1259,7 +1333,9 @@ describe("run simulation", () => {
     expect(result.state.stats.waveStats.map(wave => wave.waveId)).toContain("wave-10");
     expect(result.state.boss).toMatchObject({
       bossId: "barrel-eater",
+      hp: 1000,
       lap: 1,
+      maxHp: 1000,
     });
   });
 
@@ -1301,7 +1377,7 @@ describe("run simulation", () => {
 
     expect(result.stoppedByPredicate).toBe(true);
     expect(result.summary.phase).toBe("defeat");
-    expect(result.summary.wavesCleared).toBeLessThan(10);
+    expect(result.summary.wavesCleared).toBeLessThanOrEqual(10);
     expect(result.summary.coreHp).toBe(0);
     expect(result.summary.leaks).toBeGreaterThan(0);
     expect(result.summary.damageByReaction.steam).toBeGreaterThan(0);
@@ -1331,7 +1407,7 @@ describe("run simulation", () => {
 
   it("progresses boss laps and applies configured core damage", () => {
     const state = createBossRun({
-      boss: createBossState({ pathProgress: 17.95 }),
+      boss: createBossState({ pathProgress: 17.95, triggeredAbilityIds: ["exitSmash"] }),
     });
     const next = stepRun(state, 1000);
 
@@ -1344,16 +1420,151 @@ describe("run simulation", () => {
     });
   });
 
+  it("triggers Бочкоед exit smash once, deals 2 core damage, and starts lap 2", () => {
+    const triggered = stepRun(createBossRun({
+      boss: createBossState({ pathProgress: 9 }),
+    }), 100);
+
+    expect(triggered.boss?.activeAbility?.id).toBe("exitSmash");
+    expect(triggered.coreHp).toBe(gameConfig.balance.coreHp);
+
+    const impact = stepRun(triggered, 2200);
+
+    expect(impact.coreHp).toBe(gameConfig.balance.coreHp - 2);
+    expect(impact.boss).toMatchObject({
+      lap: 2,
+      pathProgress: gameConfig.board.pathCells.length - 1,
+      currentCellIndex: gameConfig.board.pathCells.length - 1,
+      reactionBreakIds: [],
+      vulnerableMs: 0,
+    });
+    expect(impact.boss?.activeAbility).toMatchObject({
+      id: "exitSmash",
+      impactApplied: true,
+    });
+
+    const stillSmashing = stepRun(impact, 3999);
+
+    expect(stillSmashing.boss?.activeAbility?.id).toBe("exitSmash");
+
+    const finished = stepRun(impact, 4000);
+
+    expect(finished.coreHp).toBe(gameConfig.balance.coreHp - 2);
+    expect(finished.boss?.activeAbility).toBeNull();
+    expect(finished.boss?.triggeredAbilityIds).toContain("exitSmash");
+
+    const resumed = stepRun(finished, 100);
+
+    expect(resumed.boss?.pathProgress).toBeGreaterThan(gameConfig.board.pathCells.length - 1);
+    expect(resumed.boss?.pathProgress).toBeLessThan(gameConfig.board.pathCells.length);
+  });
+
+  it("does not fire a boss ability when Бочкоед dies at its trigger point", () => {
+    const state = createBossRun({
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-9-outer"),
+        createTower("tower-spark-a", "spark", "slot-9-outer"),
+      ],
+      boss: createBossState({ hp: 1, maxHp: gameConfig.boss.hp, pathProgress: 9 }),
+    });
+    const next = stepRun(state, 1000);
+
+    expect(next.phase).toBe("victory");
+    expect(next.boss?.hp).toBe(0);
+    expect(next.boss?.triggeredAbilityIds).not.toContain("exitSmash");
+  });
+
   it("defeats the run if Бочкоед completes the final lap alive", () => {
     const state = createBossRun({
       coreHp: 3,
-      boss: createBossState({ lap: 3, pathProgress: 53.95 }),
+      boss: createBossState({ lap: 3, pathProgress: 53.95, triggeredAbilityIds: ["exitSmash", "rightSideSuppression", "summonWave"] }),
     });
     const next = stepRun(state, 1000);
 
     expect(next.phase).toBe("defeat");
     expect(next.coreHp).toBe(0);
     expect(next.boss?.hp).toBeGreaterThan(0);
+  });
+
+  it("suppresses reaction damage only on the right-side boss cells while active", () => {
+    const placedTowers = [
+      createTower("tower-water-a", "water", "slot-10-outer"),
+      createTower("tower-spark-a", "spark", "slot-10-outer"),
+    ];
+    const unsuppressed = stepRun(createBossRun({
+      placedTowers,
+      boss: createBossState({ hp: 100, maxHp: 100, lap: 2, pathProgress: 28, triggeredAbilityIds: ["exitSmash", "rightSideSuppression"] }),
+    }), 1000);
+    const suppressed = stepRun(createBossRun({
+      placedTowers,
+      boss: createBossState({
+        hp: 100,
+        maxHp: 100,
+        lap: 2,
+        pathProgress: 28,
+        triggeredAbilityIds: ["exitSmash", "rightSideSuppression"],
+        suppressionRemainingMs: 1000,
+      }),
+    }), 1000);
+    const outsideSuppression = stepRun(createBossRun({
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-6-outer"),
+        createTower("tower-spark-a", "spark", "slot-6-outer"),
+      ],
+      boss: createBossState({
+        hp: 100,
+        maxHp: 100,
+        lap: 2,
+        pathProgress: 24,
+        triggeredAbilityIds: ["exitSmash", "rightSideSuppression"],
+        suppressionRemainingMs: 1000,
+      }),
+    }), 1000);
+
+    expect(unsuppressed.boss?.hp).toBeLessThan(100);
+    expect(suppressed.boss?.hp).toBeGreaterThan(unsuppressed.boss?.hp ?? 100);
+    expect(suppressed.stats.damageByReaction.electroPuddle ?? 0).toBe(0);
+    expect(suppressed.stats.damageBySource.rawSpark).toBeGreaterThan(0);
+    expect(outsideSuppression.boss?.hp).toBeLessThan(100);
+  });
+
+  it("holds at lap 3 start and summons extra enemies before resuming", () => {
+    const started = stepRun(createBossRun({
+      boss: createBossState({
+        lap: 3,
+        pathProgress: 36,
+        triggeredAbilityIds: ["exitSmash", "rightSideSuppression"],
+      }),
+    }), 100);
+
+    expect(started.boss?.activeAbility?.id).toBe("summonWave");
+    expect(started.boss?.pathProgress).toBe(36);
+
+    const summoned = stepRun(started, 2000);
+
+    expect(summoned.boss?.activeAbility).toMatchObject({
+      id: "summonWave",
+      impactApplied: true,
+    });
+    expect(summoned.boss?.summonRuntime).not.toBeNull();
+    expect(summoned.boss?.pathProgress).toBe(36);
+
+    const waiting = stepRun(summoned, 1900);
+
+    expect(waiting.enemies.length).toBeGreaterThan(0);
+    expect(waiting.boss?.activeAbility?.id).toBe("summonWave");
+    expect(waiting.boss?.pathProgress).toBe(36);
+
+    const finishedHold = stepRun(waiting, 100);
+
+    expect(finishedHold.boss?.activeAbility).toBeNull();
+    expect(finishedHold.boss?.pathProgress).toBe(36);
+
+    const resumed = stepRun(finishedHold, 100);
+
+    expect(resumed.enemies.length).toBeGreaterThan(0);
+    expect(resumed.boss?.pathProgress).toBeGreaterThan(36);
+    expect(resumed.boss?.triggeredAbilityIds).toContain("summonWave");
   });
 
   it("triggers boss Reaction Break from three distinct reaction ids per lap", () => {
@@ -1931,6 +2142,10 @@ function createBossState(overrides: Partial<NonNullable<RunState["boss"]>> = {})
     currentCellIndex: getCurrentPathCellIndex(pathProgress % gameConfig.balance.pathCellCount, gameConfig.balance.pathCellCount),
     vulnerableMs: 0,
     reactionBreakIds: [],
+    triggeredAbilityIds: [],
+    activeAbility: null,
+    suppressionRemainingMs: 0,
+    summonRuntime: null,
     ...overrides,
   };
 }

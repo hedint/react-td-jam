@@ -10,7 +10,7 @@ const board = createStadiumLoopBoard({
 
 export const gameConfig: GameConfig = {
   balance: {
-    schemaVersion: 7,
+    schemaVersion: 8,
     pathCellCount: 18,
     coreHp: 15,
     leakDamage: 1,
@@ -33,16 +33,16 @@ export const gameConfig: GameConfig = {
     { id: "fire", displayName: "Пожар", tier: 1, layer: "ground", damageFamily: "fire", dps: 20, inputs: ["oil", "heat"] },
     { id: "stormCloud", displayName: "Грозовое облако", tier: 2, layer: "air", damageFamily: "electric", dps: 32, inputs: ["steam", "spark"] },
     { id: "fireVortex", displayName: "Огненный вихрь", tier: 2, layer: "air", damageFamily: "fire", dps: 38, inputs: ["fire", "steam"] },
-    { id: "fireStorm", displayName: "Огненный Шторм", tier: 3, layer: "air", damageFamily: "storm", dps: 68, inputs: ["stormCloud", "fireVortex"] },
+    { id: "fireStorm", displayName: "Огненный Шторм", tier: 3, layer: "air", damageFamily: "storm", dps: 48, inputs: ["stormCloud", "fireVortex"] },
   ],
   enemies: [
-    { id: "grunt", displayName: "Заморыш", hp: 30, speedCellsPerSecond: 1, leakDamage: 1 },
-    { id: "swarm", displayName: "Кусака", hp: 14, speedCellsPerSecond: 1.22, leakDamage: 1 },
-    { id: "tank", displayName: "Тролль", hp: 105, speedCellsPerSecond: 0.58, leakDamage: 1 },
-    { id: "flyer", displayName: "Нетопырь", hp: 24, speedCellsPerSecond: 1.12, leakDamage: 1, traits: ["flying"] },
-    { id: "runner", displayName: "Варг", hp: 26, speedCellsPerSecond: 1.72, leakDamage: 1 },
-    { id: "insulated", displayName: "Грязевик", hp: 62, speedCellsPerSecond: 0.88, leakDamage: 1, resistances: { electric: 0.35 } },
-    { id: "flameproof", displayName: "Магмень", hp: 68, speedCellsPerSecond: 0.84, leakDamage: 1, resistances: { fire: 0.35 } },
+    { id: "grunt", displayName: "Заморыш", hp: 30, speedCellsPerSecond: 0.75, leakDamage: 1 },
+    { id: "swarm", displayName: "Кусака", hp: 14, speedCellsPerSecond: 0.915, leakDamage: 1 },
+    { id: "tank", displayName: "Тролль", hp: 105, speedCellsPerSecond: 0.435, leakDamage: 1 },
+    { id: "flyer", displayName: "Нетопырь", hp: 24, speedCellsPerSecond: 0.84, leakDamage: 1, traits: ["flying"] },
+    { id: "runner", displayName: "Варг", hp: 26, speedCellsPerSecond: 1.29, leakDamage: 1 },
+    { id: "insulated", displayName: "Грязевик", hp: 62, speedCellsPerSecond: 0.66, leakDamage: 1, resistances: { electric: 0.35 } },
+    { id: "flameproof", displayName: "Магмень", hp: 68, speedCellsPerSecond: 0.63, leakDamage: 1, resistances: { fire: 0.35 } },
   ],
   waves: [
     { id: "wave-1", telegraphEnemyIds: ["grunt"], spawnGroups: [{ enemyId: "grunt", count: 10, spawnIntervalMs: 975 }] },
@@ -66,11 +66,10 @@ export const gameConfig: GameConfig = {
     },
     {
       id: "wave-6",
-      telegraphEnemyIds: ["insulated", "tank", "grunt"],
+      telegraphEnemyIds: ["insulated", "tank"],
       spawnGroups: [
-        { enemyId: "insulated", count: 10, spawnIntervalMs: 1105 },
-        { enemyId: "tank", count: 5, spawnIntervalMs: 1625, startDelayMs: 1400 },
-        { enemyId: "grunt", count: 16, spawnIntervalMs: 520, startDelayMs: 800 },
+        { enemyId: "insulated", count: 10, spawnIntervalMs: 1250 },
+        { enemyId: "tank", count: 5, spawnIntervalMs: 1850, startDelayMs: 1800 },
       ],
     },
     {
@@ -84,11 +83,10 @@ export const gameConfig: GameConfig = {
     },
     {
       id: "wave-8",
-      telegraphEnemyIds: ["swarm", "flyer", "insulated"],
+      telegraphEnemyIds: ["flyer", "insulated"],
       spawnGroups: [
-        { enemyId: "swarm", count: 28, spawnIntervalMs: 468 },
-        { enemyId: "flyer", count: 13, spawnIntervalMs: 845, startDelayMs: 1100 },
-        { enemyId: "insulated", count: 9, spawnIntervalMs: 1430, startDelayMs: 1900 },
+        { enemyId: "flyer", count: 13, spawnIntervalMs: 980, startDelayMs: 900 },
+        { enemyId: "insulated", count: 9, spawnIntervalMs: 1650, startDelayMs: 2300 },
       ],
     },
     {
@@ -113,14 +111,43 @@ export const gameConfig: GameConfig = {
   boss: {
     id: "barrel-eater",
     displayName: "Бочкоед",
-    hp: 620,
+    hp: 1000,
     laps: 3,
     lapCoreDamage: 3,
-    speedCellsPerSecond: 0.54,
-    speedIncreasePerLap: 0.2,
+    speedCellsPerSecond: 0.46575,
+    speedIncreasePerLap: 0.1725,
     reactionBreakThreshold: 3,
     vulnerableDurationMs: 5000,
     vulnerableDamageMultiplier: 2,
+    abilities: {
+      exitSmash: {
+        id: "exitSmash",
+        triggerLap: 1,
+        triggerPathProgress: 9,
+        prepareMs: 1200,
+        leapMs: 1000,
+        smashMs: 4000,
+        coreDamage: 2,
+      },
+      rightSideSuppression: {
+        id: "rightSideSuppression",
+        triggerLap: 2,
+        triggerPathProgress: 9,
+        castMs: 900,
+        durationMs: 6000,
+        cellIndexes: [10, 11, 12, 13, 14],
+      },
+      summonWave: {
+        id: "summonWave",
+        triggerLap: 3,
+        holdMs: 2000,
+        postSummonHoldMs: 2000,
+        spawnGroups: [
+          { enemyId: "swarm", count: 8, spawnIntervalMs: 250 },
+          { enemyId: "runner", count: 4, spawnIntervalMs: 450, startDelayMs: 600 },
+        ],
+      },
+    },
   },
   upgrades: [
     { id: "waterCapacity", displayName: "Напор водомёта", maxStacks: 2, emitterId: "water", effect: { type: "substanceCoverage", amount: 1 } },
@@ -233,6 +260,32 @@ export function validateGameConfig(config: GameConfig): readonly string[] {
   ) {
     errors.push(`boss ${config.boss.id} has invalid combat values`);
   }
+
+  const bossAbilities = config.boss.abilities;
+  if (
+    bossAbilities.exitSmash.coreDamage <= 0
+    || bossAbilities.exitSmash.prepareMs < 0
+    || bossAbilities.exitSmash.leapMs < 0
+    || bossAbilities.exitSmash.smashMs < 0
+    || bossAbilities.rightSideSuppression.castMs < 0
+    || bossAbilities.rightSideSuppression.durationMs <= 0
+    || bossAbilities.rightSideSuppression.cellIndexes.length === 0
+    || bossAbilities.summonWave.holdMs < 0
+    || bossAbilities.summonWave.postSummonHoldMs < 0
+    || bossAbilities.summonWave.spawnGroups.length === 0
+  ) {
+    errors.push(`boss ${config.boss.id} has invalid ability values`);
+  }
+
+  bossAbilities.summonWave.spawnGroups.forEach((group, groupIndex) => {
+    if (!enemyIds.has(group.enemyId)) {
+      errors.push(`boss ${config.boss.id} summon group ${groupIndex} references unknown enemy ${group.enemyId}`);
+    }
+
+    if (group.count <= 0 || group.spawnIntervalMs <= 0 || (group.startDelayMs ?? 0) < 0) {
+      errors.push(`boss ${config.boss.id} summon group ${groupIndex} must have positive count/spawnIntervalMs and non-negative startDelayMs`);
+    }
+  });
 
   config.upgrades.forEach((upgrade) => {
     if (!upgrade.displayName) {

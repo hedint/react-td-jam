@@ -72,6 +72,9 @@ export const ru = {
     bossVulnerable: "Уязвим",
     bossLap: (lap: number) => `Круг ${lap}`,
     bossBreakCallout: "Разлом реакции",
+    bossExitSmash: "Удар по Кубу",
+    bossSuppression: "Глушит тракт",
+    bossSummon: "Зов глубин",
     coreDangerCallout: "Куб трещит",
     towerFields: {
       water: "Вода",

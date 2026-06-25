@@ -3,6 +3,7 @@ import type { GameSnapshot, PathCell } from "@entities/game-session/model/types"
 import type Phaser from "phaser";
 import { renderPerformanceBudget } from "./renderPerformance";
 import { LOGICAL_WIDTH } from "./runSceneLayout";
+import { writePathProgressPosition } from "./runSceneRender";
 
 const MAX_FLOATING_LABELS = 24;
 const MAX_MARK_EFFECTS = 36;
@@ -86,6 +87,18 @@ export class RunSceneJuicePresenter {
           break;
         case "bossBreak":
           this.queueBossBreak(event, snapshot, visualMs);
+          break;
+        case "bossDamaged":
+          break;
+        case "bossKilled":
+          this.queueBossKilled(event, snapshot, visualMs);
+          break;
+        case "bossAbilityStarted":
+          break;
+        case "bossAbilityImpact":
+          this.queueBossAbilityImpact(event, snapshot, visualMs);
+          break;
+        case "bossSuppressionStarted":
           break;
         default:
           event satisfies never;
@@ -196,6 +209,41 @@ export class RunSceneJuicePresenter {
       strong: true,
     });
     this.shake(220, 0.007);
+  }
+
+  private queueBossKilled(event: Extract<GamePresentationEvent, { readonly type: "bossKilled" }>, snapshot: GameSnapshot, visualMs: number): void {
+    const point = writePathProgressPoint(snapshot.board.pathCells, event.pathProgress);
+
+    this.queueMark({
+      type: "burst",
+      createdAt: visualMs,
+      ttlMs: 860,
+      x: point.x,
+      y: point.y - 24,
+      color: 0xFFCD62,
+      strong: true,
+    });
+    this.shake(260, 0.008);
+  }
+
+  private queueBossAbilityImpact(event: Extract<GamePresentationEvent, { readonly type: "bossAbilityImpact" }>, snapshot: GameSnapshot, visualMs: number): void {
+    const point = event.abilityId === "exitSmash"
+      ? writeExitSmashImpactPoint(snapshot.board.pathCells, event.pathProgress)
+      : writePathProgressPoint(snapshot.board.pathCells, event.pathProgress);
+
+    this.queueMark({
+      type: "burst",
+      createdAt: visualMs,
+      ttlMs: event.abilityId === "exitSmash" ? 720 : 520,
+      x: point.x,
+      y: point.y - 18,
+      color: event.abilityId === "rightSideSuppression" ? 0x9A7CFF : 0xFFB15E,
+      strong: event.abilityId === "exitSmash",
+    });
+
+    if (event.abilityId === "exitSmash") {
+      this.shake(260, 0.009);
+    }
   }
 
   private queueFloatingLabel(text: string, x: number, y: number, color: string, visualMs: number, rise: number): void {
@@ -346,6 +394,12 @@ function writePathProgressPoint(cells: readonly PathCell[], pathProgress: number
     x: current.x + (next.x - current.x) * amount,
     y: current.y + (next.y - current.y) * amount,
   };
+}
+
+function writeExitSmashImpactPoint(cells: readonly PathCell[], pathProgress: number): ScenePoint {
+  const point = { x: 0, y: 0 };
+
+  return writePathProgressPosition(cells, pathProgress, point);
 }
 
 function prefersReducedMotion(): boolean {

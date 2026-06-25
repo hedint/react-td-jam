@@ -27,6 +27,7 @@ export type EnemyTrait = "flying";
 export type DamageFamily = "electric" | "fire" | "steam" | "storm";
 export type ReactionInputId = EmitterId | ReactionId;
 export type DamageSourceId = ReactionId | "rawSpark" | "rawHeat";
+export type BossAbilityId = "exitSmash" | "rightSideSuppression" | "summonWave";
 
 export interface RngState {
   readonly seed: number
@@ -120,6 +121,16 @@ export interface BossState {
   readonly currentCellIndex: number
   readonly vulnerableMs: number
   readonly reactionBreakIds: readonly ReactionId[]
+  readonly triggeredAbilityIds: readonly BossAbilityId[]
+  readonly activeAbility: BossActiveAbilityState | null
+  readonly suppressionRemainingMs: number
+  readonly summonRuntime: WaveRuntimeState | null
+}
+
+export interface BossActiveAbilityState {
+  readonly id: BossAbilityId
+  readonly elapsedMs: number
+  readonly impactApplied: boolean
 }
 
 export interface WaveSpawnGroup {
@@ -291,6 +302,38 @@ export interface BossDefinition {
   readonly reactionBreakThreshold: number
   readonly vulnerableDurationMs: number
   readonly vulnerableDamageMultiplier: number
+  readonly abilities: {
+    readonly exitSmash: BossExitSmashAbilityDefinition
+    readonly rightSideSuppression: BossSuppressionAbilityDefinition
+    readonly summonWave: BossSummonAbilityDefinition
+  }
+}
+
+export interface BossExitSmashAbilityDefinition {
+  readonly id: "exitSmash"
+  readonly triggerLap: number
+  readonly triggerPathProgress: number
+  readonly prepareMs: number
+  readonly leapMs: number
+  readonly smashMs: number
+  readonly coreDamage: number
+}
+
+export interface BossSuppressionAbilityDefinition {
+  readonly id: "rightSideSuppression"
+  readonly triggerLap: number
+  readonly triggerPathProgress: number
+  readonly castMs: number
+  readonly durationMs: number
+  readonly cellIndexes: readonly number[]
+}
+
+export interface BossSummonAbilityDefinition {
+  readonly id: "summonWave"
+  readonly triggerLap: number
+  readonly holdMs: number
+  readonly postSummonHoldMs: number
+  readonly spawnGroups: readonly WaveSpawnGroup[]
 }
 
 export interface UpgradeDefinition {

@@ -3,6 +3,12 @@ import { gameConfig } from "@entities/game-session/model/config";
 import { assetGroups } from "@shared/assets/manifest";
 import Phaser from "phaser";
 import {
+  bossSpritePresentation,
+  getBossAnimationTextureKey,
+  getBossPhaserAnimationKey,
+  registerBossAnimations,
+} from "./runSceneBossPresenter";
+import {
   getEnemyAnimationTextureKey,
   getEnemyPhaserAnimationKey,
   getEnemySpritePresentation,
@@ -28,6 +34,10 @@ export class EnemyDemoScene extends Phaser.Scene {
   private overlayGraphics?: Phaser.GameObjects.Graphics;
   private titleText?: Phaser.GameObjects.Text;
   private subtitleText?: Phaser.GameObjects.Text;
+  private bossSprite?: Phaser.GameObjects.Sprite;
+  private bossLabel?: Phaser.GameObjects.Text;
+  private bossTowerBase?: Phaser.GameObjects.Image;
+  private bossTowerHead?: Phaser.GameObjects.Image;
   private readonly roadSprites: Phaser.GameObjects.Image[] = [];
   private readonly enemyViews: EnemyDemoView[] = [];
 
@@ -37,6 +47,7 @@ export class EnemyDemoScene extends Phaser.Scene {
 
   create(): void {
     registerEnemyAnimations(this);
+    registerBossAnimations(this);
     this.backgroundGraphics = this.add.graphics().setDepth(0);
     this.overlayGraphics = this.add.graphics().setDepth(20);
     this.titleText = this.add.text(0, 0, "Enemy Demo", createTextStyle(22, "#f3ead8", "700")).setOrigin(0.5).setDepth(40);
@@ -48,6 +59,8 @@ export class EnemyDemoScene extends Phaser.Scene {
       this.enemyViews.push(this.createEnemyView(enemyId, "horizontal"));
       this.enemyViews.push(this.createEnemyView(enemyId, "vertical"));
     });
+
+    this.createBossView();
   }
 
   update(time: number): void {
@@ -118,6 +131,25 @@ export class EnemyDemoScene extends Phaser.Scene {
     this.layoutRoadSprites(verticalCells, "vertical", roadDisplaySize, horizontalCells.length);
     this.roadSprites.slice(horizontalCells.length + verticalCells.length).forEach(sprite => sprite.setVisible(false));
     this.layoutEnemyViews(horizontalCells, verticalCells, time);
+    this.layoutBossView(width, height, time);
+  }
+
+  private createBossView(): void {
+    this.bossTowerBase = this.add.image(0, 0, assetGroups.towers.waterCannonBase.key)
+      .setOrigin(0.5)
+      .setDepth(26)
+      .setAlpha(0.72);
+    this.bossTowerHead = this.add.image(0, 0, assetGroups.towers.waterCannonHead.key)
+      .setOrigin(0.31, 0.52)
+      .setDepth(27)
+      .setAlpha(0.78);
+    this.bossSprite = this.add.sprite(0, 0, getBossAnimationTextureKey("crawl"), 0)
+      .setOrigin(0.5, 1)
+      .setDepth(bossSpritePresentation.spriteDepth);
+    this.bossLabel = this.add.text(0, 0, "", createTextStyle(13, "#ffe0a6", "700"))
+      .setOrigin(0.5)
+      .setDepth(42);
+    this.bossSprite.play(getBossPhaserAnimationKey("crawl"));
   }
 
   private layoutRoadSprites(
@@ -216,6 +248,69 @@ export class EnemyDemoScene extends Phaser.Scene {
     graphics.fillRoundedRect(x - 2, y - 2, width + 4, 7, 3);
     graphics.fillStyle(0xCDE6A7, 1);
     graphics.fillRoundedRect(x, y, width * 0.72, 3, 2);
+  }
+
+  private layoutBossView(width: number, height: number, time: number): void {
+    const sprite = this.bossSprite;
+    const label = this.bossLabel;
+    const graphics = this.overlayGraphics;
+
+    if (!sprite || !label || !graphics) {
+      return;
+    }
+
+    const position = {
+      x: Math.round(width * 0.42),
+      y: Math.round(Math.min(height - 82, Math.max(430, height * 0.66))),
+    };
+    const pulse = Math.sin(time / 260) * 2;
+
+    graphics.fillStyle(0x15100D, 0.7);
+    graphics.fillRoundedRect(position.x - 134, position.y - 39, 268, 78, 12);
+    graphics.lineStyle(1, 0xC8A76A, 0.2);
+    graphics.strokeRoundedRect(position.x - 134, position.y - 39, 268, 78, 12);
+    graphics.fillStyle(0x050403, 0.42);
+    graphics.fillEllipse(position.x, position.y + 33, bossSpritePresentation.shadowWidth, bossSpritePresentation.shadowHeight);
+
+    this.bossTowerBase
+      ?.setVisible(true)
+      .setPosition(position.x + 30, position.y + 2)
+      .setDisplaySize(82, 82)
+      .setDepth(26 + position.y / 10000);
+    this.bossTowerHead
+      ?.setVisible(true)
+      .setPosition(position.x + 30, position.y + 2)
+      .setDisplaySize(92, 92)
+      .setDepth(27 + position.y / 10000);
+
+    sprite
+      .setVisible(true)
+      .setPosition(position.x, position.y + bossSpritePresentation.groundOffsetY + pulse)
+      .setDisplaySize(bossSpritePresentation.displaySize, bossSpritePresentation.displaySize)
+      .setDepth(bossSpritePresentation.spriteDepth + position.y / 10000);
+    label
+      .setVisible(true)
+      .setPosition(position.x, position.y + bossSpritePresentation.labelOffsetY)
+      .setText(`${gameConfig.boss.displayName} · ${gameConfig.boss.hp} HP`);
+    this.renderBossHpBar(position);
+  }
+
+  private renderBossHpBar(position: { readonly x: number, readonly y: number }): void {
+    const graphics = this.overlayGraphics;
+
+    if (!graphics) {
+      return;
+    }
+
+    const width = bossSpritePresentation.hpBarWidth;
+    const fillInsetX = bossSpritePresentation.hpBarFillInsetX;
+    const fillWidth = width - fillInsetX * 2;
+    const top = position.y - bossSpritePresentation.hpBarOffsetY;
+
+    graphics.fillStyle(0x101217, 0.96);
+    graphics.fillRoundedRect(position.x - width / 2, top, width, bossSpritePresentation.hpBarHeight, 3);
+    graphics.fillStyle(0xECA35E, 1);
+    graphics.fillRoundedRect(position.x - width / 2 + fillInsetX, top + 3, fillWidth * 0.72, 4, 2);
   }
 }
 

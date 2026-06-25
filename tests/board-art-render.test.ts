@@ -5,17 +5,30 @@ import {
   getExitMarkerPresentation,
 } from "@app/phaser/scenes/runSceneBoardArt";
 import {
+  bossAnimationDirections,
+  bossAnimationNames,
+  bossSpritePresentation,
+  getBossAnimationTextureKey,
+  getBossPhaserAnimationKey,
+} from "@app/phaser/scenes/runSceneBossPresenter";
+import {
   enemyAnimationDirections,
   enemyAnimationNames,
   getEnemyAnimationTextureKey,
   getEnemyPhaserAnimationKey,
 } from "@app/phaser/scenes/runSceneEnemyPresenter";
-import { getEnemySideFacing, writeEnemyIntroPosition, writeEnemyPosition } from "@app/phaser/scenes/runSceneRender";
+import { getEnemySideFacing, writeBossPosition, writeEnemyIntroPosition, writeEnemyPosition } from "@app/phaser/scenes/runSceneRender";
 import { getCoreEntrancePathCell } from "@entities/game-session/model/boardGeometry";
+import { createBossState } from "@entities/game-session/model/boss";
 import { gameConfig } from "@entities/game-session/model/config";
 import { createGrunt } from "@entities/game-session/model/simulation";
 import { assetGroups, phaserPreloadAssets } from "@shared/assets/manifest";
 import { describe, expect, it } from "vitest";
+
+const publicBossAssets = import.meta.glob("../public/assets/enemies/boss-ogre/*.png", {
+  eager: true,
+  query: "?url",
+});
 
 describe("board art render helpers", () => {
   it("uses road corner assets only on the four loop turns", () => {
@@ -107,6 +120,30 @@ describe("board art render helpers", () => {
     expect(intro).toEqual(runtime);
   });
 
+  it("renders exit smash impact from the road cell before the exit", () => {
+    const exitSmashPoint = { x: 0, y: 0 };
+    const lapStartPoint = { x: 0, y: 0 };
+    const exitRoadCell = gameConfig.board.pathCells.at(-1)!;
+
+    writeBossPosition(gameConfig.board.pathCells, createBossState({
+      pathProgress: gameConfig.board.pathCells.length - 1,
+      activeAbility: { id: "exitSmash", elapsedMs: 2200, impactApplied: true },
+    }), exitSmashPoint);
+    writeBossPosition(gameConfig.board.pathCells, createBossState({
+      pathProgress: gameConfig.board.pathCells.length,
+      activeAbility: null,
+    }), lapStartPoint);
+
+    expect(exitSmashPoint).toMatchObject({
+      x: exitRoadCell.x,
+      y: exitRoadCell.y,
+    });
+    expect(lapStartPoint).toMatchObject({
+      x: gameConfig.board.pathCells[0]?.x,
+      y: gameConfig.board.pathCells[0]?.y,
+    });
+  });
+
   it("uses side-facing plus horizontal flip across vertical and horizontal loop segments", () => {
     const cells = gameConfig.board.pathCells;
 
@@ -130,5 +167,39 @@ describe("board art render helpers", () => {
         });
       });
     });
+  });
+
+  it("preloads every boss spritesheet from existing public files", () => {
+    const preloadKeys = new Set(phaserPreloadAssets.map(asset => asset.key));
+
+    bossAnimationNames.forEach((animationName) => {
+      bossAnimationDirections.forEach((direction) => {
+        const textureKey = getBossAnimationTextureKey(animationName, direction);
+        const asset = phaserPreloadAssets.find(candidate => candidate.key === textureKey);
+
+        expect(textureKey).toBe(`enemies.boss-ogre.${animationName}.${direction}`);
+        expect(getBossPhaserAnimationKey(animationName, direction)).toBe(`${textureKey}.anim`);
+        expect(preloadKeys.has(textureKey)).toBe(true);
+        expect(asset?.type).toBe("spritesheet");
+        expect(asset && `../public${asset.src}` in publicBossAssets).toBe(true);
+      });
+    });
+  });
+
+  it("keeps boss animation keys collision-free", () => {
+    const bossKeys = bossAnimationNames.map(animationName => getBossPhaserAnimationKey(animationName));
+    const enemyKeys = gameConfig.enemies.flatMap(enemy => (
+      enemyAnimationNames.map(animationName => getEnemyPhaserAnimationKey(enemy.id, animationName))
+    ));
+
+    expect(new Set(bossKeys).size).toBe(bossKeys.length);
+    bossKeys.forEach((key) => {
+      expect(enemyKeys).not.toContain(key);
+    });
+  });
+
+  it("keeps the boss sprite above tower body layers", () => {
+    expect(bossSpritePresentation.spriteDepth).toBeGreaterThan(27);
+    expect(bossSpritePresentation.overlayDepth).toBeGreaterThan(bossSpritePresentation.spriteDepth);
   });
 });
