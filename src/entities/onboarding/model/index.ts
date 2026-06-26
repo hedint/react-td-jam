@@ -1,3 +1,4 @@
+export * from "./fieldCompanion";
 export * from "./guard";
 export * from "./openingPlacement";
 export * from "./persistence";

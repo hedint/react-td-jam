@@ -45,6 +45,22 @@ describe("asset manifest", () => {
     })).toBe(true);
   });
 
+  it("preloads all field Шмыг companion strips through Phaser", () => {
+    const fieldShmygAssets = Object.values(assetGroups.guides)
+      .filter(asset => asset.key.startsWith("guides.shmyg.field."));
+
+    expect(fieldShmygAssets).toHaveLength(12);
+    expect(fieldShmygAssets.every(asset => asset.type === "spritesheet")).toBe(true);
+    expect(fieldShmygAssets.every(asset => asset.usage === "phaser")).toBe(true);
+    expect(fieldShmygAssets.every((asset) => {
+      if (asset.type !== "spritesheet") {
+        return false;
+      }
+
+      return asset.frame.width === 128 && asset.frame.height === 128;
+    })).toBe(true);
+  });
+
   it("resolves public asset URLs against the Vite base path", () => {
     expect(resolvePublicAssetUrl("/assets/board/road-straight.png", "/")).toBe("/assets/board/road-straight.png");
     expect(resolvePublicAssetUrl("/assets/board/road-straight.png", "/react-td-jam/")).toBe("/react-td-jam/assets/board/road-straight.png");

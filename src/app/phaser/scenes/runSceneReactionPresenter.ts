@@ -1,3 +1,4 @@
+import type { GamePresentationEvent } from "@entities/game-session/model/presentationEvents";
 import type { GameSnapshot, PathCell, ReactionId } from "@entities/game-session/model/types";
 import type Phaser from "phaser";
 import { assetGroups } from "@shared/assets/manifest";
@@ -38,6 +39,14 @@ export class RunSceneReactionPresenter {
 
   constructor(private readonly scene: Phaser.Scene) {
     this.airUnderlayGraphics = scene.add.graphics().setDepth(17.4);
+  }
+
+  queue(events: readonly GamePresentationEvent[], snapshot: GameSnapshot, visualMs: number): void {
+    events.forEach((event) => {
+      if (event.type === "reactionBurst") {
+        this.queueReactionCallout(event, snapshot, visualMs);
+      }
+    });
   }
 
   render(graphics: Phaser.GameObjects.Graphics, snapshot: GameSnapshot, visualMs: number): void {
@@ -121,43 +130,34 @@ export class RunSceneReactionPresenter {
   }
 
   private renderFieldCallouts(snapshot: GameSnapshot): void {
-    this.queueReactionCallouts(snapshot);
     this.queueBossBreakCallout(snapshot);
     this.queueCoreDangerCallout(snapshot);
     this.updateFieldCalloutObjects(this.scene.time.now);
   }
 
-  private queueReactionCallouts(snapshot: GameSnapshot): void {
-    snapshot.activeReactions.forEach((reaction) => {
-      const cell = snapshot.board.pathCells[reaction.cellIndex];
-      if (!cell) {
-        return;
-      }
+  private queueReactionCallout(
+    event: Extract<GamePresentationEvent, { readonly type: "reactionBurst" }>,
+    snapshot: GameSnapshot,
+    visualMs: number,
+  ): void {
+    const cell = snapshot.board.pathCells[event.cellIndex];
+    const lastShownAt = this.reactionCalloutShownAt.get(event.reactionId);
 
-      ([reaction.ground, reaction.air] as const).forEach((reactionId) => {
-        const now = this.scene.time.now;
-        const lastShownAt = reactionId ? this.reactionCalloutShownAt.get(reactionId) : undefined;
+    if (!cell || (lastShownAt !== undefined && visualMs - lastShownAt < REACTION_CALLOUT_COOLDOWN_MS)) {
+      return;
+    }
 
-        if (
-          !reactionId
-          || (lastShownAt !== undefined && now - lastShownAt < REACTION_CALLOUT_COOLDOWN_MS)
-        ) {
-          return;
-        }
+    const definition = getReactionVfxDefinition(event.reactionId);
+    const didQueue = this.queueFieldCallout(
+      definition.tier === 1 ? getReactionDisplayName(event.reactionId) : definition.callout,
+      cell.x,
+      cell.y + definition.yOffset - definition.height * 0.42,
+      definition.tier === 3 ? "#fff2a8" : "#d7ffff",
+    );
 
-        const definition = getReactionVfxDefinition(reactionId);
-        const didQueue = this.queueFieldCallout(
-          definition.tier === 1 ? getReactionDisplayName(reactionId) : definition.callout,
-          cell.x,
-          cell.y + definition.yOffset - definition.height * 0.42,
-          definition.tier === 3 ? "#fff2a8" : "#d7ffff",
-        );
-
-        if (didQueue) {
-          this.reactionCalloutShownAt.set(reactionId, now);
-        }
-      });
-    });
+    if (didQueue) {
+      this.reactionCalloutShownAt.set(event.reactionId, visualMs);
+    }
   }
 
   private queueBossBreakCallout(snapshot: GameSnapshot): void {

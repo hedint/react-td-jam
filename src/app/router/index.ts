@@ -23,5 +23,10 @@ export const router = createRouter({
       name: "onboarding-guide-demo",
       component: () => import("@pages/onboarding-guide-demo/ui/OnboardingGuideDemoPage.vue"),
     },
+    {
+      path: "/field-shmyg-demo",
+      name: "field-shmyg-demo",
+      component: () => import("@pages/field-shmyg-demo/ui/FieldShmygDemoPage.vue"),
+    },
   ],
 });

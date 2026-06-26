@@ -18,6 +18,7 @@ import { registerBossAnimations, RunSceneBossPresenter } from "./runSceneBossPre
 import { renderCore } from "./runSceneCoreRender";
 import { registerEnemyAnimations, RunSceneEnemyPresenter } from "./runSceneEnemyPresenter";
 import { RunSceneEntryIntro } from "./runSceneEntryIntro";
+import { registerFieldShmygAnimations, RunSceneFieldShmygPresenter } from "./runSceneFieldShmygPresenter";
 import { renderSceneGrounding } from "./runSceneGround";
 import { RunSceneJuicePresenter } from "./runSceneJuicePresenter";
 import { LOGICAL_HEIGHT, LOGICAL_WIDTH } from "./runSceneLayout";
@@ -62,6 +63,7 @@ export class RunScene extends Phaser.Scene {
   private reagentPresenter?: RunSceneReagentPresenter;
   private reactionPresenter?: RunSceneReactionPresenter;
   private juicePresenter?: RunSceneJuicePresenter;
+  private fieldShmygPresenter?: RunSceneFieldShmygPresenter;
   private readonly towerPosition = { x: 0, y: 0 };
   private readonly entryIntro = new RunSceneEntryIntro();
   private unsubscribeAction?: Unsubscribe;
@@ -78,6 +80,7 @@ export class RunScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor("#101217");
     registerEnemyAnimations(this);
     registerBossAnimations(this);
+    registerFieldShmygAnimations(this);
     this.backdropFloor = this.add.image(0, 0, assetGroups.scene.cavernFortressFloor.key)
       .setOrigin(0)
       .setDepth(-30);
@@ -93,6 +96,7 @@ export class RunScene extends Phaser.Scene {
     this.reagentPresenter = new RunSceneReagentPresenter(this);
     this.reactionPresenter = new RunSceneReactionPresenter(this);
     this.juicePresenter = new RunSceneJuicePresenter(this);
+    this.fieldShmygPresenter = new RunSceneFieldShmygPresenter(this);
 
     this.coreSprite = this.add.image(0, 0, assetGroups.board.greatStillCore.key)
       .setOrigin(0.5)
@@ -122,7 +126,7 @@ export class RunScene extends Phaser.Scene {
       this.autosaveEnabled = true;
       this.saveCurrentRun();
       const nextSnapshot = createSnapshot(this.driver.state);
-      this.emitPresentationEvents(previousSnapshot, nextSnapshot);
+      this.emitPresentationEvents(previousSnapshot, nextSnapshot, { reactionCallouts: false });
       this.renderSnapshot(nextSnapshot);
       this.publishSnapshot();
     });
@@ -178,9 +182,14 @@ export class RunScene extends Phaser.Scene {
     this.renderTowers(snapshot.placedTowers, snapshot.board.slots, snapshot.board.pathCells, snapshot.selectedTowerId, visualMs);
     this.renderPlacementFeedback(snapshot);
     this.juicePresenter?.render(visualMs);
+    this.fieldShmygPresenter?.render(this.withRuntimeFields(snapshot), loadOnboardingProgress(), visualMs);
   }
 
-  private emitPresentationEvents(previous: GameSnapshot, next: GameSnapshot): void {
+  private emitPresentationEvents(
+    previous: GameSnapshot,
+    next: GameSnapshot,
+    options: { readonly reactionCallouts?: boolean } = {},
+  ): void {
     const events = derivePresentationEvents(previous, next);
 
     if (events.length === 0) {
@@ -188,6 +197,9 @@ export class RunScene extends Phaser.Scene {
     }
 
     gameEvents.emit("run:presentation-events", events);
+    if (options.reactionCallouts !== false) {
+      this.reactionPresenter?.queue(events, next, this.time.now);
+    }
     this.enemyPresenter?.queue(events, next, this.time.now);
     this.bossPresenter?.queue(events, this.time.now);
     this.juicePresenter?.queue(events, next, this.time.now);

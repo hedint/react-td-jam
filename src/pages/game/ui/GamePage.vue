@@ -5,6 +5,7 @@
         <template v-if="runStarted">
           <PhaserCanvas class="stage__canvas" />
           <RunHud class="stage__hud" />
+          <FieldShmygCompanion class="stage__field-shmyg" />
           <OnboardingGuide class="stage__guide" />
         </template>
         <section
@@ -53,6 +54,7 @@ import { initBackgroundMusic } from "@shared/audio/backgroundMusic";
 import { ru } from "@shared/i18n/ru";
 import { gameEvents } from "@shared/lib/event-bus/gameEvents";
 import DebugHud from "@widgets/debug-hud/ui/DebugHud.vue";
+import FieldShmygCompanion from "@widgets/field-shmyg-companion/ui/FieldShmygCompanion.vue";
 import OnboardingGuide from "@widgets/onboarding-guide/ui/OnboardingGuide.vue";
 import RunHud from "@widgets/run-hud/ui/RunHud.vue";
 import { onBeforeUnmount, onMounted, ref } from "vue";
@@ -188,6 +190,11 @@ function createRunSeed(): number {
 }
 
 .stage__guide {
+  position: absolute;
+  inset: 0;
+}
+
+.stage__field-shmyg {
   position: absolute;
   inset: 0;
 }

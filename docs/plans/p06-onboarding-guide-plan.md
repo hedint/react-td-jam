@@ -5,7 +5,7 @@
 - Current phase: planning complete; implementation not started.
 - Parent roadmap: `docs/plans/p06-finishing-and-ship-plan.md`, Phase D.
 - Source docs: `docs/design.md`, `docs/setting.md`, `docs/plans/p06-finishing-and-ship-plan.md`.
-- Goal: make the public demo understandable for a first-time player without external explanation by shipping a one-time Шмыг-led guided opening plus lightweight contextual hints.
+- Goal: make the public demo understandable for a first-time player without external explanation by shipping a one-time Шмыг-led guided opening plus a lightweight field Шмыг companion.
 - Product decision date: 2026-06-25.
 
 ## Agent Instructions
@@ -298,39 +298,76 @@ The script should be short. Each step teaches one action or one discovery throug
 
 ### Phase O5 completion summary
 
-Phase O5 completed with the guide script locked to the intended opening: panic intro, Шмыг setup, water/spark/second-water electro-puddle setup, first wave, silent non-heat draft before wave 2, guaranteed heat draft before wave 3, heat-for-steam placement, flyer preview, hidden flyer-wave wait, and final handoff. The main implementation correction was moving slot selection into a pure shared helper so the visual cursor and input guard agree on the exact allowed placement. The guide still has no visible skip path, resumes mid-guide after reload, completes only after the post-flyer final line, and stays completed for later new runs of `guide-v1`. O6 contextual hints remain deferred.
+Phase O5 completed with the guide script locked to the intended opening: panic intro, Шмыг setup, water/spark/second-water electro-puddle setup, first wave, silent non-heat draft before wave 2, guaranteed heat draft before wave 3, heat-for-steam placement, flyer preview, hidden flyer-wave wait, and final handoff. The main implementation correction was moving slot selection into a pure shared helper so the visual cursor and input guard agree on the exact allowed placement. The guide still has no visible skip path, resumes mid-guide after reload, completes only after the post-flyer final line, and stays completed for later new runs of `guide-v1`. O6 is now the field Шмыг companion, replacing the older contextual hints chip idea.
 
 ---
 
-## Phase O6 - Contextual Hints
+## Phase O6 - Field Shmyg Companion v1
 
-Purpose: add non-blocking tips that support the tutorial without replacing it.
+Purpose: replace the old non-blocking contextual hints chip with a small living field Шмыг companion. After the guide, he appears as a tiny Phaser-owned field sprite on the outer perimeter, runs between tower groups, occasionally comments on events, and rarely gives useful hints. He is presentation-only: no combat rules, save schema, wave config, or onboarding guide flow changes.
 
 ### Tasks
 
-- [ ] Add data-driven hint definitions with `id`, priority, predicate, cooldown, max-shown count, and text key.
-- [ ] Use the same Шмыг chip style as the guide, but smaller and non-blocking.
-- [ ] Do not show hints while a blocking guide step, draft modal, result modal, or title screen is active.
-- [ ] Add dedupe persistence through the onboarding storage key.
-- [ ] Add hint rules for the first ship slice:
-  - no towers placed before first start;
-  - no air-capable answer before the first flyer wave;
-  - locked corner slot appears as an upgrade offer;
-  - repeated leaks/core danger;
-  - overreliance on one damage family before resist enemies;
-  - boss Reaction Break reminder before or during boss setup.
-- [ ] Keep existing Phaser field callouts for reaction names and acute events; do not duplicate them as Шмыг hints unless playtest shows the callout is missed.
+- [x] Add the asset approval gate before runtime implementation.
+- [x] Generate the first simplified field Шмыг run/right reference and review it in a dedicated demo page.
+- [x] Approve the field Шмыг direction as the V1 reference for size, silhouette, motion, and identity.
+- [x] Run production cleanup for the approved `run/right` reference direction: remove stray edge fragments from neighboring limbs/frames before using it as a shipped strip.
+- [x] Generate and normalize the separate field asset set, without reusing the DOM guide portrait strips:
+  - `idle`, `run`, `joy`;
+  - directions `up`, `down`, `left`, `right`;
+  - 12 strips total, 8 frames each;
+  - frame `128x128`, transparent background, bottom-center anchor;
+  - Phaser manifest usage, not CSS-only.
+- [x] Add manifest entries with `guides.shmyg.field.<state>.<direction>` keys and `usage: "phaser"`.
+- [x] Add a Phaser presenter in `RunScene` with presentation-only state: position, target route point, animation state, facing, and hold timers.
+- [x] Do not write field Шмыг state to `RunState`, run saves, or onboarding storage.
+- [x] Keep his movement and animation running while the run is paused.
+- [x] Route only through `BoardSlot.lane === "outer"` points; never cross the road.
+- [x] Group tower destinations by outer side/segment instead of visiting every individual tower.
+- [x] Use the default loop: run to a tower group, idle for 10-15 seconds, then run to the next group.
+- [x] If there are no towers, route to the fallback point near the upper-left outer segment, approximately `x=76,y=225`.
+- [x] Spawn rules:
+  - if the full guide is active, do not show field Шмыг until the guide is complete and not before wave 4;
+  - if the full guide is already complete or inactive, spawn after wave 1;
+  - the flyer hint before wave 3 only works when the full guide is inactive.
+- [x] Add DOM speech bubble anchored to field Шмыг screen position, with no bubbles over draft/result/title surfaces.
+- [x] Add localized lines under `ru.onboarding` or `ru.companionShmyg`; do not write speech inline.
+- [x] Speech rules:
+  - 1-2 short lines;
+  - global cooldown 20 seconds;
+  - important hints max 1 per wave;
+  - same important hint not more often than every 90 seconds and max 2 times per run;
+  - filler only after 35+ seconds without speech;
+  - no persistent dedupe in V1.
+- [x] V1 line bank:
+  - no towers after field Шмыг appears;
+  - warning about flyers before wave 3;
+  - first T2 and first T3 reaction moments;
+  - boss arrival and first boss ability;
+  - core danger after Куб damage;
+  - rare semi-useful in-fiction or lightly meta filler.
 
 ### Acceptance Criteria
 
-- [ ] Hints are helpful but rare; they do not stack over combat or draft decisions.
-- [ ] A completed full guide does not disable contextual hints.
-- [ ] Seen hints respect max count and cooldown after reload.
-- [ ] Unit tests cover hint predicates and dedupe behavior.
+- [ ] Field Шмыг is non-interactive and never blocks tower placement or pointer input.
+- [ ] He stays on outer route targets and does not cross the road.
+- [ ] His animation continues on pause.
+- [ ] He is hidden until the correct wave/guide state.
+- [ ] Speech is readable but rare and never appears above draft/result/title.
+- [ ] Flyer hint fires only when the full guide is inactive.
+- [x] Unit tests cover spawn timing, no-towers fallback, outer-only route selection, flyer-hint gating, cooldowns, and repeat limits.
+- [x] Asset/manifest tests confirm all 12 production strips exist and preload through Phaser usage.
 
 ### Phase O6 notes
 
-_(record final hint set and any removed noisy hints here)_
+- 2026-06-26: Replaced the old `Contextual Hints` chip plan with `Field Shmyg Companion v1`. Added `/field-shmyg-demo` as an approval fixture using the first simplified `run/right` strip at `public/assets/guides/shmyg/field/shmyg-field-run-right-demo-01.png`. User approved the direction for size, silhouette, motion, and identity. Known issue: the generated strip had minor edge fragments from neighboring limbs/frames. Approved visual reference copy: `public/assets/guides/shmyg/field/shmyg-field-run-right-approved-reference-01.png`.
+- 2026-06-26: Cleaned the approved `run/right` strip by keeping only the main alpha-connected component per 128x128 frame, removing 95 stray alpha pixels across frames 2, 3, 6, and 7. Cleaned strip: `public/assets/guides/shmyg/field/shmyg-field-run-right-clean-01.png`. `/field-shmyg-demo` now previews the cleaned strip.
+- 2026-06-26: Added pure field companion decision logic under `src/entities/onboarding/model/fieldCompanion.ts`, covering spawn gates, no-towers fallback, outer route target grouping, flyer hint gating, and renderer-local speech cooldown/repeat rules. Added `tests/field-shmyg-companion.test.ts`.
+- 2026-06-26: Created the first full technical field asset set from the approved cleaned reference: 12 Phaser strips under `public/assets/guides/shmyg/field/shmyg-field-<state>-<direction>.png`, with `idle`, `run`, and `joy` across `up`, `down`, `left`, and `right`, 8 frames each at `128x128`. Added manifest keys `guides.shmyg.field.<state>.<direction>` with `usage: "phaser"` and asset-manifest coverage. This is a derived V1 set to unblock runtime integration; `up/down` are side-art-derived technical variants, not freshly redrawn camera angles. Preview sheet: `public/assets/guides/shmyg/field/shmyg-field-v1-derived-strips-preview.png`.
+- 2026-06-26: Added `RunSceneFieldShmygPresenter` and registered field Шмыг Phaser animations. The presenter keeps only renderer-local state, uses the pure spawn/route helpers, idles 10-15 seconds per target, and renders the no-towers fallback at the upper-left outer area. Browser smoke on `/?debug=1` confirmed the sprite appears with completed guide progress and no console/page errors. Screenshot: `output/playwright/field-shmyg-runtime-smoke-collapsed-390.png`; crop: `output/playwright/field-shmyg-runtime-fallback-crop.png`.
+- 2026-06-26: Added the DOM `FieldShmygCompanion` bubble anchored to Phaser-published field Шмыг position events. Added localized line banks under `ru.onboarding.fieldCompanion` for no towers, wave-3 flyers, first T2/T3 reactions, boss arrival/ability, core danger, and filler. The bubble uses renderer-local speech memory and hides on draft/victory/defeat surfaces. Browser smoke confirmed compact bubble placement and no console/page errors: `output/playwright/field-shmyg-bubble-smoke-390.png`.
+- 2026-06-26: Split the generic first-T2 companion reaction line into separate triggers and line banks for `stormCloud` and `fireVortex`.
+- 2026-06-26: Added rare combo-filler lines for newcomer discovery: `steam + spark -> stormCloud`, `fire + steam -> fireVortex`, and `stormCloud + fireVortex -> fireStorm`. These use filler timing, but each is one-shot per run and is suppressed once the corresponding reaction has appeared in the current run. `stormCloud`/`fireVortex` combo fillers are gated until wave 5, and `fireStorm` until wave 7.
 
 ### Phase O6 completion summary
 
@@ -340,11 +377,11 @@ _(fill on completion)_
 
 ## Phase O7 - QA, Device Pass, and Ship Gate
 
-Purpose: prove the guide and hints work on the actual mobile-first demo surface.
+Purpose: prove the guide and field Шмыг companion work on the actual mobile-first demo surface.
 
 ### Tasks
 
-- [ ] Add unit tests for persistence, guide state transitions, action guard, opening placement helper, and hint rules.
+- [ ] Add unit tests for persistence, guide state transitions, action guard, opening placement helper, and field companion rules.
 - [ ] Add or update component tests if the project already has the tooling; otherwise record why manual/Playwright coverage is used instead.
 - [ ] Run a clean-localStorage browser smoke: title -> new run -> full guide -> first draft -> completion marker.
 - [ ] Run a refresh-mid-guide smoke and verify resume.
@@ -357,7 +394,7 @@ Purpose: prove the guide and hints work on the actual mobile-first demo surface.
 
 - [ ] A first-time player can understand the opening loop without external help.
 - [ ] The guide never deadlocks input.
-- [ ] Contextual hints appear only when useful and do not obscure core combat reading.
+- [ ] Field Шмыг speech appears only when useful and does not obscure core combat reading.
 - [ ] Mobile screenshots show no text overlap or target occlusion.
 - [ ] Required checks are green or documented with a clear blocker.
 
@@ -376,7 +413,7 @@ _(fill on completion)_
 - Exact Шмыг sprite frame size: decide during O1 after the seed reads at HUD scale.
 - Guide intro skip decision: no visible skip control; the first-run guide is mandatory as of 2026-06-26.
 - Whether `pause` is allowed during `observeElectroPuddle`: recommended yes, but confirm through implementation QA.
-- Whether mixed-threat explanation belongs at the end of the full guide or as the first contextual hint after guide completion: start in full guide, move to hints only if the flow feels too long.
+- Whether mixed-threat explanation belongs at the end of the full guide or as the first field Шмыг hint after guide completion: start in full guide, move to companion speech only if the flow feels too long.
 
 ## Verification
 
@@ -393,5 +430,5 @@ Browser/manual checks:
 - Refresh mid-guide.
 - Mandatory guide has no visible skip control.
 - Completed guide does not reopen.
-- Hints after completed guide.
+- Field Шмыг after completed guide.
 - Mobile 360px and 540px screenshot review.

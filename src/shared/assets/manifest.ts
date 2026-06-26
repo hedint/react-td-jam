@@ -46,6 +46,8 @@ type EnemySpriteAssetId = "grunt" | "swarm" | "tank" | "flyer" | "runner" | "ins
 type EnemySpriteAnim = "move" | "hit" | "death";
 type BossSpriteAnim = "crawl" | "hit" | "vulnerable" | "death" | "leap-prepare" | "leap-air" | "smash" | "blackout-cast" | "summon-roar";
 type ShmygSpriteAnim = "idle" | "talk" | "excited" | "angry";
+type FieldShmygSpriteAnim = "idle" | "run" | "joy";
+type FieldShmygSpriteDirection = "up" | "down" | "left" | "right";
 
 function enemySpriteSheetAsset(
   enemyId: EnemySpriteAssetId,
@@ -99,6 +101,23 @@ function shmygSpriteSheetAsset(animationName: ShmygSpriteAnim): SpriteSheetAsset
       height: 384,
     },
     usage: "css",
+  };
+}
+
+function fieldShmygSpriteSheetAsset(
+  animationName: FieldShmygSpriteAnim,
+  direction: FieldShmygSpriteDirection,
+): SpriteSheetAsset & { readonly group: "guides" } {
+  return {
+    type: "spritesheet",
+    group: "guides",
+    key: `guides.shmyg.field.${animationName}.${direction}`,
+    src: `/assets/guides/shmyg/field/shmyg-field-${animationName}-${direction}.png`,
+    frame: {
+      width: 128,
+      height: 128,
+    },
+    usage: "phaser",
   };
 }
 
@@ -518,6 +537,18 @@ export const assetGroups = {
     shmygTalk: shmygSpriteSheetAsset("talk"),
     shmygExcited: shmygSpriteSheetAsset("excited"),
     shmygAngry: shmygSpriteSheetAsset("angry"),
+    shmygFieldIdleUp: fieldShmygSpriteSheetAsset("idle", "up"),
+    shmygFieldIdleDown: fieldShmygSpriteSheetAsset("idle", "down"),
+    shmygFieldIdleLeft: fieldShmygSpriteSheetAsset("idle", "left"),
+    shmygFieldIdleRight: fieldShmygSpriteSheetAsset("idle", "right"),
+    shmygFieldRunUp: fieldShmygSpriteSheetAsset("run", "up"),
+    shmygFieldRunDown: fieldShmygSpriteSheetAsset("run", "down"),
+    shmygFieldRunLeft: fieldShmygSpriteSheetAsset("run", "left"),
+    shmygFieldRunRight: fieldShmygSpriteSheetAsset("run", "right"),
+    shmygFieldJoyUp: fieldShmygSpriteSheetAsset("joy", "up"),
+    shmygFieldJoyDown: fieldShmygSpriteSheetAsset("joy", "down"),
+    shmygFieldJoyLeft: fieldShmygSpriteSheetAsset("joy", "left"),
+    shmygFieldJoyRight: fieldShmygSpriteSheetAsset("joy", "right"),
   },
 } as const satisfies ManifestGroups;
 

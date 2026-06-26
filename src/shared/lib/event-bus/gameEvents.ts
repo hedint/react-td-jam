@@ -7,6 +7,7 @@ export interface GameEventMap {
   "viewport:resize": ViewportSize
   "pointer:tap": StagePoint
   "audio:mute-changed": { readonly muted: boolean }
+  "field-shmyg:position": { readonly visible: boolean, readonly point: StagePoint | null }
   "onboarding:action-blocked": { readonly stepId: string, readonly actionType: GameAction["type"], readonly reason: string }
   "run:action": GameAction
   "run:load": RunState
