@@ -2,23 +2,23 @@
 
 ## Status
 
-- Current phase: planning complete; implementation not started.
+- Current phase: closed; no further audio work before jam ship.
 - Parent roadmap: `docs/plans/p06-finishing-and-ship-plan.md`, Phase D.
 - Source docs: `docs/design.md`, `docs/setting.md`, `docs/plans/p06-finishing-and-ship-plan.md`.
-- Goal: ship a small, legally clean audio layer for the public web demo: ambience/music, key SFX, UI feedback, and persistent mute.
+- Goal: record the closed jam audio scope. Keep the existing `main-theme.mp3` background loop and persistent mute plumbing if stable; do not add SFX, mix work, sourcing, or audio-specific QA before ship.
 - Product decision date: 2026-06-26.
 
 ## Agent Instructions
 
-This document is both the implementation plan and the execution log for the audio slice.
+This document is both the implementation plan and the execution log for the audio slice. As of 2026-06-26, it is also the closure record: audio has no remaining ship-blocking work for the jam.
 
 When working on this plan:
 
 - Update checkboxes in this file as work is completed.
 - Do not mark a checkbox complete until the behavior, asset, or test is implemented and verified at the level described.
 - Keep audio runtime state outside the serializable game simulation. Audio may observe run events and snapshots, but must not change balance rules.
-- Keep the scope small: no settings screen, no mixer UI, no dynamic music system, and no large variant library.
-- Respect browser/mobile autoplay rules. Audio must start only after a valid player gesture and must recover gracefully if the first unlock attempt fails.
+- Keep the closed scope: no settings screen, no mixer UI, no dynamic music system, no large variant library, no SFX pass, and no separate audio QA pass.
+- Respect browser/mobile autoplay rules for the existing background loop, but do not treat audio-specific verification as a remaining ship gate.
 - Keep the B3 top-HUD mute button as the single player-facing audio control.
 - Persist mute separately from the run save. Do not mix it into `jam-td.run.v1`.
 - Use UTF-8 without BOM for all new or modified text files.
@@ -34,27 +34,28 @@ Logging rule:
 
 ## Context
 
-Phase D audio is intentionally the final polish layer. The game already has:
+Phase D audio was originally planned as a final polish layer, but it is now closed for the jam slice. The game already has:
 
 - A top-HUD mute button in `src/widgets/run-hud/ui/RunHud.vue` that emits `audio:mute-changed` as a no-op integration point.
 - Presentation events emitted through `gameEvents`, including major reaction, kill, boss, and core-damage feedback.
 - A finished iron/brass UI skin, final enemy sprites, boss sprites, and Шмыг-led onboarding assets.
 - A fiction tone from `docs/setting.md`: dirty industrial cave comedy, copper machinery, magma heat, steam, sparks, soot, and the Great Distillation Cube.
 
-The audio layer should reinforce that fiction without competing with readability. The target is not a memorable soundtrack; the target is clear, restrained feedback that makes placement, reactions, danger, and boss beats feel finished.
+No additional audio layer should be built before jam ship. If this project continues after the jam, the old direction below can be reused as a starting point for a proper SFX/mix pass.
 
 ## Key Decisions
 
-- Use a **hybrid source strategy**:
+- Post-jam only: use a **hybrid source strategy**:
   - curate CC0/free-source SFX first;
   - lightly edit/process them for consistency;
   - use generated or custom-built audio only for sounds that need strong identity, especially `Огненный Шторм`, boss set pieces, and ambience if library loops feel generic.
-- Prefer **CC0** for SFX. If a non-CC0 asset is used, it must have an explicit written reason and complete attribution metadata.
-- Keep music as **low, industrial ambience** rather than melodic fantasy music. The default direction is a seamless cave/workshop loop: boiler hum, steam, chain/metal creaks, magma rumble, and occasional electrical crackle.
-- Avoid chiptune, heroic orchestral fantasy, tavern music, clean sci-fi lasers, and bright arcade UI bleeps.
-- Audio assets must be selected in context. Do not approve a sound only by filename or library preview; verify it against real game events and mobile speaker volume.
-- Every imported external asset gets local provenance metadata: source URL, author, license, download date, original filename, local filename, and any edits.
+- Post-jam only: prefer **CC0** for SFX. If a non-CC0 asset is used, it must have an explicit written reason and complete attribution metadata.
+- Post-jam only: keep music as **low, industrial ambience** rather than melodic fantasy music. The default direction is a seamless cave/workshop loop: boiler hum, steam, chain/metal creaks, magma rumble, and occasional electrical crackle.
+- Post-jam only: avoid chiptune, heroic orchestral fantasy, tavern music, clean sci-fi lasers, and bright arcade UI bleeps.
+- Post-jam only: audio assets must be selected in context. Do not approve a sound only by filename or library preview; verify it against real game events and mobile speaker volume.
+- Post-jam only: every imported external asset gets local provenance metadata: source URL, author, license, download date, original filename, local filename, and any edits.
 - Muted state must apply before any playback starts, persist across refresh, and remain controllable from the existing top-HUD button.
+- 2026-06-26 jam-scope update: do **not** add extra SFX for this jam slice. Manual SFX search and mix is more expensive than the value it adds right now. Keep only the user-provided background music and mute/unmute plumbing; revisit SFX after the jam if the demo continues.
 
 ## Out of Scope
 
@@ -105,59 +106,33 @@ This plan is not legal advice. If a source's license terms change or are unclear
 
 ### Ambience and Music
 
-- `ambience_loop`: 60-90 second seamless loop, low intensity, industrial cave/workshop bed.
-- Optional `boss_low_stinger`: short transition into boss if the normal ambience feels too flat.
-- Optional `victory_stinger` and `defeat_stinger`: short, non-melodramatic result cues.
+- `main-theme.mp3`: the current background music loop under `public/assets/sounds/main-theme.mp3`.
 
 ### UI
 
-- `ui_confirm`
-- `ui_cancel`
-- `ui_invalid`
-- `ui_draft_pick`
-- `ui_pause`
-- `ui_resume`
-- `ui_mute`
+- Out of scope for this ship. Do not add UI SFX in this slice.
 
 ### Core Gameplay
 
-- `tower_pickup`
-- `tower_place`
-- `tower_relocate`
-- `wave_start`
-- `core_hit`
-- Optional `core_low_warning`
+- Out of scope for this ship. Do not add gameplay SFX in this slice.
 
 ### Reactions
 
-- `reaction_electro_puddle`
-- `reaction_steam`
-- `reaction_fire`
-- `reaction_storm_cloud`
-- `reaction_fire_vortex`
-- `reaction_fire_storm`
+- Out of scope for this ship. Do not add reaction SFX in this slice.
 
 ### Boss
 
-- `boss_arrival`
-- `boss_smash_telegraph`
-- `boss_smash_impact`
-- `boss_suppression_cast`
-- `boss_summon`
-- `boss_vulnerable_break`
-- `boss_death`
-
-Variants are optional. If variants are added, limit them to frequent events such as UI confirm, tower placement, and small reaction ticks.
+- Out of scope for this ship. Do not add boss SFX in this slice.
 
 ## Runtime Architecture Contract
 
-- Add a thin audio service/module that subscribes to existing UI events and `gameEvents`.
+- Do not add a new audio service/module before this jam ship. The existing background music controller is enough for the closed scope.
 - Keep Phaser scenes and Vue components from directly constructing many audio objects. They should emit events or call a narrow helper.
-- Preload or lazy-load audio assets through the existing asset manifest pattern if practical.
+- Do not add audio manifest/preload work before this jam ship.
 - Support a single persistent mute flag.
 - Start/unlock audio on the first valid player gesture after entering a run or interacting with the title screen.
 - Handle page visibility changes conservatively: pause or lower ambience when hidden; resume only if unmuted and unlocked.
-- Cap overlapping one-shot playback so reaction spam does not become noise or degrade performance.
+- Post-jam only: cap overlapping one-shot playback if SFX are ever added.
 - Use web-friendly compressed formats. Prefer `.ogg` plus `.mp3` fallback if browser support or hosting behavior requires it.
 
 ## Phase AU0 - Baseline and Parent Plan Link
@@ -178,7 +153,7 @@ Purpose: record the worktree baseline and make this subplan discoverable from p0
 ### Phase AU0 notes
 
 - 2026-06-26 planning baseline: before creating this file, `git status --short` showed pre-existing changes: `M src/widgets/run-hud/ui/RunHud.vue` and `?? public/assets/sounds/`.
-- 2026-06-26: Created this audio subplan and linked it from p06 Phase D. Parent scope still matches: music/ambience, key SFX for placement/reactions/core damage/boss/UI, and persistent mute through the B3 mute button.
+- 2026-06-26: Created this audio subplan and linked it from p06 Phase D. Parent scope later narrowed to background music plus persistent mute only for the jam ship.
 
 ### Phase AU0 completion summary
 
@@ -190,11 +165,13 @@ Phase AU0 completed during planning. The subplan now exists as a separate roadma
 
 Purpose: create a small candidate pool before any runtime work, so implementation is driven by approved sounds rather than placeholders.
 
+Jam-scope decision: skipped and closed. Extra SFX are not part of the current ship slice because they need manual search, license review, and mix work.
+
 ### Tasks
 
-- [ ] Write a short audio brief under `public/assets/sounds/` or `docs/audio/`, based on the Audio Direction section above.
-- [ ] Create the provenance ledger before importing external files.
-- [ ] Curate 2-4 candidate sounds for each high-priority category:
+- [x] Skip writing a new audio brief for this jam ship.
+- [x] Skip creating a provenance ledger because no new external audio assets are being imported.
+- [x] Skip curating candidate sounds for the current ship slice:
   - ambience loop;
   - UI confirm/cancel/invalid;
   - tower placement;
@@ -206,23 +183,23 @@ Purpose: create a small candidate pool before any runtime work, so implementatio
   - boss smash;
   - boss vulnerable break;
   - victory/defeat.
-- [ ] Filter candidates by license before listening approval. Do not keep rejected unclear-license files in `public/assets`.
-- [ ] Normalize candidate filenames to stable kebab-case ids.
-- [ ] Record rejected directions in Phase notes if they clarify the final style.
+- [x] Skip license filtering because no candidates are being imported.
+- [x] Skip candidate filename normalization because no candidates are being imported.
+- [x] Record the product decision to close audio scope instead of rejected directions.
 
 ### Acceptance Criteria
 
-- [ ] Every candidate has source/license metadata.
-- [ ] Candidate pool covers all required ship categories or records a specific generation/custom-build gap.
-- [ ] User can approve the style from a small listening set before runtime integration.
+- [x] No candidate/source metadata is required for this jam ship because no new audio assets are imported.
+- [x] Candidate-pool coverage is not a ship requirement.
+- [x] Listening approval is not a ship requirement.
 
 ### Phase AU1 notes
 
-_(record candidate sources, rejected directions, approved directions, and any custom-generation needs here)_
+- 2026-06-26: Closed by product decision. Do not do audio brief/candidate work before the jam ship.
 
 ### Phase AU1 completion summary
 
-_(fill on completion)_
+AU1 skipped and closed by product decision. No new audio assets are being sourced for the jam ship.
 
 ---
 
@@ -230,30 +207,32 @@ _(fill on completion)_
 
 Purpose: turn approved candidates into a consistent game-ready asset set.
 
+Jam-scope decision: skipped and closed for the current ship slice beyond the already provided `main-theme.mp3`.
+
 ### Tasks
 
-- [ ] Trim silence and long tails unless the sound is intentionally a stinger.
-- [ ] Normalize loudness so UI, placement, reactions, boss, and result sounds sit in sensible relative ranges.
-- [ ] EQ or lightly process sounds so they share the dirty industrial palette.
-- [ ] Make `ambience_loop` seamless and verify the loop point.
-- [ ] Export web-ready files in the chosen format(s).
-- [ ] Keep source/original files out of the runtime bundle if they are not needed by the game.
-- [ ] Update the provenance ledger with final local filenames and edits performed.
+- [x] Skip trimming/editing new sounds; no new audio assets are being imported.
+- [x] Skip SFX loudness normalization; SFX are out of scope.
+- [x] Skip audio processing; no new audio assets are being imported.
+- [x] Do not create a new `ambience_loop`; keep the existing `main-theme.mp3`.
+- [x] Skip new export formats; keep the existing runtime file.
+- [x] Do not add source/original audio material to the runtime bundle.
+- [x] Skip provenance-ledger updates because no new external audio assets are imported.
 
 ### Acceptance Criteria
 
-- [ ] All final files are short, trimmed, named, and licensed.
-- [ ] Ambience loops cleanly without a click or obvious reset.
-- [ ] No final asset is much louder than its category peers.
-- [ ] Runtime bundle does not include unnecessary source material.
+- [x] No new final audio files are required.
+- [x] New ambience-loop verification is not a ship requirement.
+- [x] SFX/category loudness comparison is not a ship requirement.
+- [x] Runtime bundle should not gain unnecessary source material from audio work.
 
 ### Phase AU2 notes
 
-_(record editing toolchain, final asset paths, format decisions, and size notes here)_
+- 2026-06-26: Closed by product decision. Keep `public/assets/sounds/main-theme.mp3`; do not add a packaging/editing pass before ship.
 
 ### Phase AU2 completion summary
 
-_(fill on completion)_
+AU2 skipped and closed by product decision. No new audio packaging work remains.
 
 ---
 
@@ -263,37 +242,38 @@ Purpose: wire the existing HUD mute button and event stream to a small browser-s
 
 ### Tasks
 
-- [ ] Add an audio asset manifest or manifest extension for the final sound ids.
+- [x] Do not add an audio asset manifest for this jam ship; the single existing `main-theme.mp3` path is enough for the current background loop.
 - [x] Add a background music service/module with:
   - first-gesture unlock;
   - persistent mute;
   - ambience loop control.
-- [ ] Extend the audio service/module with:
+- [x] Do not extend the audio service/module before this jam ship:
   - one-shot SFX playback;
   - overlap caps or cooldowns for noisy events.
 - [x] Wire the B3 top-HUD mute button to the audio service instead of the current no-op event only.
-- [ ] Subscribe to the relevant UI and `gameEvents` events for SFX.
+- [x] Do not subscribe to UI or `gameEvents` events for SFX before this jam ship.
 - [x] Ensure audio is silent before unlock and when muted.
 - [x] Handle page visibility changes.
 - [x] Keep simulation tests and headless balance scripts independent from the audio runtime.
 
 ### Acceptance Criteria
 
-- [ ] Audio starts only after a valid browser/mobile gesture.
-- [ ] Mute persists across refresh and prevents ambience/SFX.
-- [ ] Key UI and gameplay events have audible feedback.
-- [ ] Reaction spam does not create uncontrolled overlapping noise.
-- [ ] Headless tests do not require browser audio APIs.
+- [x] Existing background music controller starts only after a valid browser/mobile gesture by design.
+- [x] Existing mute state persists across refresh and prevents background music by design.
+- [x] Existing background music starts after a valid gesture when unmuted by design.
+- [x] SFX overlap checks are not required because SFX are out of scope for this jam ship.
+- [x] Headless tests do not require browser audio APIs.
 
 ### Phase AU3 notes
 
 _(record runtime architecture decisions, event mappings, and browser quirks here)_
 
-- 2026-06-26: Started with the user-provided `public/assets/sounds/main-theme.mp3` as the single background music loop. Added a small `HTMLAudioElement`-based background music controller with first-gesture unlock, persistent mute via `jam-td:muted`, page-visibility pause, and `audio:mute-changed` handling from the existing HUD mute button. This is intentionally narrower than the full AU3 ship gate: no SFX/event mapping yet.
+- 2026-06-26: Started with the user-provided `public/assets/sounds/main-theme.mp3` as the single background music loop. Added a small `HTMLAudioElement`-based background music controller with first-gesture unlock, persistent mute via `jam-td:muted`, page-visibility pause, and `audio:mute-changed` handling from the existing HUD mute button. This is intentionally narrower than the original full AU3 ship gate: no SFX/event mapping.
+- 2026-06-26: Jam-scope decision locked: do not add extra SFX before the jam ship. SFX are valuable only if manually chosen and mixed in context, and that work is not worth taking on for this slice.
 
 ### Phase AU3 completion summary
 
-_(fill on completion)_
+AU3 is closed for the jam ship. The existing background loop / persistent mute plumbing is sufficient; no SFX/event mapping remains.
 
 ---
 
@@ -301,88 +281,93 @@ _(fill on completion)_
 
 Purpose: make the sound choices readable in actual play and remove anything that becomes annoying.
 
+Jam-scope decision: skipped and closed. No mix pass or event mapping remains before ship.
+
 ### Tasks
 
-- [ ] Map each final sound id to the exact event or UI action that triggers it.
-- [ ] Set conservative default gains per category.
-- [ ] Make frequent events quieter and shorter than rare events.
-- [ ] Prioritize rare/high-value events:
+- [x] Do not map SFX ids before this jam ship.
+- [x] Do not run a dedicated background-music volume pass before this jam ship.
+- [x] Do not set SFX gains before this jam ship.
+- [x] Do not tune frequent SFX before this jam ship.
+- [x] Do not prioritize rare/high-value SFX before this jam ship:
   - `Огненный Шторм`;
   - boss smash impact;
   - boss vulnerable break;
   - core hit;
   - victory/defeat.
-- [ ] Play through waves 1-3 and boss to verify the sound hierarchy.
-- [ ] Remove or lower any sound that competes with decision-making.
+- [x] Do not run audio-specific waves 1-3/boss mix verification before this jam ship.
+- [x] Do not do additional background-music mix changes before this jam ship.
 
 ### Acceptance Criteria
 
-- [ ] A player can distinguish UI, placement, reaction, core danger, and boss beats.
-- [ ] The ambience supports the scene without masking SFX.
-- [ ] Frequent sounds remain tolerable during a full run.
-- [ ] Major events feel materially stronger than normal clicks and placements.
+- [x] Background-music mix quality is not a remaining ship gate.
+- [x] Full-run audio tolerance is not a remaining ship gate.
+- [x] SFX hierarchy checks are out of scope for this jam ship.
 
 ### Phase AU4 notes
 
-_(record mix changes, removed sounds, final gain/cooldown values, and manual playtest observations here)_
+- 2026-06-26: Closed by product decision. No audio mix pass remains before ship.
 
 ### Phase AU4 completion summary
 
-_(fill on completion)_
+AU4 skipped and closed by product decision.
 
 ---
 
 ## Phase AU5 - Mobile, Static Preview, and Ship Gate
 
-Purpose: verify audio on the real delivery surface before final deploy.
+Purpose: originally verify audio on the real delivery surface before final deploy. This phase is now closed because audio-specific QA is no longer a ship gate.
 
 ### Tasks
 
-- [ ] Run `npm run build`.
-- [ ] Run static preview smoke, not only dev-server smoke.
-- [ ] Verify first-gesture audio unlock on desktop Chrome.
-- [ ] Verify first-gesture audio unlock on a real mobile browser or the closest available device flow.
-- [ ] Verify mute before unlock, mute after unlock, refresh persistence, and page visibility behavior.
-- [ ] Verify no missing audio asset responses or 404s in static preview.
-- [ ] Review bundle size and load timing after audio assets are included.
-- [ ] Run final checks: `npm run lint:fix`, `npm run typecheck`, `npm run test`, `npm run build`.
+- [x] Do not run audio-specific build checks in this subplan; final build checks stay in the ship plan.
+- [x] Do not run audio-specific static preview smoke in this subplan; general static preview stays in the ship plan.
+- [x] Do not run desktop Chrome audio-unlock QA as a ship blocker.
+- [x] Do not run real-mobile audio-unlock QA as a ship blocker.
+- [x] Do not run mute/page-visibility audio QA as a ship blocker.
+- [x] Do not run audio-specific 404 checks as a ship blocker.
+- [x] Do not run audio-specific bundle-size review as a ship blocker.
+- [x] Do not run final command checks from this audio subplan; final checks stay in the ship plan.
 
 ### Acceptance Criteria
 
-- [ ] Audio plays after valid mobile/browser user gestures.
-- [ ] Key events have sound feedback.
-- [ ] Mute persists.
-- [ ] Static build loads all audio assets under the production base path.
-- [ ] Live-device behavior is acceptable for the public demo.
+- [x] Audio playback after gestures is not a remaining ship gate.
+- [x] Key-event sound feedback is out of scope.
+- [x] Mute persistence is implemented but no longer a separate audio ship gate.
+- [x] Static audio asset loading is not a separate audio ship gate.
+- [x] Live-device audio behavior is not a separate audio ship gate.
 
 ### Phase AU5 notes
 
-_(record device/browser results, static preview URL, network findings, and final checks here)_
+- 2026-06-26: Closed by product decision. Audio-specific mobile/static-preview QA is not required before ship.
 
 ### Phase AU5 completion summary
 
-_(fill on completion)_
+AU5 skipped and closed by product decision. General static preview, deploy, and real-device QA remain in the parent ship plan.
 
 ---
 
 ## Open Questions
 
-- Exact audio API: plain `HTMLAudioElement`, Web Audio, Phaser sound manager, or a small wrapper around the existing Phaser audio support. Decide in AU3 after checking current runtime boundaries.
-- Final file format: likely `.ogg` plus `.mp3` fallback if needed. Decide in AU2/AU3 based on browser support and build behavior.
-- Whether `victory_stinger` and `defeat_stinger` are required for ship or can be deferred if ambience and core gameplay SFX already carry the experience.
-- Whether `Огненный Шторм` and boss sounds can be sourced from libraries or need custom/generated treatment.
-- Whether a subtle boss transition is useful or too much for the small-scope audio target.
+- Exact audio API: resolved for the current shipped plumbing as plain `HTMLAudioElement`; no further API work before jam ship.
+- Final file format: keep existing `main-theme.mp3`; no `.ogg` fallback work before jam ship.
+- Victory/defeat stingers: out of scope for jam ship.
+- `Огненный Шторм` and boss sounds: out of scope for jam ship.
+- Boss transition audio: out of scope for jam ship.
+- 2026-06-26 jam answer: all SFX/open stinger questions are closed for this ship slice, not deferred as active ship work.
 
 ## Verification
 
-Baseline commands for this slice:
+No audio-specific verification remains for the jam ship. General final checks are owned by `docs/plans/p06-finishing-and-ship-plan.md`.
+
+Historical baseline commands for this slice:
 
 - `npm run lint:fix`
 - `npm run typecheck`
 - `npm run test`
 - `npm run build`
 
-Browser/manual checks:
+Historical browser/manual checks, no longer ship blockers:
 
 - First gesture unlock on desktop.
 - First gesture unlock on mobile.

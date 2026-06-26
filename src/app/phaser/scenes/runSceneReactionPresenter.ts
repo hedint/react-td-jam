@@ -17,6 +17,7 @@ import { writeBossPosition } from "./runSceneRender";
 const LOGICAL_WIDTH = 540;
 const MAX_FIELD_CALLOUTS = 2;
 const FIELD_CALLOUT_TTL_MS = 1900;
+const REACTION_CALLOUT_COOLDOWN_MS = 15000;
 
 interface FieldCallout {
   readonly text: Phaser.GameObjects.Text
@@ -29,7 +30,7 @@ export class RunSceneReactionPresenter {
   private reactionSprites: Phaser.GameObjects.Image[] = [];
   private readonly airUnderlayGraphics: Phaser.GameObjects.Graphics;
   private fieldCallouts: FieldCallout[] = [];
-  private readonly announcedReactionIds = new Set<ReactionId>();
+  private readonly reactionCalloutShownAt = new Map<ReactionId, number>();
   private readonly bossPosition = { x: 0, y: 0 };
   private previousBossVulnerable = false;
   private lastCalloutAt = Number.NEGATIVE_INFINITY;
@@ -134,18 +135,27 @@ export class RunSceneReactionPresenter {
       }
 
       ([reaction.ground, reaction.air] as const).forEach((reactionId) => {
-        if (!reactionId || this.announcedReactionIds.has(reactionId)) {
+        const now = this.scene.time.now;
+        const lastShownAt = reactionId ? this.reactionCalloutShownAt.get(reactionId) : undefined;
+
+        if (
+          !reactionId
+          || (lastShownAt !== undefined && now - lastShownAt < REACTION_CALLOUT_COOLDOWN_MS)
+        ) {
           return;
         }
 
         const definition = getReactionVfxDefinition(reactionId);
-        this.announcedReactionIds.add(reactionId);
-        this.queueFieldCallout(
+        const didQueue = this.queueFieldCallout(
           definition.tier === 1 ? getReactionDisplayName(reactionId) : definition.callout,
           cell.x,
           cell.y + definition.yOffset - definition.height * 0.42,
           definition.tier === 3 ? "#fff2a8" : "#d7ffff",
         );
+
+        if (didQueue) {
+          this.reactionCalloutShownAt.set(reactionId, now);
+        }
       });
     });
   }
@@ -178,12 +188,12 @@ export class RunSceneReactionPresenter {
     this.queueFieldCallout(ru.phaser.coreDangerCallout, LOGICAL_WIDTH / 2, 428, "#ffb15e");
   }
 
-  private queueFieldCallout(text: string, x: number, y: number, color: string): void {
+  private queueFieldCallout(text: string, x: number, y: number, color: string): boolean {
     const now = this.scene.time.now;
     const activeCount = this.fieldCallouts.filter(callout => callout.text.visible).length;
 
     if (activeCount >= MAX_FIELD_CALLOUTS || now - this.lastCalloutAt < 850) {
-      return;
+      return false;
     }
 
     this.lastCalloutAt = now;
@@ -204,6 +214,7 @@ export class RunSceneReactionPresenter {
       ttlMs: FIELD_CALLOUT_TTL_MS,
       startY: y,
     });
+    return true;
   }
 
   private updateFieldCalloutObjects(now: number): void {

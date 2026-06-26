@@ -238,17 +238,7 @@
             <dd>{{ session.runtimeLabel }}</dd>
           </div>
         </dl>
-        <div class="run-hud__reaction-list">
-          <div
-            v-for="reaction in session.reactionStats"
-            :key="reaction.sourceId"
-            :class="getDamageSourceClass(reaction.sourceId)"
-          >
-            <span class="run-hud__reaction-mark" aria-hidden="true" />
-            <span>{{ reaction.label }}</span>
-            <strong>{{ reaction.damage }}</strong>
-          </div>
-        </div>
+        <ReactionScrollList :reactions="session.reactionStats" />
         <div class="run-hud__modal-actions">
           <button
             class="run-hud__button run-hud__button--primary"
@@ -274,6 +264,7 @@ import { ru } from "@shared/i18n/ru";
 import { gameEvents } from "@shared/lib/event-bus/gameEvents";
 import { computed, onMounted, ref } from "vue";
 import MuteIcon from "./MuteIcon.vue";
+import ReactionScrollList from "./ReactionScrollList.vue";
 
 useGameSessionBridge();
 
@@ -398,24 +389,6 @@ function getUpgradeClass(upgradeId: UpgradeId): string {
 
 function getUpgradeDescription(upgradeId: UpgradeId): string {
   return locale.hud.upgradeDescriptions[upgradeId];
-}
-
-function getDamageSourceClass(sourceId: string): string {
-  switch (sourceId) {
-    case "rawSpark":
-    case "electroPuddle":
-    case "stormCloud":
-      return getEmitterClass("spark");
-    case "rawHeat":
-    case "fire":
-    case "fireVortex":
-    case "fireStorm":
-      return getEmitterClass("heat");
-    case "steam":
-      return getEmitterClass("water");
-    default:
-      return getEmitterClass("oil");
-  }
 }
 
 onMounted(() => {

@@ -7,7 +7,7 @@
 - Current phase: Phase C / C3 - VFX decisions and asset optimization
 - Overall status: P0 complete; Phase A/B complete; Phase C1/C2 complete; Phase C3 and Phase D remain before a shippable demo. Phase 0.5 visual overhaul phases 7-9 are complete in `p05-visual-overhaul-plan.md`; Phase 10 final polish remains.
 - Source docs: `docs/design.md`, `docs/setting.md`, `docs/plans/p0-implementation-plan.md`, `docs/plans/p05-visual-overhaul-plan.md`.
-- Goal: take the feature-complete-but-unpolished P0 to a finished, self-hosted, mobile-first web demo. Includes re-enabling the disabled upgrade economy, a new slot-unlock progression, a wave pacing / mixed-wave balance pass, a game-feel pass, UI finalization, a meta shell, and onboarding/audio.
+- Goal: take the feature-complete-but-unpolished P0 to a finished, self-hosted, mobile-first web demo. Includes re-enabling the disabled upgrade economy, a new slot-unlock progression, a wave pacing / mixed-wave balance pass, a game-feel pass, UI finalization, a meta shell, and onboarding. Audio is closed for this jam slice: keep the existing background loop / mute plumbing, but do not do more audio work before ship.
 
 ## Agent Instructions
 
@@ -44,7 +44,7 @@ The game is mechanically and feature-complete for P0 (10 waves + boss, the full 
 - **Game feel**: a dedicated lightweight juice pass (separate from asset work).
 - **UI finalization**: covers everything - top/bottom in-run bars, draft cards, pause overlay, and victory/defeat result screens.
 - **Meta shell**: minimal first-screen title overlay (New run / Continue). Credits were cut from the Phase B4 ship slice.
-- **Audio**: required for ship, but scoped small: music/ambience, key SFX, UI feedback, and a persistent mute button in the top HUD. No dedicated settings screen, mixer, complex dynamic music, or large variant library.
+- **Audio**: closed for the jam ship. Keep the existing `main-theme.mp3` background loop and persistent top-HUD mute plumbing if present, but do not add SFX, mix work, audio sourcing, or separate audio QA before ship.
 - **Localization**: Russian-only ships, but strings are extracted into a central locale file.
 - **Onboarding**: a small first-run tutorial is required, but it is implemented near the end after gameplay, UI, and visuals are stable. Hints support the tutorial; they do not replace it.
 - **Delivery**: self-hosted static web build; real-device touch QA is required. Run an early static-build smoke after core B/C integrations, then final deploy and device QA in Phase D.
@@ -282,7 +282,7 @@ Ship gate: C1/C2 final enemy and boss runtime integration must be complete befor
 - [ ] For T3 `fireStorm`, decide whether the neighboring-pool climax needs a multi-cell pool underlay beyond the existing sprite VFX; add it only if the playtest/readability pass proves the extra layer is needed.
 - [ ] Asset-size / load optimization pass for the web build.
 - [x] Run an early `npm run build` after the major B/C integrations to catch compile, asset reference, and bundling issues before final Phase D polish.
-- [ ] Run a static preview smoke after the major B/C integrations to catch base path, asset loading, mobile viewport, and audio gesture issues before final Phase D polish.
+- [ ] Run a static preview smoke after the major B/C integrations to catch base path, asset loading, and mobile viewport issues before final Phase D polish.
 
 #### Acceptance Criteria
 - [ ] All in-scope reactions have complete VFX; build asset size is reasonable for web; the early static build loads and plays through a smoke flow.
@@ -322,9 +322,9 @@ Phase C remains open for C3 VFX / asset-size / broader static-preview work. C1 a
 
 ---
 
-## Phase D - Onboarding, ship, and audio (last)
+## Phase D - Onboarding and ship (last)
 
-Purpose: first-run guidance, audio, and getting it live on real devices.
+Purpose: first-run guidance and getting the game live on real devices.
 
 Detailed onboarding guide / hints subplan: `docs/plans/p06-onboarding-guide-plan.md`.
 Detailed audio subplan: `docs/plans/p06-audio-plan.md`.
@@ -332,17 +332,17 @@ Detailed audio subplan: `docs/plans/p06-audio-plan.md`.
 #### Tasks
 - [ ] Hints (near end): contextual tips, building on the existing rare field-callout system; implementation details are tracked in `docs/plans/p06-onboarding-guide-plan.md`.
 - [ ] Small first-run tutorial (last): guided opening flow that teaches start wave, tower placement, reactions, draft choice, and why mixed threats require adapting the build. This is required for ship; detailed implementation checkpoints are tracked in `docs/plans/p06-onboarding-guide-plan.md`.
-- [ ] Audio (very last, before final device QA): music/ambience, key SFX for placement/reactions/core damage/boss/UI, and persistent mute through the B3 mute button. Keep scope small: no settings screen, mixer, complex dynamic music, or large variant library; implementation details are tracked in `docs/plans/p06-audio-plan.md`.
+- [x] Audio: closed by product decision for the jam ship. Keep the current background loop / persistent mute plumbing as-is; no SFX, mix pass, sourcing, or audio-specific QA remains before ship. Historical details are tracked in `docs/plans/p06-audio-plan.md`.
 - [ ] Deploy: produce the final self-hosted static build (`npm run build`) and host it.
 - [ ] Real-device touch QA: tap targets, drag-to-place, frame rate under load, fullscreen, address-bar resize. Run an early smoke test on device too, not only at the end.
 
 #### Acceptance Criteria
 - [ ] A first-time player can understand the game without external help.
-- [ ] Audio plays after valid mobile/browser user gestures, key events have sound feedback, mute persists, and the live build runs correctly on real phones.
+- [x] Audio is not a remaining ship gate for this jam slice; key-event SFX and audio-specific mobile QA are explicitly out of scope.
 
 ### Phase D notes
 
-_(record divergences here)_
+- 2026-06-26: Audio scope closed by product decision. Do not spend remaining ship time on SFX, mix, sourcing, or audio-specific QA; preserve the existing background loop / mute plumbing if it stays stable.
 
 ### Phase D completion summary
 

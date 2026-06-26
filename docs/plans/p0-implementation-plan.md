@@ -65,7 +65,7 @@ Explicitly out of P0:
 - Global `DMG xN` diversity multiplier.
 - Boss adaptive resistance to the previous lap's most common reaction.
 - Opposite bonus.
-- Required audio.
+- Required audio; later p06 scope also closed additional audio work for the jam ship.
 - Automated browser visual QA.
 - Help UI, tutorial text, ghost placement hints, and full wave preview (a single enemy-type icon at
   wave start is allowed as a telegraph; a full preview is not).
@@ -685,7 +685,7 @@ Purpose: tune the game into a coherent playable P0 and remove rough edges that b
 - [x] VFX polish pass: build on the per-phase reaction VFX; prioritize reaction VFX over general decorative polish; confirm color meanings are not color-only where shape/pattern can cheaply help.
 - [x] Respect the performance budget (design §13): <= ~15 particles per effect, object pooling for enemies and particles, a single texture atlas; avoid blur/post-processing.
 - [x] Improve procedural tower, enemy, cell, reaction, and boss readability.
-- [ ] Add optional audio only if the full playable run is already stable.
+- [x] Do not add optional audio for P0; audio remains outside the P0 implementation slice.
 - [x] Update the README if it still contradicts the implemented portrait P0 game.
 - [x] Run final checks.
 

@@ -58,7 +58,7 @@ Explicitly out of scope:
 - 3D, Three.js, lighting engines, or camera work.
 - New P1 mechanics such as Холод, global diversity multiplier, adaptive boss resistance, new reactions, relics, or endless mode.
 - Gameplay rebalance except for visual-readability bugs caused by the new presentation.
-- Required audio.
+- Required audio; later p06 scope also closed additional audio work for the jam ship, so visual-overhaul has no audio follow-up.
 - Copying the reference image exactly.
 - Keeping failed raw generation attempts in the repo.
 

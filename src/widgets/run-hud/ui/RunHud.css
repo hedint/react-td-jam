@@ -888,48 +888,6 @@ dd {
   justify-content: end;
 }
 
-.run-hud__reaction-list {
-  --element-color: var(--skin-brass);
-  --element-icon: radial-gradient(circle, var(--skin-brass) 0 42%, transparent 44%);
-
-  display: grid;
-  gap: 7px;
-  max-height: 116px;
-  margin: 0 0 14px;
-  overflow: auto;
-}
-
-.run-hud__reaction-list div {
-  display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 9px;
-  background: rgb(0 0 0 / 24%);
-  border: 1px solid color-mix(in srgb, var(--element-color), transparent 64%);
-  border-radius: var(--skin-chip-radius);
-}
-
-.run-hud__reaction-mark {
-  width: 14px;
-  height: 14px;
-  background:
-    var(--element-icon),
-    linear-gradient(180deg, rgb(0 0 0 / 20%), rgb(0 0 0 / 58%));
-  border: 1px solid color-mix(in srgb, var(--element-color), white 16%);
-  border-radius: 50%;
-}
-
-.run-hud__reaction-list span,
-.run-hud__reaction-list strong {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 12px;
-  line-height: 1.15;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .run-hud__draft {
   display: grid;
   align-content: start;

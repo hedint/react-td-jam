@@ -76,7 +76,7 @@ Purpose: record the worktree baseline and make this subplan discoverable from p0
 
 - [x] Record current `git status --short` in Phase notes before touching implementation files.
 - [x] Link this subplan from `docs/plans/p06-finishing-and-ship-plan.md` Phase D.
-- [x] Confirm the parent Phase D task wording still matches the split between full guide, hints, audio, deploy, and device QA.
+- [x] Confirm the parent Phase D task wording still matches the split between full guide, hints, deploy, and device QA. Audio is closed separately and is no longer onboarding-adjacent ship work.
 
 ### Acceptance Criteria
 
