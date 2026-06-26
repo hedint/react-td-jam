@@ -29,7 +29,7 @@ Produce static tower source frames for:
 
 ## Phase 3 Generated Tower Set
 
-- Source sheet: `public/assets/towers/source/phase3-tower-set-source-01.png`.
+- Source sheet: `asset-sources/public-assets/towers/source/phase3-tower-set-source-01.png`.
 - Runtime stills:
   - `public/assets/towers/water-cannon.png` for Водомёт;
   - `public/assets/towers/oil-pump.png` for Маслонасос;
@@ -45,7 +45,7 @@ Create a 2x2 sprite sheet of four distinct top-down static tower sprites for a c
 
 ## Phase 5 Layered Directional Tower Set
 
-- Approved source sheet: `public/assets/towers/source/phase5-layered-tower-set-source-01.png`.
+- Approved source sheet: `asset-sources/public-assets/towers/source/phase5-layered-tower-set-source-01.png`.
 - Runtime stills:
   - `public/assets/towers/water-cannon-base.png` and `public/assets/towers/water-cannon-head.png`;
   - `public/assets/towers/oil-pump-base.png` and `public/assets/towers/oil-pump-head.png`;

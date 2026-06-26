@@ -9,5 +9,5 @@ Use the manifest `scene.*` keys for runtime loading. Production background layer
 ## Cavern Fortress Backdrop V1
 
 - Runtime: `cavern-fortress-backdrop-v1.png`
-- Source: `source/cavern-fortress-backdrop-source-01.png`
-- Prompt and post-processing notes: `source/cavern-fortress-backdrop-source-01.md`
+- Source: `asset-sources/public-assets/scene/source/cavern-fortress-backdrop-source-01.png`
+- Prompt and post-processing notes: `asset-sources/public-assets/scene/source/cavern-fortress-backdrop-source-01.md`

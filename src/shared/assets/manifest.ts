@@ -565,6 +565,41 @@ export const loadableAssets = [
 export const phaserPreloadAssets = (loadableAssets as readonly AssetDefinition[])
   .filter(asset => asset.usage === "phaser" || asset.usage === "both");
 
+const bossRuntimeAssetKeys = new Set<string>([
+  assetGroups.enemies.bossOgreCrawlSide.key,
+  assetGroups.enemies.bossOgreHitSide.key,
+  assetGroups.enemies.bossOgreVulnerableSide.key,
+  assetGroups.enemies.bossOgreDeathSide.key,
+  assetGroups.enemies.bossOgreLeapPrepareSide.key,
+  assetGroups.enemies.bossOgreLeapAirSide.key,
+  assetGroups.enemies.bossOgreSmashSide.key,
+  assetGroups.enemies.bossOgreBlackoutCastSide.key,
+  assetGroups.enemies.bossOgreSummonRoarSide.key,
+]);
+
+const runExcludedPhaserAssetKeys = new Set<string>([
+  ...bossRuntimeAssetKeys,
+  assetGroups.scene.cavernBackdropPlaceholder.key,
+  assetGroups.enemies.bossOgrePlaceholder.key,
+  assetGroups.enemies.runnerSeedSide.key,
+  assetGroups.enemies.enemySpritePlaceholder.key,
+  assetGroups.reactions.reactionDecalPlaceholder.key,
+  assetGroups.ui.placeholder.key,
+  assetGroups.ui.ironPanel.key,
+  assetGroups.ui.brassCardFrame.key,
+  assetGroups.ui.rivetChip.key,
+]);
+
+export const runInitialPhaserPreloadAssets = phaserPreloadAssets
+  .filter(asset => !runExcludedPhaserAssetKeys.has(asset.key));
+
+export const runLateBossPhaserAssets = phaserPreloadAssets
+  .filter(asset => bossRuntimeAssetKeys.has(asset.key));
+
+export function getPhaserPreloadAssetsForScene(targetScene: string): readonly AssetDefinition[] {
+  return targetScene === "RunScene" ? runInitialPhaserPreloadAssets : phaserPreloadAssets;
+}
+
 export const visualSkin = {
   colors: {
     page: "#101217",

@@ -31,10 +31,10 @@ The following must be rendered from board/core geometry at runtime, not baked in
 
 Generated with built-in `imagegen` as one 3x2 chroma-key sheet, then locally keyed, cropped, normalized, and saved as transparent PNGs.
 
-- Initial source sheet: `public/assets/board/source/phase6a-board-sheet-source-01.png`.
-- Square road source sheet: `public/assets/board/source/phase6a-road-square-sheet-source-01.png`.
-- Derived square corner source: `public/assets/board/source/phase6a-road-corner-derived-from-straight-01.png`.
-- Preview sheet: `public/assets/board/source/phase6a-board-assets-preview-01.png`.
+- Initial source sheet: `asset-sources/public-assets/board/source/phase6a-board-sheet-source-01.png`.
+- Square road source sheet: `asset-sources/public-assets/board/source/phase6a-road-square-sheet-source-01.png`.
+- Derived square corner source: `asset-sources/public-assets/board/source/phase6a-road-corner-derived-from-straight-01.png`.
+- Preview sheet: `asset-sources/public-assets/board/source/phase6a-board-assets-preview-01.png`.
 - Runtime road straight: `public/assets/board/road-straight.png`.
 - Runtime road corner: `public/assets/board/road-corner.png`.
 - Runtime regular tower socket: `public/assets/board/slot-socket.png`.

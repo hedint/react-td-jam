@@ -1,5 +1,5 @@
 import type { AssetDefinition } from "@shared/assets/manifest";
-import { phaserPreloadAssets, resolvePublicAssetUrl } from "@shared/assets/manifest";
+import { getPhaserPreloadAssetsForScene, resolvePublicAssetUrl } from "@shared/assets/manifest";
 import Phaser from "phaser";
 
 export class BootScene extends Phaser.Scene {
@@ -8,7 +8,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
-    phaserPreloadAssets.forEach(asset => loadAsset(this.load, asset));
+    getPhaserPreloadAssetsForScene(this.targetScene).forEach(asset => loadAsset(this.load, asset));
   }
 
   create(): void {
@@ -16,7 +16,7 @@ export class BootScene extends Phaser.Scene {
   }
 }
 
-function loadAsset(loader: Phaser.Loader.LoaderPlugin, asset: AssetDefinition): void {
+export function loadAsset(loader: Phaser.Loader.LoaderPlugin, asset: AssetDefinition): void {
   const assetSrc = resolvePublicAssetUrl(asset.src);
 
   switch (asset.type) {

@@ -2,8 +2,8 @@
   <main class="game-page">
     <div class="stage-shell">
       <div class="stage">
+        <PhaserCanvas class="stage__canvas" />
         <template v-if="runStarted">
-          <PhaserCanvas class="stage__canvas" />
           <RunHud class="stage__hud" />
           <FieldShmygCompanion class="stage__field-shmyg" />
           <OnboardingGuide class="stage__guide" />

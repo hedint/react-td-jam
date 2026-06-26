@@ -1,14 +1,15 @@
 import type { BoardSlot, GameAction, GameSnapshot, RuntimeSnapshot, TowerState } from "@entities/game-session/model/types";
 import type { Unsubscribe } from "@shared/lib/event-bus/createTypedEventBus";
 import { createFixedStepDriver } from "@entities/game-session/model/fixedStepDriver";
-import { hasSavedRun, saveRun } from "@entities/game-session/model/persistence";
+import { saveRun } from "@entities/game-session/model/persistence";
 import { derivePresentationEvents } from "@entities/game-session/model/presentationEvents";
 import { recordRunReplayAction } from "@entities/game-session/model/runReplayLog";
 import { applyAction, createRun, createSnapshot, stepRun } from "@entities/game-session/model/simulation";
 import { completeGuideStep, evaluateGuidedAction, getGuideStep, isGuideStepComplete, isGuideTargetAvailable, loadOnboardingProgress, resetGuideForNewRun, saveOnboardingProgress } from "@entities/onboarding/model";
-import { assetGroups } from "@shared/assets/manifest";
+import { assetGroups, runLateBossPhaserAssets } from "@shared/assets/manifest";
 import { gameEvents } from "@shared/lib/event-bus/gameEvents";
 import Phaser from "phaser";
+import { loadAsset } from "./BootScene";
 import { RunSceneBoardArtPresenter } from "./runSceneBoardArt";
 import {
   renderBoardSlots,
@@ -69,7 +70,8 @@ export class RunScene extends Phaser.Scene {
   private unsubscribeAction?: Unsubscribe;
   private unsubscribeLoad?: Unsubscribe;
   private autosaveMs = 0;
-  private autosaveEnabled = !hasSavedRun();
+  private autosaveEnabled = false;
+  private bossAssetLoadStarted = false;
   private readonly debugBypassEnabled = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "1";
 
   constructor() {
@@ -79,7 +81,6 @@ export class RunScene extends Phaser.Scene {
   create(): void {
     this.cameras.main.setBackgroundColor("#101217");
     registerEnemyAnimations(this);
-    registerBossAnimations(this);
     registerFieldShmygAnimations(this);
     this.backdropFloor = this.add.image(0, 0, assetGroups.scene.cavernFortressFloor.key)
       .setOrigin(0)
@@ -91,7 +92,6 @@ export class RunScene extends Phaser.Scene {
     this.enemyGraphics = this.add.graphics().setDepth(20);
     this.placementGraphics = this.add.graphics().setDepth(35);
     this.boardArtPresenter = new RunSceneBoardArtPresenter(this);
-    this.bossPresenter = new RunSceneBossPresenter(this);
     this.enemyPresenter = new RunSceneEnemyPresenter(this);
     this.reagentPresenter = new RunSceneReagentPresenter(this);
     this.reactionPresenter = new RunSceneReactionPresenter(this);
@@ -174,6 +174,7 @@ export class RunScene extends Phaser.Scene {
   private renderSnapshot(snapshot: GameSnapshot): void {
     const visualMs = this.time.now;
 
+    this.ensureBossAssetsLoading(snapshot);
     this.renderBoard(snapshot, visualMs);
     this.renderReagents(snapshot, visualMs);
     this.renderEffects(snapshot, visualMs);
@@ -183,6 +184,47 @@ export class RunScene extends Phaser.Scene {
     this.renderPlacementFeedback(snapshot);
     this.juicePresenter?.render(visualMs);
     this.fieldShmygPresenter?.render(this.withRuntimeFields(snapshot), loadOnboardingProgress(), visualMs);
+  }
+
+  private ensureBossAssetsLoading(snapshot: GameSnapshot): void {
+    if (this.bossPresenter || !this.shouldLoadBossAssets(snapshot)) {
+      return;
+    }
+
+    if (this.areBossAssetsLoaded()) {
+      this.createBossPresenter();
+      return;
+    }
+
+    if (this.bossAssetLoadStarted || this.load.isLoading()) {
+      return;
+    }
+
+    this.bossAssetLoadStarted = true;
+    runLateBossPhaserAssets
+      .filter(asset => !this.textures.exists(asset.key))
+      .forEach(asset => loadAsset(this.load, asset));
+    this.load.once(Phaser.Loader.Events.COMPLETE, () => {
+      this.createBossPresenter();
+    });
+    this.load.start();
+  }
+
+  private shouldLoadBossAssets(snapshot: GameSnapshot): boolean {
+    return snapshot.phase === "boss" || snapshot.waveIndex >= 9;
+  }
+
+  private areBossAssetsLoaded(): boolean {
+    return runLateBossPhaserAssets.every(asset => this.textures.exists(asset.key));
+  }
+
+  private createBossPresenter(): void {
+    if (this.bossPresenter || !this.areBossAssetsLoaded()) {
+      return;
+    }
+
+    registerBossAnimations(this);
+    this.bossPresenter = new RunSceneBossPresenter(this);
   }
 
   private emitPresentationEvents(
