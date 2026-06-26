@@ -10,7 +10,6 @@
 ## Agent Instructions
 
 This document is both the implementation plan and the execution log for P0.
-
 When working on this plan:
 
 - Update checkboxes in this file as work is completed.
