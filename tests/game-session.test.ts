@@ -641,12 +641,12 @@ describe("run simulation", () => {
       reactions: resolveReactions(base.board, base.placedTowers, upgrades),
     };
 
-    expect(fireStormState.reactions.filter(reaction => reaction.air === "fireStorm").map(reaction => reaction.cellIndex)).toEqual([1, 2, 3, 4, 5]);
+    expect(fireStormState.reactions.filter(reaction => reaction.air === "fireStorm").map(reaction => reaction.cellIndex)).toEqual([1, 2, 3, 4]);
     expect(fireStormState.reactions.some(reaction => reaction.air === "fireVortex")).toBe(false);
     expect(fireStormState.reactions.some(reaction => reaction.air === "stormCloud")).toBe(false);
   });
 
-  it("lets a corner spark reserve the full storm cloud before fire storm consumes it", () => {
+  it("clamps legacy cell upgrade stacks before reserving storm cloud pools", () => {
     const reactions = resolveReactions(
       gameConfig.board,
       [
@@ -666,10 +666,10 @@ describe("run simulation", () => {
       ],
     );
 
-    expect(reactions.filter(reaction => reaction.air === "fireStorm").map(reaction => reaction.cellIndex)).toEqual([1, 2, 3, 4, 5, 6]);
-    expect(reactions.some(reaction => reaction.air === "steam")).toBe(false);
+    expect(reactions.filter(reaction => reaction.air === "fireStorm").map(reaction => reaction.cellIndex)).toEqual([]);
+    expect(reactions.filter(reaction => reaction.air === "stormCloud").map(reaction => reaction.cellIndex)).toEqual([3, 4, 5]);
+    expect(reactions.some(reaction => reaction.air === "steam")).toBe(true);
     expect(reactions.some(reaction => reaction.air === "fireVortex")).toBe(false);
-    expect(reactions.some(reaction => reaction.air === "stormCloud")).toBe(false);
   });
 
   it("expands an existing fire storm when a new storm cloud touches it", () => {
@@ -696,7 +696,7 @@ describe("run simulation", () => {
       ],
     );
 
-    expect(reactions.filter(reaction => reaction.air === "fireStorm").map(reaction => reaction.cellIndex)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(reactions.filter(reaction => reaction.air === "fireStorm").map(reaction => reaction.cellIndex)).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect(reactions.some(reaction => reaction.air === "stormCloud")).toBe(false);
   });
 
@@ -1276,7 +1276,7 @@ describe("run simulation", () => {
         ] as const,
         upgradeOffers: ["waterCapacity"] as const,
       },
-      upgrades: [{ upgradeId: "waterCapacity" as const, stacks: 2 }],
+      upgrades: [{ upgradeId: "waterCapacity" as const, stacks: 1 }],
     };
     const capped = applyAction(maxedDraft, { type: "chooseDraftUpgrade", upgradeId: "waterCapacity" });
     const towers = [
@@ -1284,7 +1284,7 @@ describe("run simulation", () => {
       createTower("tower-spark-a", "spark", "slot-2-inner"),
     ];
 
-    expect(capped.upgrades).toEqual([{ upgradeId: "waterCapacity", stacks: 2 }]);
+    expect(capped.upgrades).toEqual([{ upgradeId: "waterCapacity", stacks: 1 }]);
     expect(resolveReactions(gameConfig.board, towers)[1]?.ground).toBeNull();
     expect(resolveReactions(gameConfig.board, towers, [{ upgradeId: "waterCapacity", stacks: 1 }])[1]?.ground).toBe("electroPuddle");
   });

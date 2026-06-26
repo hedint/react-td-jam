@@ -326,9 +326,11 @@ Phase C remains open for C3 VFX / asset-size / broader static-preview work. C1 a
 
 Purpose: first-run guidance, audio, and getting it live on real devices.
 
+Detailed onboarding guide / hints subplan: `docs/plans/p06-onboarding-guide-plan.md`.
+
 #### Tasks
-- [ ] Hints (near end): contextual tips, building on the existing rare field-callout system.
-- [ ] Small first-run tutorial (last): guided opening flow that teaches start wave, tower placement, reactions, draft choice, and why mixed threats require adapting the build. This is required for ship, but should wait until gameplay/UI are stable.
+- [ ] Hints (near end): contextual tips, building on the existing rare field-callout system; implementation details are tracked in `docs/plans/p06-onboarding-guide-plan.md`.
+- [ ] Small first-run tutorial (last): guided opening flow that teaches start wave, tower placement, reactions, draft choice, and why mixed threats require adapting the build. This is required for ship; detailed implementation checkpoints are tracked in `docs/plans/p06-onboarding-guide-plan.md`.
 - [ ] Audio (very last, before final device QA): music/ambience, key SFX for placement/reactions/core damage/boss/UI, and persistent mute through the B3 mute button. Keep scope small: no settings screen, mixer, complex dynamic music, or large variant library.
 - [ ] Deploy: produce the final self-hosted static build (`npm run build`) and host it.
 - [ ] Real-device touch QA: tap targets, drag-to-place, frame rate under load, fullscreen, address-bar resize. Run an early smoke test on device too, not only at the end.

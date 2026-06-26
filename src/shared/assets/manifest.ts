@@ -1,6 +1,6 @@
 /* eslint-disable max-lines */
 
-export type AssetGroup = "scene" | "board" | "towers" | "enemies" | "reactions" | "ui";
+export type AssetGroup = "scene" | "board" | "towers" | "enemies" | "reactions" | "ui" | "guides";
 export type AssetUsage = "phaser" | "css" | "both";
 
 interface BaseAsset {
@@ -45,6 +45,7 @@ type ManifestGroups = {
 type EnemySpriteAssetId = "grunt" | "swarm" | "tank" | "flyer" | "runner" | "insulated" | "flameproof";
 type EnemySpriteAnim = "move" | "hit" | "death";
 type BossSpriteAnim = "crawl" | "hit" | "vulnerable" | "death" | "leap-prepare" | "leap-air" | "smash" | "blackout-cast" | "summon-roar";
+type ShmygSpriteAnim = "idle" | "talk" | "excited" | "angry";
 
 function enemySpriteSheetAsset(
   enemyId: EnemySpriteAssetId,
@@ -83,6 +84,20 @@ function enemyHudPreviewAsset(enemyId: EnemySpriteAssetId | "boss-ogre"): ImageA
     group: "enemies",
     key: `enemies.${enemyId}.hud-preview`,
     src: `/assets/enemies/hud/${enemyId}-preview.png`,
+    usage: "css",
+  };
+}
+
+function shmygSpriteSheetAsset(animationName: ShmygSpriteAnim): SpriteSheetAsset & { readonly group: "guides" } {
+  return {
+    type: "spritesheet",
+    group: "guides",
+    key: `guides.shmyg.${animationName}`,
+    src: `/assets/guides/shmyg/shmyg-${animationName}-strip.png`,
+    frame: {
+      width: 384,
+      height: 384,
+    },
     usage: "css",
   };
 }
@@ -491,6 +506,19 @@ export const assetGroups = {
       usage: "both",
     },
   },
+  guides: {
+    shmygSeedApproved: {
+      type: "image",
+      group: "guides",
+      key: "guides.shmyg.seed-approved",
+      src: "/assets/guides/shmyg/shmyg-seed-approved-384.png",
+      usage: "css",
+    },
+    shmygIdle: shmygSpriteSheetAsset("idle"),
+    shmygTalk: shmygSpriteSheetAsset("talk"),
+    shmygExcited: shmygSpriteSheetAsset("excited"),
+    shmygAngry: shmygSpriteSheetAsset("angry"),
+  },
 } as const satisfies ManifestGroups;
 
 export const loadableAssets = [
@@ -500,6 +528,7 @@ export const loadableAssets = [
   ...Object.values(assetGroups.enemies),
   ...Object.values(assetGroups.reactions),
   ...Object.values(assetGroups.ui),
+  ...Object.values(assetGroups.guides),
 ] satisfies readonly AssetDefinition[];
 
 export const phaserPreloadAssets = (loadableAssets as readonly AssetDefinition[])

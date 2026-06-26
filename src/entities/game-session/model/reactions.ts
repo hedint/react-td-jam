@@ -1230,7 +1230,7 @@ function getUpgradeEffectTotal(
       return total;
     }
 
-    return total + definition.effect.amount * stack.stacks;
+    return total + definition.effect.amount * Math.min(stack.stacks, definition.maxStacks);
   }, 0);
 }
 
