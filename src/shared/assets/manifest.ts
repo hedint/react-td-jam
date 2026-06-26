@@ -562,3 +562,11 @@ export type LoadableAsset = typeof loadableAssets[number];
 export type AssetKey = LoadableAsset["key"];
 
 export const assets = assetGroups.ui;
+
+export function resolvePublicAssetUrl(src: string, baseUrl = import.meta.env.BASE_URL): string {
+  if (!src.startsWith("/")) {
+    return src;
+  }
+
+  return `${baseUrl.replace(/\/$/, "")}${src}`;
+}

@@ -1,5 +1,5 @@
 import type { AssetDefinition } from "@shared/assets/manifest";
-import { phaserPreloadAssets } from "@shared/assets/manifest";
+import { phaserPreloadAssets, resolvePublicAssetUrl } from "@shared/assets/manifest";
 import Phaser from "phaser";
 
 export class BootScene extends Phaser.Scene {
@@ -17,18 +17,20 @@ export class BootScene extends Phaser.Scene {
 }
 
 function loadAsset(loader: Phaser.Loader.LoaderPlugin, asset: AssetDefinition): void {
+  const assetSrc = resolvePublicAssetUrl(asset.src);
+
   switch (asset.type) {
     case "svg":
-      loader.svg(asset.key, asset.src, {
+      loader.svg(asset.key, assetSrc, {
         width: asset.width,
         height: asset.height,
       });
       return;
     case "image":
-      loader.image(asset.key, asset.src);
+      loader.image(asset.key, assetSrc);
       return;
     case "spritesheet":
-      loader.spritesheet(asset.key, asset.src, {
+      loader.spritesheet(asset.key, assetSrc, {
         frameWidth: asset.frame.width,
         frameHeight: asset.frame.height,
         margin: asset.frame.margin,
@@ -36,7 +38,7 @@ function loadAsset(loader: Phaser.Loader.LoaderPlugin, asset: AssetDefinition): 
       });
       return;
     case "atlas":
-      loader.atlas(asset.key, asset.src, asset.atlasSrc);
+      loader.atlas(asset.key, assetSrc, resolvePublicAssetUrl(asset.atlasSrc));
       return;
     default:
       return asset satisfies never;

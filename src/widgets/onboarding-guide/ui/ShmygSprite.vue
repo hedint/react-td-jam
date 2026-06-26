@@ -9,7 +9,7 @@
 </template>
 
 <script setup lang="ts">
-import { assetGroups } from "@shared/assets/manifest";
+import { assetGroups, resolvePublicAssetUrl } from "@shared/assets/manifest";
 import { computed } from "vue";
 
 type ShmygSpriteState = "idle" | "talk" | "excited" | "angry";
@@ -23,10 +23,10 @@ const props = withDefaults(defineProps<{
 });
 
 const spriteSources: Record<ShmygSpriteState, string> = {
-  idle: assetGroups.guides.shmygIdle.src,
-  talk: assetGroups.guides.shmygTalk.src,
-  excited: assetGroups.guides.shmygExcited.src,
-  angry: assetGroups.guides.shmygAngry.src,
+  idle: resolvePublicAssetUrl(assetGroups.guides.shmygIdle.src),
+  talk: resolvePublicAssetUrl(assetGroups.guides.shmygTalk.src),
+  excited: resolvePublicAssetUrl(assetGroups.guides.shmygExcited.src),
+  angry: resolvePublicAssetUrl(assetGroups.guides.shmygAngry.src),
 };
 
 const spriteStyle = computed(() => ({

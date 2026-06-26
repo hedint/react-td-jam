@@ -1,4 +1,4 @@
-import { assetGroups, loadableAssets, phaserPreloadAssets, visualSkin } from "@shared/assets/manifest";
+import { assetGroups, loadableAssets, phaserPreloadAssets, resolvePublicAssetUrl, visualSkin } from "@shared/assets/manifest";
 import { describe, expect, it } from "vitest";
 
 const publicAssets = import.meta.glob("../public/assets/**/*", {
@@ -43,6 +43,11 @@ describe("asset manifest", () => {
 
       return asset.atlasSrc.startsWith("/assets/");
     })).toBe(true);
+  });
+
+  it("resolves public asset URLs against the Vite base path", () => {
+    expect(resolvePublicAssetUrl("/assets/board/road-straight.png", "/")).toBe("/assets/board/road-straight.png");
+    expect(resolvePublicAssetUrl("/assets/board/road-straight.png", "/react-td-jam/")).toBe("/react-td-jam/assets/board/road-straight.png");
   });
 
   it("exposes the shared iron and brass skin tokens", () => {
