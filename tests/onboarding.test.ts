@@ -164,6 +164,11 @@ describe("onboarding guide predicates", () => {
     if (plan === null) {
       throw new Error("Expected opening placement plan");
     }
+    expect(plan).toMatchObject({
+      firstWaterSlotId: "slot-2-inner",
+      sparkSlotId: "slot-2-outer",
+      secondWaterSlotId: "slot-3-inner",
+    });
 
     expect(getGuidePlacementTargetSlot(selectedWaterSnapshot, "placeFirstWater")?.id).toBe(plan.firstWaterSlotId);
 

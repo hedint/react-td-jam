@@ -105,7 +105,7 @@ function getSparkSlot(snapshot: RuntimeSnapshot, sparkTower: TowerState, placedT
 function getSecondWaterSlot(snapshot: RuntimeSnapshot, waterTower: TowerState, placedTowers: readonly TowerState[]): BoardSlot | null {
   const slots = getOpenSlots(snapshot, placedTowers)
     .filter(slot => extendsElectroPuddle(snapshot, placedTowers, waterTower, slot.id))
-    .sort((left, right) => getBoardSlotRank(snapshot, left) - getBoardSlotRank(snapshot, right));
+    .sort((left, right) => getSecondWaterSlotRank(snapshot, placedTowers, left) - getSecondWaterSlotRank(snapshot, placedTowers, right));
 
   return slots[0] ?? null;
 }
@@ -208,9 +208,24 @@ function getSparkSlotRank(snapshot: RuntimeSnapshot, placedTowers: readonly Towe
     + getBoardSlotRank(snapshot, slot) * 0.01;
 }
 
-function getBoardSlotRank(snapshot: RuntimeSnapshot, slot: BoardSlot): number {
-  const centerX = snapshot.board.slots.reduce((sum, candidate) => sum + candidate.x, 0) / snapshot.board.slots.length;
-  const centerY = snapshot.board.slots.reduce((sum, candidate) => sum + candidate.y, 0) / snapshot.board.slots.length;
+function getSecondWaterSlotRank(snapshot: RuntimeSnapshot, placedTowers: readonly TowerState[], slot: BoardSlot): number {
+  const electroCellIndexes = resolveReactions(snapshot.board, placedTowers, snapshot.upgrades)
+    .filter(reaction => reaction.ground === "electroPuddle")
+    .map(reaction => reaction.cellIndex);
+  const currentFront = Math.max(...electroCellIndexes);
+  const slotStart = Math.min(...slot.cellIndexes);
+  const forwardPenalty = slotStart > currentFront ? 0 : 100;
 
-  return Math.abs(slot.x - centerX) + Math.abs(slot.y - centerY) + (slot.lane === "outer" ? 0 : 0.25);
+  return forwardPenalty
+    + Math.abs(slotStart - currentFront) * 10
+    + (slot.lane === "inner" ? 0 : 0.25)
+    + (slot.isCorner ? 1 : 0);
+}
+
+function getBoardSlotRank(snapshot: RuntimeSnapshot, slot: BoardSlot): number {
+  const firstCellIndex = Math.min(...slot.cellIndexes);
+  const laneBias = slot.lane === "inner" ? 0 : 0.25;
+  const cornerBias = slot.isCorner ? 1 : 0;
+
+  return firstCellIndex * 10 + laneBias + cornerBias;
 }
