@@ -1,9 +1,11 @@
-import type { BoardSlot, GameSnapshot, TowerState } from "@entities/game-session/model/types";
+import type { BoardSlot, GameAction, GameSnapshot, RuntimeSnapshot, TowerState } from "@entities/game-session/model/types";
 import type { Unsubscribe } from "@shared/lib/event-bus/createTypedEventBus";
 import { createFixedStepDriver } from "@entities/game-session/model/fixedStepDriver";
 import { hasSavedRun, saveRun } from "@entities/game-session/model/persistence";
 import { derivePresentationEvents } from "@entities/game-session/model/presentationEvents";
+import { recordRunReplayAction } from "@entities/game-session/model/runReplayLog";
 import { applyAction, createRun, createSnapshot, stepRun } from "@entities/game-session/model/simulation";
+import { completeGuideStep, evaluateGuidedAction, getGuideStep, isGuideStepComplete, isGuideTargetAvailable, loadOnboardingProgress, resetGuideForNewRun, saveOnboardingProgress } from "@entities/onboarding/model";
 import { assetGroups } from "@shared/assets/manifest";
 import { gameEvents } from "@shared/lib/event-bus/gameEvents";
 import Phaser from "phaser";
@@ -66,6 +68,7 @@ export class RunScene extends Phaser.Scene {
   private unsubscribeLoad?: Unsubscribe;
   private autosaveMs = 0;
   private autosaveEnabled = !hasSavedRun();
+  private readonly debugBypassEnabled = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "1";
 
   constructor() {
     super("RunScene");
@@ -97,35 +100,21 @@ export class RunScene extends Phaser.Scene {
     this.coreLiquidGraphics = this.add.graphics().setDepth(7.9);
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-      const previousSnapshot = createSnapshot(this.driver.state);
       const tap = {
         x: Math.round(pointer.worldX),
         y: Math.round(pointer.worldY),
       };
       const slot = findSlotAtPoint(this.driver.state.board.slots, tap.x, tap.y);
 
-      this.driver.replaceState(applyAction(this.driver.state, { type: "tap", point: tap }));
+      this.applyActionWithGuide({ type: "tap", point: tap }, { autosave: false });
       if (slot) {
-        this.driver.replaceState(applyAction(this.driver.state, { type: "tapSlot", slotId: slot.id }));
-        this.autosaveEnabled = true;
-        this.saveCurrentRun();
+        this.applyActionWithGuide({ type: "tapSlot", slotId: slot.id });
       }
       gameEvents.emit("pointer:tap", tap);
-      const nextSnapshot = createSnapshot(this.driver.state);
-      this.emitPresentationEvents(previousSnapshot, nextSnapshot);
-      this.renderSnapshot(nextSnapshot);
-      this.publishSnapshot();
     });
 
     this.unsubscribeAction = gameEvents.on("run:action", (action) => {
-      const previousSnapshot = createSnapshot(this.driver.state);
-      this.driver.replaceState(applyAction(this.driver.state, action));
-      this.autosaveEnabled = true;
-      this.saveCurrentRun();
-      const nextSnapshot = createSnapshot(this.driver.state);
-      this.emitPresentationEvents(previousSnapshot, nextSnapshot);
-      this.renderSnapshot(nextSnapshot);
-      this.publishSnapshot();
+      this.applyActionWithGuide(action);
     });
     this.unsubscribeLoad = gameEvents.on("run:load", (state) => {
       const previousSnapshot = createSnapshot(this.driver.state);
@@ -150,7 +139,9 @@ export class RunScene extends Phaser.Scene {
 
   update(_time: number, deltaMs: number): void {
     const previousSnapshot = createSnapshot(this.driver.state);
-    const state = this.driver.stepFrame(deltaMs);
+    const state = this.shouldHoldRuntimeForGuide()
+      ? this.driver.state
+      : this.driver.stepFrame(deltaMs);
     const snapshot = createSnapshot(state);
 
     this.emitPresentationEvents(previousSnapshot, snapshot);
@@ -200,6 +191,85 @@ export class RunScene extends Phaser.Scene {
     this.enemyPresenter?.queue(events, next, this.time.now);
     this.bossPresenter?.queue(events, this.time.now);
     this.juicePresenter?.queue(events, next, this.time.now);
+  }
+
+  private applyActionWithGuide(action: GameAction, options: { readonly autosave?: boolean } = {}): boolean {
+    const previousSnapshot = this.createRuntimeSnapshot();
+    const progress = loadOnboardingProgress();
+    let nextProgress = action.type === "restart"
+      ? resetGuideForNewRun(progress)
+      : progress;
+    const decision = evaluateGuidedAction(nextProgress, previousSnapshot, action, {
+      debugBypass: this.debugBypassEnabled,
+    });
+
+    if (decision.type === "block") {
+      gameEvents.emit("onboarding:action-blocked", {
+        stepId: decision.stepId,
+        actionType: action.type,
+        reason: decision.reason,
+      });
+      return false;
+    }
+
+    if (decision.type === "completeStepThenAllow" && isGuideStepComplete(getGuideStep(decision.stepId), previousSnapshot)) {
+      nextProgress = completeGuideStep(nextProgress, decision.stepId);
+    }
+
+    this.driver.replaceState(applyAction(this.driver.state, action));
+
+    if (options.autosave !== false) {
+      this.autosaveEnabled = true;
+      this.saveCurrentRun();
+    }
+
+    const nextSnapshot = this.createRuntimeSnapshot();
+
+    if (
+      decision.type === "completeStepThenAllow"
+      && !nextProgress.guide.completedStepIds.includes(decision.stepId)
+      && isGuideStepComplete(getGuideStep(decision.stepId), nextSnapshot)
+    ) {
+      nextProgress = completeGuideStep(nextProgress, decision.stepId);
+    }
+
+    if (nextProgress !== progress) {
+      saveOnboardingProgress(nextProgress);
+    }
+
+    recordRunReplayAction(previousSnapshot, action, nextSnapshot);
+    this.emitPresentationEvents(previousSnapshot, nextSnapshot);
+    this.renderSnapshot(nextSnapshot);
+    this.publishSnapshot(nextSnapshot);
+
+    return true;
+  }
+
+  private createRuntimeSnapshot(): RuntimeSnapshot {
+    return this.withRuntimeFields(createSnapshot(this.driver.state));
+  }
+
+  private shouldHoldRuntimeForGuide(): boolean {
+    const progress = loadOnboardingProgress();
+
+    if (progress.guide.status !== "inProgress") {
+      return false;
+    }
+
+    const step = getGuideStep(progress.guide.stepId);
+
+    return step.blocksGameplay && isGuideTargetAvailable(step, this.createRuntimeSnapshot());
+  }
+
+  private withRuntimeFields(snapshot: GameSnapshot): RuntimeSnapshot {
+    return {
+      ...snapshot,
+      fps: Math.round(this.game.loop.actualFps),
+      viewport: {
+        width: this.scale.width,
+        height: this.scale.height,
+      },
+    };
   }
 
   private renderBoard(snapshot: GameSnapshot, visualMs: number): void {
@@ -351,15 +421,8 @@ export class RunScene extends Phaser.Scene {
     this.towerHeadSprites.slice(towers.length * 2).forEach(sprite => sprite.setVisible(false));
   }
 
-  private publishSnapshot(snapshot = createSnapshot(this.driver.state)): void {
-    gameEvents.emit("session:snapshot", {
-      ...snapshot,
-      fps: Math.round(this.game.loop.actualFps),
-      viewport: {
-        width: this.scale.width,
-        height: this.scale.height,
-      },
-    });
+  private publishSnapshot(snapshot: GameSnapshot | RuntimeSnapshot = this.createRuntimeSnapshot()): void {
+    gameEvents.emit("session:snapshot", this.withRuntimeFields(snapshot));
   }
 
   private saveCurrentRun(): void {

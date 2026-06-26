@@ -934,6 +934,13 @@ function createProjection(
     energyClaims: [],
   }));
   const emitterTokenById = new Map(emitterTokens.map(token => [token.id, token]));
+  const consumedEnergySourceIds = new Set(
+    acceptedCandidates
+      .flatMap(candidate => candidate.consumedTokenIds)
+      .map(tokenId => emitterTokenById.get(tokenId))
+      .filter((token): token is EmitterToken & { readonly inputId: EnergyId } => token !== undefined && isEnergy(token.inputId))
+      .map(token => token.sourceId),
+  );
 
   emitterTokens.forEach((token) => {
     const cell = projection[token.cellIndex];
@@ -944,6 +951,10 @@ function createProjection(
 
     if (isSubstance(token.inputId)) {
       cell.substances.add(token.inputId);
+      return;
+    }
+
+    if (consumedEnergySourceIds.has(token.sourceId)) {
       return;
     }
 

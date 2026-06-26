@@ -261,6 +261,7 @@ export function deserializeRun(payload: string | SerializedRunPayload, config: G
 
   return {
     ...state,
+    enemies: state.enemies.map(normalizeEnemyState),
     reactions: resolveReactions(state.board, state.placedTowers, state.upgrades, config),
   };
 }
@@ -453,6 +454,17 @@ function addDebugReactionOverride(
         ttlMs: Math.max(1000, ttlMs),
       },
     ]),
+  };
+}
+
+function normalizeEnemyState(enemy: EnemyState): EnemyState {
+  const slowEffect = enemy.slowEffect && enemy.slowEffect.remainingMs > 0 && enemy.slowEffect.speedMultiplier < 1
+    ? enemy.slowEffect
+    : null;
+
+  return {
+    ...enemy,
+    slowEffect,
   };
 }
 

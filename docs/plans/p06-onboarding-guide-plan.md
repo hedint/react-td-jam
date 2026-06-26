@@ -44,10 +44,10 @@ The game already has:
 ## Key Decisions
 
 - The full guide is shown only once per guide version.
-- "Shown once" means: resume while incomplete; stop forever after final completion or explicit skip.
-- The completion/skip marker is persisted separately from the run save, so starting a new run does not re-open the full guide after completion.
-- The guide freezes the interface by allowing only the current target action. Rendering and snapshots continue so highlights, Шмыг animation, and combat feedback remain alive.
-- Contextual hints are separate from the full guide. They may appear after the guide is completed/skipped, but they use their own dedupe and cooldown rules.
+- "Shown once" means: resume while incomplete on the same run; reset an unfinished guide when a new run starts; stop forever after final completion. The first-run guide is mandatory and has no visible skip control.
+- The completion marker is persisted separately from the run save, so starting a new run does not re-open the full guide after completion.
+- The guide freezes the interface by allowing only the current target action. Rendering and snapshots continue so target cursor, Шмыг animation, and combat feedback remain alive.
+- Contextual hints are separate from the full guide. They may appear after the guide is completed, but they use their own dedupe and cooldown rules.
 - Existing field callouts stay rare and event-driven. Do not turn them into long tutorial messages.
 - Шмыг is a visible character asset, not just a text label. His seed and core animation set are implemented before the guide state machine so the first integration slice already shows the intended guide voice.
 
@@ -173,29 +173,29 @@ Purpose: implement the actual "freeze" behavior as a shared action gate, not jus
 
 ### Tasks
 
-- [ ] Add a pure `evaluateGuidedAction(...)` helper that receives onboarding progress, runtime snapshot, and a proposed action.
-- [ ] Return an explicit result: allowed, blocked, or allowed with guide-step completion.
-- [ ] Add guide-aware action dispatch for Vue HUD actions.
-- [ ] Use the same guard in `RunScene` before direct `tap` / `tapSlot` handling.
-- [ ] Keep mute usable during the guide.
-- [ ] Decide and implement whether pause is blocked during scripted steps. Recommended default: block pause except on observation steps or after the first wave starts.
-- [ ] Ensure debug-only actions are either blocked by default during the guide or bypassed only when `?debug=1` is active.
-- [ ] Add tests for guard behavior across HUD actions and slot taps.
+- [x] Add a pure `evaluateGuidedAction(...)` helper that receives onboarding progress, runtime snapshot, and a proposed action.
+- [x] Return an explicit result: allowed, blocked, or allowed with guide-step completion.
+- [x] Add guide-aware action dispatch for Vue HUD actions.
+- [x] Use the same guard in `RunScene` before direct `tap` / `tapSlot` handling.
+- [x] Keep mute usable during the guide.
+- [x] Decide and implement whether pause is blocked during scripted steps. Recommended default: block pause except on observation steps or after the first wave starts.
+- [x] Ensure debug-only actions are either blocked by default during the guide or bypassed only when `?debug=1` is active.
+- [x] Add tests for guard behavior across HUD actions and slot taps.
 
 ### Acceptance Criteria
 
-- [ ] During a target-action step, non-target gameplay actions do not mutate run state.
-- [ ] The target action still reaches the existing simulation reducer and remains authoritative.
-- [ ] Phaser slot taps cannot bypass the guide.
-- [ ] Existing headless simulation and balance scripts remain unaffected by onboarding code.
+- [x] During a target-action step, non-target gameplay actions do not mutate run state.
+- [x] The target action still reaches the existing simulation reducer and remains authoritative.
+- [x] Phaser slot taps cannot bypass the guide.
+- [x] Existing headless simulation and balance scripts remain unaffected by onboarding code.
 
 ### Phase O3 notes
 
-_(record guard edge cases and debug behavior here)_
+- 2026-06-26: Added the pure `evaluateGuidedAction` guard under `src/entities/onboarding/model/guard.ts`, returning `allow`, `block`, or `completeStepThenAllow`. Integrated it in `RunScene` for both DOM-dispatched `run:action` events and direct Phaser `tap` / `tapSlot` pointer actions; blocked actions emit `onboarding:action-blocked` for the O4 nudge UI. Target actions still pass through the existing `applyAction` reducer, and guide steps are persisted only after the post-action snapshot satisfies the completion predicate. Mute remains outside the guarded `GameAction` path. Pause is blocked during pre-wave blocking steps, `resume` is always allowed, and pause is allowed once runtime is in `wave` or `boss`; non-blocking observation steps allow normal actions. Debug-only actions are blocked during the guide unless the URL has `?debug=1`. Auto-opening the guide is intentionally deferred until O4 adds the visible guide controls, so O3 cannot strand the player behind an invisible intro step. Checks: `npm run lint:fix`, `npm run typecheck`, `npm run test`, `npm run build`.
 
 ### Phase O3 completion summary
 
-_(fill on completion)_
+Phase O3 completed with a shared guided-action gate at the runtime input boundary. Vue HUD actions, Debug HUD actions, and Phaser slot taps now share the same onboarding decision logic, while the serializable simulation reducer and headless tests remain independent of onboarding state. The guard supports recovery when a step is already complete before the next action, blocks non-target gameplay mutations during scripted target steps, permits explicit debug bypass only in `?debug=1`, and leaves audio mute usable because it is not a `GameAction`.
 
 ---
 
@@ -205,30 +205,37 @@ Purpose: ship the visible Шмыг-led guide layer on top of the existing game p
 
 ### Tasks
 
-- [ ] Add `OnboardingGuide.vue` under `src/widgets/onboarding-guide/ui`.
-- [ ] Mount the guide in `GamePage.vue` above `RunHud` only after a run has started.
-- [ ] Add a compact Шмыг bubble layout that preserves the center playfield and lower-middle field.
-- [ ] Add a short intro state with skip/continue.
-- [ ] Add target highlighting for DOM controls, tower bench cards, draft cards, and field slots.
-- [ ] Add a blocked-action nudge so forbidden taps give feedback without advancing the step.
-- [ ] Add responsive CSS for the 360px mobile target and the 540px stage.
-- [ ] Respect `prefers-reduced-motion` for non-essential Шмыг animation.
-- [ ] Put all guide strings in `ru.onboarding`.
+- [x] Add `OnboardingGuide.vue` under `src/widgets/onboarding-guide/ui`.
+- [x] Mount the guide in `GamePage.vue` above `RunHud` only after a run has started.
+- [x] Add a compact Шмыг bubble layout that preserves the center playfield and lower-middle field.
+- [x] Add a short intro state with continue.
+- [x] Add target cursor indicators for DOM controls, tower bench cards, draft cards, and field slots.
+- [x] Add a blocked-action nudge so forbidden taps give feedback without advancing the step.
+- [x] Add responsive CSS for the 360px mobile target and the 540px stage.
+- [x] Respect `prefers-reduced-motion` for non-essential Шмыг animation.
+- [x] Put all guide strings in `ru.onboarding`.
 
 ### Acceptance Criteria
 
-- [ ] The guide visually matches the iron/brass UI skin and Шмыг voice.
-- [ ] Text fits on 360px-wide mobile without overlapping controls.
-- [ ] The guide never covers the current target in a way that prevents the required action.
-- [ ] A player can skip the full guide from the intro or a clearly available guide control.
+- [x] The guide visually matches the iron/brass UI skin and Шмыг voice.
+- [x] Text fits on 360px-wide mobile without overlapping controls.
+- [x] The guide never covers the current target in a way that prevents the required action.
+- [x] The first-run guide has no visible skip control, per product decision.
 
 ### Phase O4 notes
 
-_(record UI layout decisions and screenshots here)_
+- 2026-06-26: Added `OnboardingGuide.vue` as the visible DOM guide layer with Шмыг sprite, compact iron/brass speech bubble, intro continue, storage-backed auto-start, snapshot-driven step sync, DOM target cursor, one concrete field-slot cursor, and `onboarding:action-blocked` nudge feedback. Mounted it in `GamePage.vue` after `RunHud` only while a run is active, and added `data-onboarding-*` target attributes to primary HUD action, bench cards, tower draft cards, and upgrade draft cards. Added RU guide controls/nudge strings under `ru.onboarding.guide`. Field placement cursor intentionally chooses one visible central valid slot until O5 provides the exact opening placement helper. Browser QA screenshots: `output/playwright/onboarding-o4-360-intro.png`, `output/playwright/onboarding-o4-360-select-water.png`, `output/playwright/onboarding-o4-360-nudge.png`, `output/playwright/onboarding-o4-360-field-targets.png`, and `output/playwright/onboarding-o4-540-intro.png`. Checks: `npm run lint:fix`, `npm run typecheck`, `npm run test`, `npm run build`; Playwright smoke on `http://127.0.0.1:5197` covered clean first open, continue, no visible skip button, DOM cursor, blocked nudge, field cursor, and 540px intro.
+- 2026-06-26: Product correction after UI review: removed the visible skip button because the initial guide should not be skippable, and replaced outline/ring highlighting on cards and field slots with a single animated cursor-and-tap-ring target indicator that points at the exact current click target. Split guide styles to `OnboardingGuide.css` to keep the Vue component under lint limits.
+- 2026-06-26: Fixed stale guide progress on new runs: `restart` actions now reset unfinished or legacy-skipped guide progress back to the first step while preserving completed guide markers. This prevents an old localStorage `stepId` from freezing input in a fresh run.
+- 2026-06-26: UI correction after screenshot review: moved Шмыг to the right side of the guide text and increased the DOM sprite size from 76/88px to 96/112px so the avatar reads better at phone scale.
+- 2026-06-26: UI correction after follow-up review: expanded the guide bubble backing to include both the text and Шмыг, so the character now sits on the same iron/brass substrate instead of floating outside the panel.
+- 2026-06-26: UI correction after follow-up screenshot review: aligned the guide speaker label and message to the top of the shared bubble while keeping Шмыг anchored independently in the right column.
+- 2026-06-26: Fixed the field cursor after first tower placement: placement targets now exclude occupied slots, and the spark step prefers a free slot that produces `electroPuddle`, with a tie-break toward the opposite outer slot paired with the placed water tower.
+- 2026-06-26: Fixed a premature draft-step freeze: `observeElectroPuddle` now waits until electro-puddle damage has happened and the tower draft UI is actually available before advancing to `draftTowerPick`. Added a guard fallback so stale `draftTowerPick` / `draftUpgradePick` progress cannot block combat before the corresponding draft screen exists. Browser QA screenshot: `output/playwright/onboarding-o4-observe-during-wave-fixed.png`.
 
 ### Phase O4 completion summary
 
-_(fill on completion)_
+Phase O4 completed with the first visible Шмыг-led guide surface. The guide starts once through the existing onboarding storage, is mandatory for first-time players, advances manual continue steps, reflects reducer-driven step completion through snapshots, and provides target cursor feedback without moving guide state into `RunState`. The layout is compact and responsive on 360px and 540px captures; exact authored water/spark placement is deferred to O5, but O4 now avoids occupied slots and prefers a reaction-producing spark placement instead of a purely central field target.
 
 ---
 
@@ -242,16 +249,25 @@ The script should be short. Each step teaches one action or one discovery throug
 
 | Step id | Target | Completion signal | Notes |
 |---|---|---|---|
-| `intro` | Continue | Player continues or skips | Brief Шмыг intro; no mechanics dump. |
+| `panicIntro` | Continue | Player continues | Angry Шмыг panic beat: "НА НАААС НАПААААЛИИИИИ!!!" |
+| `shmygIntroduction` | Continue | Player continues | Шмыг introduces himself and the siege. |
+| `siegeProblem` | Continue | Player continues | Explains that existing mechanisms do not attack directly. |
+| `surfacePlan` | Continue | Player continues | Explains the surface/reaction defense plan. |
 | `selectFirstWater` | Select a `water` bench tower | `selectedTowerId` is a water tower | Highlight matching bench card. |
 | `placeFirstWater` | Place selected water tower on authored opening slot | Water tower placed on target slot | Target slot should be derived from an opening placement helper. |
 | `selectFirstSpark` | Select a `spark` bench tower | `selectedTowerId` is a spark tower | Keep copy focused on mixing, not DPS. |
 | `placeFirstSpark` | Place spark where it overlaps water coverage | First `electroPuddle` can form | Do not depend on brittle hardcoded geometry if a helper can derive it. |
+| `selectSecondWater` | Select the remaining `water` bench tower | `selectedTowerId` is a water tower | Teach extending a reaction before the first wave starts. |
+| `placeSecondWater` | Place water on a neighboring slot that extends the puddle | At least two `electroPuddle` cells exist | Target should be derived from reaction extension, not just proximity. |
 | `startFirstWave` | Press Start | Phase changes from `ready` to `wave` | Other actions blocked. |
 | `observeElectroPuddle` | No required action | First `electroPuddle` visible or first kill from it | Allow pause/mute if needed; advance automatically. |
-| `draftTowerPick` | Choose any tower draft card | Draft tower step completed | Teach that the workshop sends more contraptions. |
+| `draftTowerPick` | Choose `heat` / Магмовый кран from the tower draft before wave 3 | Heat draft tower chosen | Draft before wave 2 explicitly excludes `heat`; draft before flyers guarantees it. |
 | `draftUpgradePick` | Choose any upgrade draft card, preferably slot unlock if offered | Draft upgrade step completed | Mention upgrades/locked corners only if relevant to current offer. |
-| `mixedThreatPreview` | Continue or start next wave | Player acknowledges next threat preview | Explain that icons preview different problems. |
+| `selectHeatForSteam` | Select the new `heat` bench tower | `selectedTowerId` is a heat tower | This happens during frozen countdown before wave 3. |
+| `placeHeatForSteam` | Place heat on the current spark slot | Heat replaces spark and creates `steam` | Teaches water+heat as the flying answer. |
+| `flyerSteamPreview` | Continue | Player acknowledges flyer prep | Move enemy-icon guidance here: the flyer telegraph motivates steam. |
+| `waitFlyerWaveClear` | Hidden wait | Wave 3 ends and the next draft opens | Guide stays invisible while the player fights flyers. |
+| `finalAfterFlyers` | Continue | Player continues | Final excited handoff after the flyer wave; completion happens after this click. |
 | `complete` | None | Mark full guide complete | Persist completion immediately. |
 
 ### Tasks
@@ -266,12 +282,17 @@ The script should be short. Each step teaches one action or one discovery throug
 
 - [ ] Clean first run walks through tower selection, placement, reaction creation, wave start, first draft, first upgrade, and mixed threat preview.
 - [ ] Refreshing mid-guide resumes at the correct step.
-- [ ] Skipping the guide never leaves input frozen.
+- [ ] The mandatory guide has no visible skip path and never leaves input frozen.
 - [ ] Completing the guide prevents it from appearing on later new runs for the same version.
 
 ### Phase O5 notes
 
-_(record final step list and copy decisions here)_
+- 2026-06-26: Initial O5 draft pass targeted `heat` / Магмовый кран in the first tower draft, but that timing was later revised so the heat lesson happens before wave 3 instead.
+- 2026-06-26: Added the second-water opening beat before the first wave: after forming the first `electroPuddle`, the guide selects the remaining water tower and targets only a neighboring placement that increases `electroPuddle` coverage to at least two cells.
+- 2026-06-26: Added an angry first `panicIntro` continue step with the line "НА НАААС НАПААААЛИИИИИ!!!" before the calmer intro.
+- 2026-06-26: Replaced the old single `intro` step with three opening continue beats: `shmygIntroduction`, `siegeProblem`, and `surfacePlan`, so Шмыг introduces himself, explains the siege, and frames the surface-based defense plan before tower selection starts.
+- 2026-06-26: Revised the heat timing: the draft before wave 2 now guarantees no `heat`, so the player can choose any non-heat tower there. The guide waits silently through that draft and wave 2, then resumes on the draft before wave 3 where `heat` is guaranteed. Added `selectHeatForSteam`, `placeHeatForSteam`, and `flyerSteamPreview`; the final flyer line now carries the enemy-icon reminder and explains that heated steam is the answer to flying enemies. Countdown is held during blocking guide steps so the player can place the crane before wave 3 starts.
+- 2026-06-26: Added the post-flyer ending: after `flyerSteamPreview`, the guide moves to a hidden `waitFlyerWaveClear` step and stays invisible through wave 3. When the next draft opens after the flying enemies are beaten, `finalAfterFlyers` appears with `pose=excited`; pressing "Дальше" on that final line completes the full guide.
 
 ### Phase O5 completion summary
 
@@ -301,7 +322,7 @@ Purpose: add non-blocking tips that support the tutorial without replacing it.
 ### Acceptance Criteria
 
 - [ ] Hints are helpful but rare; they do not stack over combat or draft decisions.
-- [ ] A completed/skipped full guide does not disable contextual hints.
+- [ ] A completed full guide does not disable contextual hints.
 - [ ] Seen hints respect max count and cooldown after reload.
 - [ ] Unit tests cover hint predicates and dedupe behavior.
 
@@ -325,7 +346,7 @@ Purpose: prove the guide and hints work on the actual mobile-first demo surface.
 - [ ] Add or update component tests if the project already has the tooling; otherwise record why manual/Playwright coverage is used instead.
 - [ ] Run a clean-localStorage browser smoke: title -> new run -> full guide -> first draft -> completion marker.
 - [ ] Run a refresh-mid-guide smoke and verify resume.
-- [ ] Run a skip-guide smoke and verify input unfreezes.
+- [ ] Run a mandatory-guide smoke and verify no visible skip control.
 - [ ] Run a completed-guide smoke and verify a new run does not reopen the full guide.
 - [ ] Capture mobile screenshots at 360px and 540px widths.
 - [ ] Run final checks: `npm run lint:fix`, `npm run typecheck`, `npm run test`, `npm run build`.
@@ -351,7 +372,7 @@ _(fill on completion)_
 ## Open Questions
 
 - Exact Шмыг sprite frame size: decide during O1 after the seed reads at HUD scale.
-- Whether the guide intro skip is a small text button or icon button: decide during O4 UI pass.
+- Guide intro skip decision: no visible skip control; the first-run guide is mandatory as of 2026-06-26.
 - Whether `pause` is allowed during `observeElectroPuddle`: recommended yes, but confirm through implementation QA.
 - Whether mixed-threat explanation belongs at the end of the full guide or as the first contextual hint after guide completion: start in full guide, move to hints only if the flow feels too long.
 
@@ -368,7 +389,7 @@ Browser/manual checks:
 
 - Clean first-run guide.
 - Refresh mid-guide.
-- Skip guide.
+- Mandatory guide has no visible skip control.
 - Completed guide does not reopen.
-- Hints after completed/skipped guide.
+- Hints after completed guide.
 - Mobile 360px and 540px screenshot review.

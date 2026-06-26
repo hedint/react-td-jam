@@ -104,3 +104,14 @@ export function resetGuideForVersion(progress: OnboardingProgress, now = Date.no
     guide: createInitialGuideProgress(now),
   };
 }
+
+export function resetGuideForNewRun(progress: OnboardingProgress, now = Date.now()): OnboardingProgress {
+  if (progress.guide.status === "completed") {
+    return progress;
+  }
+
+  return {
+    ...progress,
+    guide: createInitialGuideProgress(now),
+  };
+}

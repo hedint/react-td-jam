@@ -6,6 +6,7 @@
         type="button"
         :aria-label="actionAriaLabel"
         :disabled="hudActionDisabled"
+        :data-onboarding-target="session.canStartWave ? 'startWave' : 'pauseToggle'"
         @click="activatePrimaryAction"
       >
         <span
@@ -95,6 +96,7 @@
               { 'run-hud__tower--selected': !session.draftStep && tower.selected },
             ]"
             :disabled="Boolean(session.draftStep)"
+            :data-onboarding-emitter="tower.emitterId"
             type="button"
             @click="selectTowerStack(tower)"
           >
@@ -154,6 +156,7 @@
             :key="offer.emitterId"
             class="run-hud__draft-card"
             :class="getEmitterClass(offer.emitterId)"
+            :data-onboarding-draft-tower="offer.emitterId"
             type="button"
             @click="chooseDraftTower(offer.emitterId)"
           >
@@ -175,6 +178,7 @@
             :key="offer.upgradeId"
             class="run-hud__draft-card run-hud__draft-card--upgrade"
             :class="getUpgradeClass(offer.upgradeId)"
+            :data-onboarding-draft-upgrade="offer.upgradeId"
             type="button"
             @click="chooseDraftUpgrade(offer.upgradeId)"
           >

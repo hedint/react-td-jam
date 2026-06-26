@@ -4,6 +4,7 @@ import type {
   DamageFamily,
   EnemyDefinition,
   EnemyId,
+  EnemySlowEffectState,
   EnemyState,
   GameConfig,
   RunState,
@@ -43,6 +44,7 @@ export function createEnemy(id: string, enemyId: EnemyId, overrides: Partial<Ene
     pathProgress,
     currentCellIndex: getCurrentPathCellIndex(pathProgress, config.balance.pathCellCount),
     leaked: false,
+    slowEffect: null,
     ...overrides,
   };
 }
@@ -124,14 +126,22 @@ export function stepActiveEnemies(
 
     const enemyDefinition = getEnemyDefinition(enemy.enemyId, options.config);
     const currentCellIndex = getEnemyEffectCellIndex(enemy.pathProgress, state.board.pathCells.length);
-    const speedMultiplier = getEnemySpeedMultiplier(
+    const cellSpeedMultiplier = getEnemyCellSpeedMultiplier(
       enemyDefinition,
       options.reagentProjection[currentCellIndex],
       state.upgrades,
       options.config,
       options.reactions[currentCellIndex],
     );
+    const speedMultiplier = getEnemySpeedMultiplier(enemyDefinition, cellSpeedMultiplier, enemy.slowEffect);
     const pathProgress = enemy.pathProgress + enemyDefinition.speedCellsPerSecond * speedMultiplier * options.scaledDeltaMs / 1000;
+    const slowEffect = updateEnemySlowEffect(
+      enemyDefinition,
+      cellSpeedMultiplier,
+      enemy.slowEffect,
+      options.scaledDeltaMs,
+      options.config,
+    );
 
     if (pathProgress >= leakPathProgress) {
       coreHp = state.debugCoreHpLocked
@@ -202,6 +212,7 @@ export function stepActiveEnemies(
         hp,
         pathProgress,
         currentCellIndex: cellIndex,
+        slowEffect,
       },
     ];
   });
@@ -251,7 +262,7 @@ function isEnemyAffectedByReaction(enemy: EnemyDefinition, layer: "ground" | "ai
   return !enemy.traits?.includes("flying") || layer === "air";
 }
 
-function getEnemySpeedMultiplier(
+function getEnemyCellSpeedMultiplier(
   enemy: EnemyDefinition,
   projection: Parameters<typeof getCellSpeedMultiplier>[0],
   upgrades: Parameters<typeof getCellSpeedMultiplier>[1],
@@ -261,6 +272,58 @@ function getEnemySpeedMultiplier(
   return enemy.traits?.includes("flying")
     ? 1
     : getCellSpeedMultiplier(projection, upgrades, config, reaction);
+}
+
+function getEnemySpeedMultiplier(
+  enemy: EnemyDefinition,
+  cellSpeedMultiplier: number,
+  slowEffect: EnemyState["slowEffect"],
+): number {
+  if (enemy.traits?.includes("flying")) {
+    return 1;
+  }
+
+  const lingeringSpeedMultiplier = getActiveSlowEffect(slowEffect)?.speedMultiplier ?? 1;
+
+  return Math.min(cellSpeedMultiplier, lingeringSpeedMultiplier);
+}
+
+function updateEnemySlowEffect(
+  enemy: EnemyDefinition,
+  cellSpeedMultiplier: number,
+  slowEffect: EnemyState["slowEffect"],
+  deltaMs: number,
+  config: GameConfig,
+): EnemySlowEffectState | null {
+  if (enemy.traits?.includes("flying")) {
+    return null;
+  }
+
+  const activeSlowEffect = getActiveSlowEffect(slowEffect);
+  const remainingSlowEffect = activeSlowEffect
+    ? {
+        ...activeSlowEffect,
+        remainingMs: Math.max(0, activeSlowEffect.remainingMs - deltaMs),
+      }
+    : null;
+  const cellHasSlow = cellSpeedMultiplier < 1;
+
+  if (!cellHasSlow) {
+    return remainingSlowEffect && remainingSlowEffect.remainingMs > 0 ? remainingSlowEffect : null;
+  }
+
+  if (!remainingSlowEffect || cellSpeedMultiplier <= remainingSlowEffect.speedMultiplier || remainingSlowEffect.remainingMs <= 0) {
+    return {
+      speedMultiplier: cellSpeedMultiplier,
+      remainingMs: config.balance.substanceSlowLingerMs,
+    };
+  }
+
+  return remainingSlowEffect;
+}
+
+function getActiveSlowEffect(slowEffect: EnemyState["slowEffect"]): EnemySlowEffectState | null {
+  return slowEffect && slowEffect.remainingMs > 0 && slowEffect.speedMultiplier < 1 ? slowEffect : null;
 }
 
 function getEnemyResistanceMultiplier(enemy: EnemyDefinition, damageFamily: DamageFamily): number {

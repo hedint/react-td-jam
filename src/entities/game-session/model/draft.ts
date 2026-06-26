@@ -8,6 +8,7 @@ import type {
   UpgradeId,
 } from "./types";
 import { gameConfig } from "./config";
+import { resolveReactions } from "./reactions";
 import { nextRandom } from "./rng";
 import { createTower } from "./towerFactory";
 
@@ -89,7 +90,7 @@ export function chooseDraftUpgrade(state: RunState, upgradeId: UpgradeId, config
   return advanceAfterDraft(applyUpgradeToState(state, definition), config);
 }
 
-export function applyUpgradeToState(state: RunState, definition: UpgradeDefinition): RunState {
+export function applyUpgradeToState(state: RunState, definition: UpgradeDefinition, config: GameConfig = gameConfig): RunState {
   const current = state.upgrades.find(upgrade => upgrade.upgradeId === definition.id);
   const nextStacks = Math.min((current?.stacks ?? 0) + 1, definition.maxStacks);
   const upgrades = current
@@ -103,6 +104,7 @@ export function applyUpgradeToState(state: RunState, definition: UpgradeDefiniti
     ...state,
     board,
     upgrades,
+    reactions: resolveReactions(board, state.placedTowers, upgrades, config),
   };
 }
 
@@ -123,11 +125,12 @@ function generateTowerOffers(
   config: GameConfig,
 ): { readonly offers: readonly DraftTowerOffer[], readonly rng: RngState } {
   let rng = initialRng;
-  const synergies = getSynergyEmitterIds(state);
-  const requiredOffers = getRequiredTowerOffers(state);
-  const allEmitters = config.emitters.map(emitter => emitter.id);
+  const excludedEmitterIds = getExcludedTowerOfferIds(state);
+  const synergies = getSynergyEmitterIds(state).filter(emitterId => !excludedEmitterIds.has(emitterId));
+  const requiredOffers = getRequiredTowerOffers(state).filter(emitterId => !excludedEmitterIds.has(emitterId));
+  const allEmitters = config.emitters.map(emitter => emitter.id).filter(emitterId => !excludedEmitterIds.has(emitterId));
   const offers: DraftTowerOffer[] = [];
-  const support = pickEmitter(rng, synergies.length > 0 ? synergies : allEmitters, offers, config);
+  const support = pickEmitter(rng, synergies.length > 0 ? synergies : allEmitters, offers, config, excludedEmitterIds);
 
   rng = support.rng;
   offers.push({ emitterId: support.emitterId, role: "support" });
@@ -138,7 +141,10 @@ function generateTowerOffers(
 
   while (offers.length < 3) {
     const role = offers.some(offer => offer.role === "generic") ? "pivot" : "generic";
-    const picked = pickEmitter(rng, role === "pivot" ? getPivotEmitterIds(state, config) : allEmitters, offers, config);
+    const candidates = role === "pivot"
+      ? getPivotEmitterIds(state, config).filter(emitterId => !excludedEmitterIds.has(emitterId))
+      : allEmitters;
+    const picked = pickEmitter(rng, candidates, offers, config, excludedEmitterIds);
 
     rng = picked.rng;
     offers.push({ emitterId: picked.emitterId, role });
@@ -150,6 +156,7 @@ function generateTowerOffers(
       synergies.length > 0 ? synergies : allEmitters,
       offers.filter(offer => offer.role !== "support"),
       config,
+      excludedEmitterIds,
     );
 
     rng = picked.rng;
@@ -293,20 +300,21 @@ function pickEmitter(
   candidates: readonly EmitterId[],
   existingOffers: readonly Pick<DraftTowerOffer, "emitterId">[],
   config: GameConfig,
+  excludedEmitterIds: ReadonlySet<EmitterId> = new Set(),
 ): { readonly emitterId: EmitterId, readonly rng: RngState } {
   const existing = new Set(existingOffers.map(offer => offer.emitterId));
-  const available = candidates.filter(emitterId => !existing.has(emitterId));
+  const available = candidates.filter(emitterId => !existing.has(emitterId) && !excludedEmitterIds.has(emitterId));
   const fallback = config.emitters
     .map(emitter => emitter.id)
-    .filter(emitterId => !existing.has(emitterId));
+    .filter(emitterId => !existing.has(emitterId) && !excludedEmitterIds.has(emitterId));
   const pool = available.length > 0
     ? available
-    : fallback.length > 0 ? fallback : config.emitters.map(emitter => emitter.id);
+    : fallback.length > 0 ? fallback : config.emitters.map(emitter => emitter.id).filter(emitterId => !excludedEmitterIds.has(emitterId));
   const [nextRng, roll] = nextRandom(rng);
 
   return {
     rng: nextRng,
-    emitterId: pool[Math.floor(roll * pool.length) % pool.length]!,
+    emitterId: pool[Math.floor(roll * pool.length) % pool.length] ?? config.emitters[0]!.id,
   };
 }
 
@@ -339,6 +347,14 @@ function getRequiredTowerOffers(state: RunState): readonly EmitterId[] {
   }
 
   return offers;
+}
+
+function getExcludedTowerOfferIds(state: RunState): ReadonlySet<EmitterId> {
+  const clearedWaveNumber = state.waveIndex + 1;
+
+  return clearedWaveNumber < 2 && !hasEmitterTower(state, "heat")
+    ? new Set<EmitterId>(["heat"])
+    : new Set<EmitterId>();
 }
 
 function getSynergyEmitterIds(state: RunState): readonly EmitterId[] {

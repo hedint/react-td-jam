@@ -10,11 +10,27 @@ interface BalancePolicy {
   readonly description: string
   readonly targetReactions: readonly ReactionId[]
   readonly placementPlan: Partial<Record<EmitterId, readonly string[]>>
+  readonly openingTowerPriority?: readonly EmitterId[]
+  readonly plannedSlotEvictions?: readonly PlannedSlotEviction[]
+  readonly placementBlockers?: readonly PlacementBlocker[]
+  readonly benchSlotSwapEmitterIds?: readonly EmitterId[]
   readonly relocationPlan?: Partial<Record<EmitterId, readonly string[]>>
   readonly towerBuildOrder: readonly EmitterId[]
   readonly towerFallbackPriority: readonly EmitterId[]
   readonly upgradeBuildOrder: readonly UpgradeId[]
   readonly upgradeFallbackPriority: readonly UpgradeId[]
+}
+
+interface PlannedSlotEviction {
+  readonly slotId: string
+  readonly emitterId?: EmitterId
+  readonly afterUpgradeId?: UpgradeId
+}
+
+interface PlacementBlocker {
+  readonly slotId: string
+  readonly emitterId?: EmitterId
+  readonly afterUpgradeId?: UpgradeId
 }
 
 interface BalanceRunSummary {
@@ -117,33 +133,44 @@ const policies: readonly BalancePolicy[] = [
   },
   {
     id: "stormcloud-rush",
-    description: "Branches from electro into steam + spark, then reinforces Storm Cloud coverage.",
+    description: "Human-derived Storm Cloud control line: electro opener, oil tempo, water capacity, then two separated Storm Cloud pools with spark catalysts.",
     targetReactions: ["stormCloud"],
-    placementPlan: withCommonPlacement({
-      water: ["slot-3-outer", "slot-4-outer", "slot-5-outer", "slot-6-outer", "slot-7-outer"],
-      spark: ["slot-11-inner", "slot-12-inner", "slot-16-inner"],
-      heat: ["slot-3-inner", "slot-7-inner", "slot-11-inner"],
-      oil: ["slot-8-outer", "slot-10-outer"],
-    }),
-    towerBuildOrder: ["water", "water", "spark", "heat", "spark", "water", "heat", "spark", "water", "oil"],
-    towerFallbackPriority: ["heat", "spark", "water", "oil"],
-    upgradeBuildOrder: ["waterCapacity", "heatReach", "sparkCapacity", "waterCapacity", "sparkCapacity", "heatReach"],
-    upgradeFallbackPriority: defaultUpgradeFallback,
+    placementPlan: {
+      water: ["slot-2-outer", "slot-3-outer", "slot-7-outer", "slot-5-inner"],
+      spark: ["slot-2-inner", "slot-3-inner", "slot-8-outer", "slot-11-inner"],
+      heat: ["slot-2-inner", "slot-7-inner", "slot-5-inner"],
+      oil: ["slot-1-outer"],
+    },
+    openingTowerPriority: ["oil", "heat", "water", "spark"],
+    benchSlotSwapEmitterIds: ["heat"],
+    towerBuildOrder: ["water", "water", "spark", "oil", "heat", "heat", "water", "spark", "oil", "spark", "heat"],
+    towerFallbackPriority: ["spark", "heat", "water", "oil"],
+    upgradeBuildOrder: ["waterCapacity", "unlockSlot5", "sparkCatalyst", "sparkCatalyst", "sparkCapacity", "heatReach"],
+    upgradeFallbackPriority: ["waterCapacity", "unlockSlot5", "sparkCatalyst", "sparkCapacity", "heatReach", "oilControl", "unlockSlot9"],
   },
   {
     id: "fire-vortex-rush",
-    description: "Keeps the electro opener, pivots into steam + fire, then stacks Fire Vortex support.",
+    description: "Human-like Fire Vortex control line: electro opener, oil tempo, heat reach, then steam + fire around cells 2-4 with fire catalysts.",
     targetReactions: ["fireVortex"],
-    placementPlan: withCommonPlacement({
-      water: ["slot-11-outer", "slot-10-outer", "slot-12-outer", "slot-13-outer"],
-      spark: ["slot-7-inner", "slot-11-inner"],
-      heat: ["slot-3-inner", "slot-11-inner", "slot-12-inner", "slot-16-inner"],
-      oil: ["slot-10-outer", "slot-12-outer", "slot-13-outer", "slot-8-outer"],
-    }),
-    towerBuildOrder: ["water", "water", "spark", "heat", "oil", "heat", "water", "oil", "heat", "spark"],
+    placementPlan: {
+      water: ["slot-2-outer", "slot-3-outer", "slot-7-outer"],
+      spark: ["slot-2-inner", "slot-8-outer"],
+      heat: ["slot-2-inner", "slot-3-outer", "slot-7-inner"],
+      oil: ["slot-1-outer", "slot-3-inner", "slot-8-inner"],
+    },
+    openingTowerPriority: ["oil", "heat", "water", "spark"],
+    plannedSlotEvictions: [
+      { slotId: "slot-1-outer", emitterId: "oil", afterUpgradeId: "heatReach" },
+    ],
+    placementBlockers: [
+      { slotId: "slot-1-outer", emitterId: "oil", afterUpgradeId: "heatReach" },
+      { slotId: "slot-2-inner", emitterId: "spark", afterUpgradeId: "heatReach" },
+    ],
+    benchSlotSwapEmitterIds: ["heat", "oil"],
+    towerBuildOrder: ["water", "water", "spark", "oil", "heat", "heat", "oil", "water", "heat", "oil"],
     towerFallbackPriority: ["heat", "oil", "water", "spark"],
-    upgradeBuildOrder: ["waterCapacity", "heatReach", "oilControl", "fireCatalyst", "heatReach", "waterCapacity", "oilControl"],
-    upgradeFallbackPriority: defaultUpgradeFallback,
+    upgradeBuildOrder: ["heatReach", "fireCatalyst", "fireCatalyst", "oilControl", "unlockSlot5", "waterCapacity"],
+    upgradeFallbackPriority: ["heatReach", "fireCatalyst", "oilControl", "unlockSlot5", "waterCapacity", "sparkCapacity", "unlockSlot9"],
   },
   {
     id: "fire-vortex-water-spread",
@@ -222,18 +249,20 @@ const policies: readonly BalancePolicy[] = [
   },
   {
     id: "mixed-dual-t2",
-    description: "Builds both Storm Cloud and Fire Vortex candidates before committing to the stronger output lane.",
+    description: "Adaptive T2 control line: accepts either Storm Cloud or Fire Vortex pieces, keeps the pools separated, and upgrades whichever catalyst appears.",
     targetReactions: ["stormCloud", "fireVortex"],
-    placementPlan: withCommonPlacement({
-      water: ["slot-3-outer", "slot-11-outer", "slot-5-inner", "slot-14-inner", "slot-6-outer"],
-      spark: ["slot-7-inner", "slot-9-inner", "slot-11-inner", "slot-12-inner"],
-      heat: ["slot-3-inner", "slot-11-inner", "slot-12-inner", "slot-14-outer", "slot-16-inner"],
-      oil: ["slot-10-outer", "slot-12-outer", "slot-13-outer", "slot-8-outer"],
-    }),
-    towerBuildOrder: ["water", "water", "spark", "heat", "spark", "oil", "heat", "water", "oil", "spark", "heat"],
+    placementPlan: {
+      water: ["slot-2-outer", "slot-3-outer", "slot-11-outer", "slot-7-outer"],
+      spark: ["slot-2-inner", "slot-3-inner", "slot-8-outer", "slot-13-inner"],
+      heat: ["slot-2-inner", "slot-11-inner", "slot-12-inner", "slot-7-inner"],
+      oil: ["slot-1-outer", "slot-12-outer", "slot-10-outer"],
+    },
+    openingTowerPriority: ["oil", "heat", "water", "spark"],
+    benchSlotSwapEmitterIds: ["heat", "oil"],
+    towerBuildOrder: ["water", "water", "spark", "oil", "heat", "water", "heat", "oil", "heat", "spark", "oil"],
     towerFallbackPriority: ["heat", "spark", "oil", "water"],
-    upgradeBuildOrder: ["waterCapacity", "heatReach", "sparkCapacity", "oilControl", "fireCatalyst", "unlockSlot5", "heatReach", "unlockSlot9"],
-    upgradeFallbackPriority: defaultUpgradeFallback,
+    upgradeBuildOrder: ["waterCapacity", "heatReach", "sparkCatalyst", "fireCatalyst", "sparkCapacity", "oilControl"],
+    upgradeFallbackPriority: ["waterCapacity", "heatReach", "sparkCatalyst", "fireCatalyst", "sparkCapacity", "oilControl", "unlockSlot5", "unlockSlot9"],
   },
   {
     id: "experienced-human-final",
@@ -267,24 +296,32 @@ const policies: readonly BalancePolicy[] = [
   },
   {
     id: "fire-storm-rush",
-    description: "Explicit rare-T3 line: opens a second corner slot, builds adjacent Storm Cloud and Fire Vortex pools, then converts them into Fire Storm.",
+    description: "Human-derived Fire Storm line: electro opener, early steam, unlock slot 5, then join Fire Vortex and Storm Cloud around cells 2-6.",
     targetReactions: ["fireStorm"],
-    placementPlan: withCommonPlacement({
-      water: ["slot-11-outer", "slot-10-outer", "slot-12-outer", "slot-13-outer"],
-      spark: ["slot-7-inner", "slot-11-inner"],
-      heat: ["slot-3-inner", "slot-11-inner", "slot-12-inner", "slot-16-inner"],
-      oil: ["slot-10-outer", "slot-12-outer", "slot-13-outer", "slot-8-outer"],
-    }),
-    relocationPlan: {
-      water: ["slot-1-outer", "slot-2-outer", "slot-4-outer", "slot-15-outer", "slot-11-inner"],
-      spark: ["slot-2-inner", "slot-16-outer"],
-      heat: ["slot-5-outer", "slot-3-inner", "slot-5-inner"],
-      oil: ["slot-8-outer", "slot-6-outer"],
+    placementPlan: {
+      water: ["slot-2-outer", "slot-3-outer", "slot-5-inner"],
+      spark: ["slot-2-inner", "slot-3-inner", "slot-6-outer"],
+      heat: ["slot-2-inner", "slot-3-outer", "slot-7-inner"],
+      oil: ["slot-1-outer", "slot-3-inner"],
     },
-    towerBuildOrder: ["water", "water", "spark", "heat", "oil", "heat", "water", "oil", "heat"],
+    openingTowerPriority: ["oil", "heat", "water", "spark"],
+    plannedSlotEvictions: [
+      { slotId: "slot-3-outer", emitterId: "water", afterUpgradeId: "heatReach" },
+    ],
+    placementBlockers: [
+      { slotId: "slot-3-outer", emitterId: "water", afterUpgradeId: "heatReach" },
+    ],
+    benchSlotSwapEmitterIds: ["heat", "oil"],
+    relocationPlan: {
+      water: ["slot-2-outer", "slot-5-inner"],
+      spark: ["slot-6-outer"],
+      heat: ["slot-2-inner", "slot-3-outer"],
+      oil: ["slot-3-inner"],
+    },
+    towerBuildOrder: ["water", "water", "spark", "oil", "heat", "water", "heat", "oil", "heat"],
     towerFallbackPriority: ["heat", "oil", "water", "spark"],
-    upgradeBuildOrder: ["waterCapacity", "heatReach", "unlockSlot5", "unlockSlot9"],
-    upgradeFallbackPriority: ["waterCapacity", "heatReach", "unlockSlot5", "unlockSlot9", "sparkCapacity", "oilControl", "fireCatalyst"],
+    upgradeBuildOrder: ["heatReach", "unlockSlot5", "sparkCapacity"],
+    upgradeFallbackPriority: ["heatReach", "unlockSlot5", "sparkCapacity", "waterCapacity", "oilControl", "fireCatalyst", "unlockSlot9"],
   },
 ];
 
@@ -445,14 +482,33 @@ function runPolicy(policy: BalancePolicy, seed: number): BalanceRunSummary {
 }
 
 function getPlacementActions(state: RunState, policy: BalancePolicy): readonly GameAction[] {
+  if (state.phase === "draft") {
+    return [];
+  }
+
+  const evictionActions = getPlannedEvictionActions(state, policy);
+
+  if (evictionActions.length > 0) {
+    return evictionActions;
+  }
+
   const occupiedSlotIds = new Set(state.placedTowers.map(tower => tower.slotId).filter(slotId => slotId !== null));
   const actions: GameAction[] = [];
 
   state.bench.forEach((tower) => {
     const targetSlotId = policy.placementPlan[tower.emitterId]?.find((slotId) => {
       const slot = state.board.slots.find(candidate => candidate.id === slotId);
+      const occupant = state.placedTowers.find(candidate => candidate.slotId === slotId);
 
-      return slot && !slot.locked && !occupiedSlotIds.has(slotId);
+      return slot
+        && !slot.locked
+        && !isPlacementBlocked(state, policy, tower.emitterId, slotId)
+        && (!occupiedSlotIds.has(slotId) || (
+          policy.benchSlotSwapEmitterIds?.includes(tower.emitterId) === true
+          && canEditPlacedTowers(state)
+          && occupant !== undefined
+          && occupant.emitterId !== tower.emitterId
+        ));
     });
 
     if (!targetSlotId) {
@@ -467,6 +523,31 @@ function getPlacementActions(state: RunState, policy: BalancePolicy): readonly G
   });
 
   return actions.length > 0 ? actions : getRelocationActions(state, policy);
+}
+
+function getPlannedEvictionActions(state: RunState, policy: BalancePolicy): readonly GameAction[] {
+  if (!canEditPlacedTowers(state)) {
+    return [];
+  }
+
+  const eviction = policy.plannedSlotEvictions?.find((candidate) => {
+    if (candidate.afterUpgradeId && !hasUpgrade(state, candidate.afterUpgradeId)) {
+      return false;
+    }
+
+    const occupant = state.placedTowers.find(tower => tower.slotId === candidate.slotId);
+
+    return occupant !== undefined && (!candidate.emitterId || occupant.emitterId === candidate.emitterId);
+  });
+
+  if (!eviction) {
+    return [];
+  }
+
+  return [
+    ...(state.selectedTowerId ? [{ type: "selectTower", towerId: null } satisfies GameAction] : []),
+    { type: "tapSlot", slotId: eviction.slotId },
+  ];
 }
 
 function getRelocationActions(state: RunState, policy: BalancePolicy): readonly GameAction[] {
@@ -517,6 +598,10 @@ function canUseRelocationPlan(
     && targetSlotIds.every(slotId => state.board.slots.some(slot => slot.id === slotId && !slot.locked));
 }
 
+function canEditPlacedTowers(state: RunState): boolean {
+  return state.paused || state.phase === "ready" || state.phase === "countdown";
+}
+
 function getDraftActions(state: RunState, policy: BalancePolicy): readonly GameAction[] {
   if (!state.draft) {
     return [];
@@ -547,7 +632,7 @@ function getTowerPriority(state: RunState, policy: BalancePolicy): readonly Emit
   const clearedWaveNumber = state.waveIndex + 1;
 
   if (clearedWaveNumber === 1) {
-    return openerTowerPriority;
+    return policy.openingTowerPriority ?? openerTowerPriority;
   }
 
   return unique([
@@ -575,6 +660,17 @@ function countEmitters(state: RunState): ReadonlyMap<EmitterId, number> {
 
 function countUpgrades(state: RunState): ReadonlyMap<UpgradeId, number> {
   return new Map(state.upgrades.map(upgrade => [upgrade.upgradeId, upgrade.stacks]));
+}
+
+function hasUpgrade(state: RunState, upgradeId: UpgradeId): boolean {
+  return (state.upgrades.find(upgrade => upgrade.upgradeId === upgradeId)?.stacks ?? 0) > 0;
+}
+
+function isPlacementBlocked(state: RunState, policy: BalancePolicy, emitterId: EmitterId, slotId: string): boolean {
+  return policy.placementBlockers?.some(blocker =>
+    blocker.slotId === slotId
+    && (!blocker.emitterId || blocker.emitterId === emitterId)
+    && (!blocker.afterUpgradeId || hasUpgrade(state, blocker.afterUpgradeId))) ?? false;
 }
 
 function getUnmetBuildOrderItems<TId extends string>(

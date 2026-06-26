@@ -5,6 +5,7 @@
         <template v-if="runStarted">
           <PhaserCanvas class="stage__canvas" />
           <RunHud class="stage__hud" />
+          <OnboardingGuide class="stage__guide" />
         </template>
         <section
           v-else
@@ -51,6 +52,7 @@ import { clearSavedRun, loadSavedRun } from "@entities/game-session/model/persis
 import { ru } from "@shared/i18n/ru";
 import { gameEvents } from "@shared/lib/event-bus/gameEvents";
 import DebugHud from "@widgets/debug-hud/ui/DebugHud.vue";
+import OnboardingGuide from "@widgets/onboarding-guide/ui/OnboardingGuide.vue";
 import RunHud from "@widgets/run-hud/ui/RunHud.vue";
 import { onBeforeUnmount, onMounted, ref } from "vue";
 
@@ -179,6 +181,11 @@ function createRunSeed(): number {
 }
 
 .stage__hud {
+  position: absolute;
+  inset: 0;
+}
+
+.stage__guide {
   position: absolute;
   inset: 0;
 }

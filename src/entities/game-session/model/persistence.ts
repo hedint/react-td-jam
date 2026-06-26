@@ -35,7 +35,7 @@ export function clearSavedRun(storage = getBrowserStorage()): void {
   storage?.removeItem(RUN_SAVE_KEY);
 }
 
-function getBrowserStorage(): RunStorage | null {
+export function getBrowserStorage(): RunStorage | null {
   if (typeof window === "undefined") {
     return null;
   }

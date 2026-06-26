@@ -6,16 +6,25 @@ export const ONBOARDING_GUIDE_VERSION = "guide-v1";
 export type GuideStatus = "notStarted" | "inProgress" | "completed" | "skipped";
 
 export type GuideStepId
-  = | "intro"
+  = | "panicIntro"
+    | "shmygIntroduction"
+    | "siegeProblem"
+    | "surfacePlan"
     | "selectFirstWater"
     | "placeFirstWater"
     | "selectFirstSpark"
     | "placeFirstSpark"
+    | "selectSecondWater"
+    | "placeSecondWater"
     | "startFirstWave"
     | "observeElectroPuddle"
     | "draftTowerPick"
     | "draftUpgradePick"
-    | "mixedThreatPreview"
+    | "selectHeatForSteam"
+    | "placeHeatForSteam"
+    | "flyerSteamPreview"
+    | "waitFlyerWaveClear"
+    | "finalAfterFlyers"
     | "complete";
 
 export type HintId
@@ -42,11 +51,14 @@ export type GuideCompletionPredicateId
     | "placedWaterTower"
     | "selectedSparkTower"
     | "placedSparkTower"
+    | "placedSecondWaterTower"
     | "firstWaveStarted"
     | "electroPuddleObserved"
-    | "draftTowerChosen"
+    | "heatDraftTowerChosen"
     | "draftUpgradeChosen"
-    | "mixedThreatAcknowledged"
+    | "selectedHeatTower"
+    | "placedHeatSteam"
+    | "flyerWaveCleared"
     | "always";
 
 export interface GuideStep {

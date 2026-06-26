@@ -18,6 +18,7 @@ export const gameConfig: GameConfig = {
     rerollsPerDraft: 1,
     postDraftCountdownMs: 3000,
     minSpeedMultiplier: 0.32,
+    substanceSlowLingerMs: 2000,
     upgradeDraftMilestoneWaves: [2, 4, 6, 8],
   },
   board,
@@ -29,7 +30,7 @@ export const gameConfig: GameConfig = {
   ],
   reactions: [
     { id: "electroPuddle", displayName: "Электролужа", tier: 1, layer: "ground", damageFamily: "electric", dps: 15, inputs: ["water", "spark"] },
-    { id: "steam", displayName: "Пар", tier: 1, layer: "air", damageFamily: "steam", dps: 7, inputs: ["water", "heat"] },
+    { id: "steam", displayName: "Пар", tier: 1, layer: "air", damageFamily: "steam", dps: 8.5, inputs: ["water", "heat"] },
     { id: "fire", displayName: "Пожар", tier: 1, layer: "ground", damageFamily: "fire", dps: 20, inputs: ["oil", "heat"] },
     { id: "stormCloud", displayName: "Грозовое облако", tier: 2, layer: "air", damageFamily: "electric", dps: 32, inputs: ["steam", "spark"] },
     { id: "fireVortex", displayName: "Огненный вихрь", tier: 2, layer: "air", damageFamily: "fire", dps: 38, inputs: ["fire", "steam"] },
@@ -39,7 +40,7 @@ export const gameConfig: GameConfig = {
     { id: "grunt", displayName: "Заморыш", hp: 30, speedCellsPerSecond: 0.75, leakDamage: 1 },
     { id: "swarm", displayName: "Кусака", hp: 14, speedCellsPerSecond: 0.915, leakDamage: 1 },
     { id: "tank", displayName: "Тролль", hp: 105, speedCellsPerSecond: 0.435, leakDamage: 1 },
-    { id: "flyer", displayName: "Нетопырь", hp: 24, speedCellsPerSecond: 0.84, leakDamage: 1, traits: ["flying"] },
+    { id: "flyer", displayName: "Нетопырь", hp: 20, speedCellsPerSecond: 0.84, leakDamage: 1, traits: ["flying"] },
     { id: "runner", displayName: "Варг", hp: 26, speedCellsPerSecond: 1.29, leakDamage: 1 },
     { id: "insulated", displayName: "Грязевик", hp: 62, speedCellsPerSecond: 0.66, leakDamage: 1, resistances: { electric: 0.35 } },
     { id: "flameproof", displayName: "Магмень", hp: 68, speedCellsPerSecond: 0.63, leakDamage: 1, resistances: { fire: 0.35 } },
@@ -181,6 +182,7 @@ export function validateGameConfig(config: GameConfig): readonly string[] {
     || config.balance.postDraftCountdownMs < 0
     || config.balance.minSpeedMultiplier <= 0
     || config.balance.minSpeedMultiplier > 1
+    || config.balance.substanceSlowLingerMs < 0
   ) {
     errors.push("balance has invalid runtime values");
   }

@@ -9,6 +9,11 @@ import { runHeadlessRun, runHeadlessStrategy } from "@entities/game-session/mode
 import { clearSavedRun, hasSavedRun, loadSavedRun, saveRun } from "@entities/game-session/model/persistence";
 import { collectConnectedPools, getCellSpeedMultiplier, projectReagents, resolveReactions } from "@entities/game-session/model/reactions";
 import {
+  loadRunReplayLog,
+  recordRunReplayAction,
+  RUN_REPLAY_LOG_KEY,
+} from "@entities/game-session/model/runReplayLog";
+import {
   applyAction,
   createEnemy,
   createGrunt,
@@ -190,7 +195,7 @@ describe("run simulation", () => {
       cellIndex: 1,
       substances: ["water"],
       energy: ["heat"],
-      directEnergy: ["heat"],
+      directEnergy: [],
       energyClaims: [
         {
           emitterId: "heat",
@@ -272,7 +277,7 @@ describe("run simulation", () => {
     expect(projection[4]).toMatchObject({
       cellIndex: 4,
       substances: ["water"],
-      directEnergy: ["spark"],
+      directEnergy: [],
       energy: ["spark"],
     });
     expect(projection[6]).toMatchObject({
@@ -752,7 +757,7 @@ describe("run simulation", () => {
     const fireCatalyst = [{ upgradeId: "fireCatalyst", stacks: 1 }] as const;
     const sparkCatalyst = [{ upgradeId: "sparkCatalyst", stacks: 1 }] as const;
 
-    expect(getReactionDamage("steam", fireCatalyst)).toBeCloseTo(8.75);
+    expect(getReactionDamage("steam", fireCatalyst)).toBeCloseTo(10.625);
     expect(getReactionDamage("fire", fireCatalyst)).toBeCloseTo(25);
     expect(getReactionDamage("stormCloud", fireCatalyst)).toBeCloseTo(40);
     expect(getReactionDamage("fireVortex", fireCatalyst)).toBeCloseTo(47.5);
@@ -760,7 +765,7 @@ describe("run simulation", () => {
 
     expect(getReactionDamage("electroPuddle", sparkCatalyst)).toBeCloseTo(18.75);
     expect(getReactionDamage("stormCloud", sparkCatalyst)).toBeCloseTo(40);
-    expect(getReactionDamage("steam", sparkCatalyst)).toBeCloseTo(7);
+    expect(getReactionDamage("steam", sparkCatalyst)).toBeCloseTo(8.5);
     expect(getReactionDamage("fireVortex", sparkCatalyst)).toBeCloseTo(38);
   });
 
@@ -854,6 +859,30 @@ describe("run simulation", () => {
     expect(next.stats.damageByReaction.electroPuddle).toBeUndefined();
   });
 
+  it("keeps substance slow for two seconds after the enemy leaves the cell", () => {
+    const state = createRun(1, {
+      placedTowers: [
+        createTower("tower-oil-a", "oil", "slot-1-outer"),
+      ],
+      enemies: [
+        createGrunt({ pathProgress: 1.4 }),
+      ],
+    });
+    const afterLeavingCell = stepRun(state, 1000);
+    const afterOneLingeringSecond = stepRun(afterLeavingCell, 1000);
+    const afterTwoLingeringSeconds = stepRun(afterOneLingeringSecond, 1000);
+    const afterExpiredSlow = stepRun(afterTwoLingeringSeconds, 1000);
+
+    expect(afterLeavingCell.enemies[0]?.currentCellIndex).toBe(2);
+    expect(afterLeavingCell.enemies[0]?.pathProgress).toBeCloseTo(1.925);
+    expect(afterLeavingCell.enemies[0]?.slowEffect).toEqual({ speedMultiplier: 0.7, remainingMs: 2000 });
+    expect(afterOneLingeringSecond.enemies[0]?.pathProgress).toBeCloseTo(2.45);
+    expect(afterOneLingeringSecond.enemies[0]?.slowEffect).toEqual({ speedMultiplier: 0.7, remainingMs: 1000 });
+    expect(afterTwoLingeringSeconds.enemies[0]?.pathProgress).toBeCloseTo(2.975);
+    expect(afterTwoLingeringSeconds.enemies[0]?.slowEffect).toBeNull();
+    expect(afterExpiredSlow.enemies[0]?.pathProgress).toBeCloseTo(3.725);
+  });
+
   it("applies raw energy damage over the upgraded emitter capacity footprint", () => {
     const state = {
       ...createRun(1, {
@@ -870,6 +899,49 @@ describe("run simulation", () => {
     };
     const next = stepRun(state, 100);
 
+    expect(next.enemies[0]?.hp).toBe(99.5);
+    expect(next.stats.damageBySource.rawSpark).toBe(0.5);
+  });
+
+  it("does not continue raw energy from an upgraded source after that source feeds a reaction", () => {
+    const state = {
+      ...createRun(1, {
+        placedTowers: [
+          createTower("tower-water-a", "water", "slot-1-outer"),
+          createTower("tower-spark-a", "spark", "slot-1-outer"),
+        ],
+        enemies: [
+          createGrunt({ hp: 100, maxHp: 100, pathProgress: 2 }),
+        ],
+      }),
+      upgrades: [
+        { upgradeId: "sparkCapacity" as const, stacks: 1 },
+      ],
+    };
+    const projection = projectReagents(state.board, state.placedTowers, state.upgrades);
+    const next = stepRun(state, 100);
+
+    expect(state.reactions[1]?.ground).toBe("electroPuddle");
+    expect(projection.filter(cell => cell.directEnergy.includes("spark")).map(cell => cell.cellIndex)).toEqual([]);
+    expect(next.enemies[0]?.hp).toBe(100);
+    expect(next.stats.damageBySource.rawSpark).toBeUndefined();
+  });
+
+  it("keeps raw energy from an unconsumed second anchor of a multi-cell slot", () => {
+    const state = createRun(1, {
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-4-outer"),
+        createTower("tower-spark-a", "spark", "slot-5-inner"),
+      ],
+      enemies: [
+        createGrunt({ hp: 100, maxHp: 100, pathProgress: 6 }),
+      ],
+    });
+    const projection = projectReagents(state.board, state.placedTowers);
+    const next = stepRun(state, 100);
+
+    expect(state.reactions[4]?.ground).toBe("electroPuddle");
+    expect(projection.filter(cell => cell.directEnergy.includes("spark")).map(cell => cell.cellIndex)).toEqual([6]);
     expect(next.enemies[0]?.hp).toBe(99.5);
     expect(next.stats.damageBySource.rawSpark).toBe(0.5);
   });
@@ -944,8 +1016,8 @@ describe("run simulation", () => {
     const next = stepRun(state, 100);
 
     expect(state.reactions[1]).toEqual({ cellIndex: 1, ground: null, air: "steam" });
-    expect(next.enemies[0]?.hp).toBeCloseTo(99.3);
-    expect(next.stats.damageBySource.steam).toBeCloseTo(0.7);
+    expect(next.enemies[0]?.hp).toBeCloseTo(99.15);
+    expect(next.stats.damageBySource.steam).toBeCloseTo(0.85);
     expect(next.stats.damageBySource.rawHeat).toBeUndefined();
   });
 
@@ -1006,8 +1078,26 @@ describe("run simulation", () => {
       ],
     });
 
-    expect(stepRun(groundReaction, 100).enemies[0]?.hp).toBe(24);
-    expect(stepRun(airReaction, 100).enemies[0]?.hp).toBeLessThan(24);
+    expect(stepRun(groundReaction, 100).enemies[0]?.hp).toBe(20);
+    expect(stepRun(airReaction, 100).enemies[0]?.hp).toBeLessThan(20);
+  });
+
+  it("kills a flying enemy before it leaves a two-cell base steam plume", () => {
+    const state = createRun(1, {
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-1-outer"),
+        createTower("tower-heat-a", "heat", "slot-1-outer"),
+      ],
+      enemies: [
+        createEnemy("enemy-flyer-a", "flyer", { pathProgress: 0.64 }),
+      ],
+    });
+    const next = stepMany(state, 90);
+
+    expect(state.reactions.filter(reaction => reaction.air === "steam").map(reaction => reaction.cellIndex)).toEqual([1, 2]);
+    expect(next.enemies).toEqual([]);
+    expect(next.stats.kills).toBe(1);
+    expect(next.stats.leaks).toBe(0);
   });
 
   it("does not slow flying enemies with ground substances or reactions", () => {
@@ -1046,7 +1136,7 @@ describe("run simulation", () => {
     });
     const next = stepRun(state, 1000);
 
-    expect(next.enemies[0]?.hp).toBe(24);
+    expect(next.enemies[0]?.hp).toBe(20);
     expect(next.stats.totalDamage).toBe(0);
   });
 
@@ -1184,6 +1274,20 @@ describe("run simulation", () => {
     expect(getTowerOfferIds(draft).some(emitterId => emitterId === "spark" || emitterId === "heat")).toBe(true);
   });
 
+  it("keeps Магмовый кран out of the tower draft before wave 2", () => {
+    const draft = advanceToNextDraft(startFirstWave(createPlacedStartingRun(17)));
+    const rerolled = applyAction(draft, { type: "rerollDraft" });
+
+    expect(draft).toMatchObject({
+      phase: "draft",
+      waveIndex: 0,
+    });
+    expect(getTowerOfferIds(draft)).not.toContain("heat");
+    expect(getTowerOfferIds(rerolled)).not.toContain("heat");
+    expect(getTowerOfferIds(draft)).toHaveLength(3);
+    expect(new Set(getTowerOfferIds(draft)).size).toBe(3);
+  });
+
   it("offers three distinct tower types in a draft and reroll", () => {
     const drafts = Array.from({ length: 40 }, (_, index) => {
       const draft = advanceToNextDraft(startFirstWave(createPlacedStartingRun(index + 1)));
@@ -1287,6 +1391,23 @@ describe("run simulation", () => {
     expect(capped.upgrades).toEqual([{ upgradeId: "waterCapacity", stacks: 1 }]);
     expect(resolveReactions(gameConfig.board, towers)[1]?.ground).toBeNull();
     expect(resolveReactions(gameConfig.board, towers, [{ upgradeId: "waterCapacity", stacks: 1 }])[1]?.ground).toBe("electroPuddle");
+  });
+
+  it("recomputes existing heat tower footprint immediately after Жаровая тяга", () => {
+    const heatReach = gameConfig.upgrades.find(upgrade => upgrade.id === "heatReach")!;
+    const state = createRun(1, {
+      placedTowers: [
+        createTower("tower-heat-a", "heat", "slot-3-inner"),
+      ],
+    });
+    const upgraded = applyUpgradeToState(state, heatReach);
+    const heatCells = projectReagents(upgraded.board, upgraded.placedTowers, upgraded.upgrades)
+      .filter(projection => projection.directEnergy.includes("heat"))
+      .map(projection => projection.cellIndex);
+
+    expect(projectReagents(state.board, state.placedTowers, state.upgrades).filter(projection => projection.directEnergy.includes("heat")).map(projection => projection.cellIndex)).toEqual([3]);
+    expect(heatCells).toEqual([3, 4]);
+    expect(upgraded.reactions).toEqual(resolveReactions(upgraded.board, upgraded.placedTowers, upgraded.upgrades));
   });
 
   it("unlocks a corner slot through an upgrade and preserves it in saves", () => {
@@ -1410,7 +1531,7 @@ describe("run simulation", () => {
       seed: 8,
       placementPlan: {
         water: ["slot-1-outer", "slot-2-outer", "slot-3-outer", "slot-5-outer", "slot-7-outer"],
-        spark: ["slot-5-inner", "slot-7-inner", "slot-9-inner", "slot-14-inner"],
+        spark: ["slot-4-outer", "slot-7-inner", "slot-9-inner", "slot-14-inner"],
         heat: ["slot-2-inner", "slot-3-inner", "slot-5-inner", "slot-7-inner"],
         oil: ["slot-2-outer", "slot-4-outer", "slot-6-outer"],
       },
@@ -1428,7 +1549,7 @@ describe("run simulation", () => {
     expect(result.summary.wavesCleared).toBeLessThanOrEqual(10);
     expect(result.summary.coreHp).toBe(0);
     expect(result.summary.leaks).toBeGreaterThan(0);
-    expect(result.summary.damageByReaction.steam).toBeGreaterThan(0);
+    expect(result.summary.damageBySource.rawSpark).toBeGreaterThan(0);
   });
 
   it("drives a weak scripted strategy to meaningful leaks or defeat", () => {
@@ -1572,7 +1693,7 @@ describe("run simulation", () => {
     expect(unsuppressed.boss?.hp).toBeLessThan(100);
     expect(suppressed.boss?.hp).toBeGreaterThan(unsuppressed.boss?.hp ?? 100);
     expect(suppressed.stats.damageByReaction.electroPuddle ?? 0).toBe(0);
-    expect(suppressed.stats.damageBySource.rawSpark).toBeGreaterThan(0);
+    expect(suppressed.stats.damageBySource.rawSpark).toBeUndefined();
     expect(outsideSuppression.boss?.hp).toBeLessThan(100);
   });
 
@@ -1991,6 +2112,108 @@ describe("run persistence", () => {
     clearSavedRun(storage);
     expect(hasSavedRun(storage)).toBe(false);
     expect(loadSavedRun(storage)).toBeNull();
+  });
+
+  it("records repeatable run decisions separately from the run save", () => {
+    const storage = createMemoryStorage();
+    let state = createRun(33);
+    let next = applyAction(state, { type: "restart", seed: 33 });
+
+    recordRunReplayAction(state, { type: "restart", seed: 33 }, next, storage);
+    state = next;
+    next = applyAction(state, { type: "selectTower", towerId: "tower-water-a" });
+    recordRunReplayAction(state, { type: "selectTower", towerId: "tower-water-a" }, next, storage);
+    state = next;
+    next = applyAction(state, { type: "placeSelectedTower", slotId: "slot-1-outer" });
+    recordRunReplayAction(state, { type: "placeSelectedTower", slotId: "slot-1-outer" }, next, storage);
+    state = next;
+    next = applyAction(state, { type: "startWave" });
+    recordRunReplayAction(state, { type: "startWave" }, next, storage);
+
+    expect(storage.getItem(RUN_REPLAY_LOG_KEY)).not.toBeNull();
+    expect(storage.getItem("jam-td.run.v1")).toBeNull();
+    expect(loadRunReplayLog(storage)).toMatchObject({
+      seed: 33,
+      actions: [
+        {
+          waveIndex: 0,
+          action: { type: "selectTower", towerId: "tower-water-a" },
+          results: [
+            {
+              type: "towerSelected",
+              towerId: "tower-water-a",
+              emitterId: "water",
+              source: "bench",
+            },
+          ],
+        },
+        {
+          waveIndex: 0,
+          action: { type: "placeSelectedTower", slotId: "slot-1-outer" },
+          results: [
+            {
+              type: "towerPlaced",
+              towerId: "tower-water-a",
+              emitterId: "water",
+              fromSlotId: null,
+              toSlotId: "slot-1-outer",
+            },
+          ],
+        },
+        {
+          waveIndex: 0,
+          action: { type: "startWave" },
+          results: [
+            {
+              type: "waveStarted",
+              waveId: "wave-1",
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("records draft picks with concrete tower and upgrade results", () => {
+    const storage = createMemoryStorage();
+    const draft = {
+      ...createRun(41),
+      phase: "draft" as const,
+      draft: {
+        step: "tower" as const,
+        rerollsRemaining: 1,
+        towerOffers: [{ emitterId: "heat" as const, role: "support" as const }],
+        upgradeOffers: ["heatReach" as const],
+      },
+    };
+    const withTower = applyAction(draft, { type: "chooseDraftTower", emitterId: "heat" });
+    const withUpgrade = applyAction(withTower, { type: "chooseDraftUpgrade", upgradeId: "heatReach" });
+
+    recordRunReplayAction(draft, { type: "chooseDraftTower", emitterId: "heat" }, withTower, storage);
+    recordRunReplayAction(withTower, { type: "chooseDraftUpgrade", upgradeId: "heatReach" }, withUpgrade, storage);
+
+    expect(loadRunReplayLog(storage)?.actions).toMatchObject([
+      {
+        action: { type: "chooseDraftTower", emitterId: "heat" },
+        results: [
+          {
+            type: "draftTowerPicked",
+            emitterId: "heat",
+            towerId: "tower-heat-0-0",
+          },
+        ],
+      },
+      {
+        action: { type: "chooseDraftUpgrade", upgradeId: "heatReach" },
+        results: [
+          {
+            type: "draftUpgradePicked",
+            upgradeId: "heatReach",
+            stacks: 1,
+          },
+        ],
+      },
+    ]);
   });
 });
 

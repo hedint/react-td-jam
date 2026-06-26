@@ -74,6 +74,12 @@ export interface EnemyState {
   readonly pathProgress: number
   readonly currentCellIndex: number
   readonly leaked: boolean
+  readonly slowEffect?: EnemySlowEffectState | null
+}
+
+export interface EnemySlowEffectState {
+  readonly speedMultiplier: number
+  readonly remainingMs: number
 }
 
 export interface CellReactionState {
@@ -252,6 +258,7 @@ export interface BalanceConfig {
   readonly rerollsPerDraft: number
   readonly postDraftCountdownMs: number
   readonly minSpeedMultiplier: number
+  readonly substanceSlowLingerMs: number
   readonly upgradeDraftMilestoneWaves: readonly number[]
 }
 

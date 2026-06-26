@@ -134,5 +134,5 @@ function findSelectedTower(state: RunState): TowerState | undefined {
 }
 
 function canEditPlacedTowers(state: RunState): boolean {
-  return state.paused || state.phase === "ready";
+  return state.paused || state.phase === "ready" || state.phase === "countdown";
 }
