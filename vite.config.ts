@@ -2,7 +2,10 @@ import { fileURLToPath, URL } from "node:url";
 import vue from "@vitejs/plugin-vue";
 import { defineConfig } from "vite";
 
+const repositoryName = process.env.GITHUB_REPOSITORY?.split("/")[1] ?? "react-td-jam";
+
 export default defineConfig({
+  base: process.env.GITHUB_PAGES === "true" ? `/${repositoryName}/` : "/",
   plugins: [vue()],
   resolve: {
     alias: {

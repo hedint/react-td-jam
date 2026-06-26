@@ -272,18 +272,18 @@ The script should be short. Each step teaches one action or one discovery throug
 
 ### Tasks
 
-- [ ] Implement an opening placement helper that chooses a valid water/spark placement pair for the current board/config.
-- [ ] Add fallback logic if the player somehow creates the required reaction before the current step.
-- [ ] Implement the proposed step table or record deviations in Phase notes.
-- [ ] Tune copy so each line is short, in Шмыг voice, and action-specific.
-- [ ] Ensure guide completion is written immediately after `complete`.
+- [x] Implement an opening placement helper that chooses a valid water/spark placement pair for the current board/config.
+- [x] Add fallback logic if the player somehow creates the required reaction before the current step.
+- [x] Implement the proposed step table or record deviations in Phase notes.
+- [x] Tune copy so each line is short, in Шмыг voice, and action-specific.
+- [x] Ensure guide completion is written immediately after `complete`.
 
 ### Acceptance Criteria
 
-- [ ] Clean first run walks through tower selection, placement, reaction creation, wave start, first draft, first upgrade, and mixed threat preview.
-- [ ] Refreshing mid-guide resumes at the correct step.
-- [ ] The mandatory guide has no visible skip path and never leaves input frozen.
-- [ ] Completing the guide prevents it from appearing on later new runs for the same version.
+- [x] Clean first run walks through tower selection, placement, reaction creation, wave start, first draft, first upgrade, and mixed threat preview.
+- [x] Refreshing mid-guide resumes at the correct step.
+- [x] The mandatory guide has no visible skip path and never leaves input frozen.
+- [x] Completing the guide prevents it from appearing on later new runs for the same version.
 
 ### Phase O5 notes
 
@@ -293,10 +293,11 @@ The script should be short. Each step teaches one action or one discovery throug
 - 2026-06-26: Replaced the old single `intro` step with three opening continue beats: `shmygIntroduction`, `siegeProblem`, and `surfacePlan`, so Шмыг introduces himself, explains the siege, and frames the surface-based defense plan before tower selection starts.
 - 2026-06-26: Revised the heat timing: the draft before wave 2 now guarantees no `heat`, so the player can choose any non-heat tower there. The guide waits silently through that draft and wave 2, then resumes on the draft before wave 3 where `heat` is guaranteed. Added `selectHeatForSteam`, `placeHeatForSteam`, and `flyerSteamPreview`; the final flyer line now carries the enemy-icon reminder and explains that heated steam is the answer to flying enemies. Countdown is held during blocking guide steps so the player can place the crane before wave 3 starts.
 - 2026-06-26: Added the post-flyer ending: after `flyerSteamPreview`, the guide moves to a hidden `waitFlyerWaveClear` step and stays invisible through wave 3. When the next draft opens after the flying enemies are beaten, `finalAfterFlyers` appears with `pose=excited`; pressing "Дальше" on that final line completes the full guide.
+- 2026-06-26: Finalized O5 technical debt without changing the guide's story beats. Added a pure opening placement helper under `src/entities/onboarding/model/openingPlacement.ts` that derives the water/spark/second-water line, reuses the same target for the guide cursor and guided-action guard, and handles the heat-on-spark steam replacement. Removed duplicated reaction-slot heuristics from `OnboardingGuide.vue`. Added tests for the derived opening line and exact guarded slot acceptance, and lightly cleaned RU copy punctuation/spacing without changing the scenario. Browser smoke on `http://127.0.0.1:5206` completed a clean first guide through post-flyer completion and captured `output/playwright/onboarding-o5-completed-390.png`; a separate smoke verified refresh resume at `selectFirstSpark`, no visible skip control, and completed-guide no-reopen. Checks: `npm run lint:fix`, `npm run typecheck`, `npm run test`, `npm run build`.
 
 ### Phase O5 completion summary
 
-_(fill on completion)_
+Phase O5 completed with the guide script locked to the intended opening: panic intro, Шмыг setup, water/spark/second-water electro-puddle setup, first wave, silent non-heat draft before wave 2, guaranteed heat draft before wave 3, heat-for-steam placement, flyer preview, hidden flyer-wave wait, and final handoff. The main implementation correction was moving slot selection into a pure shared helper so the visual cursor and input guard agree on the exact allowed placement. The guide still has no visible skip path, resumes mid-guide after reload, completes only after the post-flyer final line, and stays completed for later new runs of `guide-v1`. O6 contextual hints remain deferred.
 
 ---
 
