@@ -237,10 +237,6 @@
             <dt>{{ locale.hud.result.time }}</dt>
             <dd>{{ session.runtimeLabel }}</dd>
           </div>
-          <div>
-            <dt>{{ locale.hud.result.topReaction }}</dt>
-            <dd>{{ session.topReactionLabel }}</dd>
-          </div>
         </dl>
         <div class="run-hud__reaction-list">
           <div
@@ -256,13 +252,6 @@
         <div class="run-hud__modal-actions">
           <button
             class="run-hud__button run-hud__button--primary"
-            type="button"
-            @click="restartRun"
-          >
-            {{ locale.hud.restart }}
-          </button>
-          <button
-            class="run-hud__button"
             type="button"
             @click="newRun"
           >
@@ -280,6 +269,7 @@ import { gameConfig } from "@entities/game-session/model/config";
 import { clearSavedRun } from "@entities/game-session/model/persistence";
 import { useGameSessionStore } from "@entities/game-session/model/store";
 import { useGameSessionBridge } from "@entities/game-session/model/useGameSessionBridge";
+import { AUDIO_MUTE_STORAGE_KEY } from "@shared/audio/backgroundMusic";
 import { ru } from "@shared/i18n/ru";
 import { gameEvents } from "@shared/lib/event-bus/gameEvents";
 import { computed, onMounted, ref } from "vue";
@@ -291,7 +281,6 @@ const locale = ru;
 const session = useGameSessionStore();
 const muted = ref(false);
 const coreMaxHp = gameConfig.balance.coreHp;
-const muteStorageKey = "jam-td:muted";
 const reserveTowerStacks = computed(() => {
   const stacks = new Map<EmitterId, { emitterId: EmitterId, label: string, ids: string[] }>();
 
@@ -430,7 +419,7 @@ function getDamageSourceClass(sourceId: string): string {
 }
 
 onMounted(() => {
-  muted.value = window.localStorage.getItem(muteStorageKey) === "1";
+  muted.value = window.localStorage.getItem(AUDIO_MUTE_STORAGE_KEY) === "1";
   gameEvents.emit("audio:mute-changed", { muted: muted.value });
 });
 
@@ -453,7 +442,7 @@ function activatePrimaryAction(): void {
 
 function toggleMute(): void {
   muted.value = !muted.value;
-  window.localStorage.setItem(muteStorageKey, muted.value ? "1" : "0");
+  window.localStorage.setItem(AUDIO_MUTE_STORAGE_KEY, muted.value ? "1" : "0");
   gameEvents.emit("audio:mute-changed", { muted: muted.value });
 }
 
@@ -475,11 +464,6 @@ function chooseDraftTower(emitterId: EmitterId): void {
 
 function chooseDraftUpgrade(upgradeId: UpgradeId): void {
   gameEvents.emit("run:action", { type: "chooseDraftUpgrade", upgradeId });
-}
-
-function restartRun(): void {
-  clearSavedRun();
-  gameEvents.emit("run:action", { type: "restart", seed: session.seed });
 }
 
 function newRun(): void {

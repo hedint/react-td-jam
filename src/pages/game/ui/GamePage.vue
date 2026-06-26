@@ -49,6 +49,7 @@ import type { RunState, RuntimeSnapshot } from "@entities/game-session/model/typ
 import type { Unsubscribe } from "@shared/lib/event-bus/createTypedEventBus";
 import PhaserCanvas from "@app/phaser/ui/PhaserCanvas.vue";
 import { clearSavedRun, loadSavedRun } from "@entities/game-session/model/persistence";
+import { initBackgroundMusic } from "@shared/audio/backgroundMusic";
 import { ru } from "@shared/i18n/ru";
 import { gameEvents } from "@shared/lib/event-bus/gameEvents";
 import DebugHud from "@widgets/debug-hud/ui/DebugHud.vue";
@@ -72,6 +73,7 @@ function syncVisualViewportSize(): void {
 }
 
 onMounted(() => {
+  initBackgroundMusic();
   savedRunAvailable.value = loadSavedRun() !== null;
   syncVisualViewportSize();
   window.addEventListener("resize", syncVisualViewportSize);
