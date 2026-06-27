@@ -297,7 +297,7 @@ function getRoadTileSize(cells: readonly PathCell[]): number {
     return [Math.hypot(next.x - cell.x, next.y - cell.y)];
   }).filter(distance => distance > 0);
 
-  return Math.round(Math.min(...distances, FALLBACK_ROAD_TILE_SIZE));
+  return Math.round(distances.length > 0 ? Math.min(...distances) : FALLBACK_ROAD_TILE_SIZE);
 }
 
 function getRoadDisplaySize(cells: readonly PathCell[]): number {

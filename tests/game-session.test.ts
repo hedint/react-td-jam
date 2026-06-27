@@ -1892,24 +1892,24 @@ describe("run simulation", () => {
     expect(board.pathCells.map(cell => cell.index)).toEqual(Array.from({ length: 18 }, (_, index) => index));
     expect(board.pathCells.map(cell => cell.isCorner ? cell.index : null).filter(index => index !== null)).toEqual([0, 5, 9, 14]);
     expect(board.pathCells.map(cell => [cell.x, cell.y])).toEqual([
-      [110, 659],
-      [110, 579],
-      [110, 499],
-      [110, 419],
-      [110, 339],
-      [110, 259],
-      [190, 259],
-      [270, 259],
-      [350, 259],
-      [430, 259],
-      [430, 339],
-      [430, 419],
-      [430, 499],
-      [430, 579],
-      [430, 659],
-      [350, 659],
-      [270, 659],
-      [190, 659],
+      [102, 669],
+      [102, 585],
+      [102, 501],
+      [102, 417],
+      [102, 333],
+      [102, 249],
+      [186, 249],
+      [270, 249],
+      [354, 249],
+      [438, 249],
+      [438, 333],
+      [438, 417],
+      [438, 501],
+      [438, 585],
+      [438, 669],
+      [354, 669],
+      [270, 669],
+      [186, 669],
     ]);
     const innerSlots = board.slots.filter(slot => slot.lane === "inner");
     const horizontalCubeClearance = Math.min(...innerSlots.filter(slot => slot.x > defaultBoardGeometryConfig.center.x).map(slot => slot.x))
@@ -1956,16 +1956,16 @@ describe("run simulation", () => {
     });
     expect(lockedJunctionBoard.slots.filter(slot => slot.cellIndexes.length > 1).every(slot => slot.locked)).toBe(true);
     expect(lockedJunctionBoard.slots.filter(slot => slot.cellIndexes.length === 1).every(slot => !slot.locked)).toBe(true);
-    expect(board.pathCells[0]).toMatchObject({ x: 110, y: 659, isCorner: true });
+    expect(board.pathCells[0]).toMatchObject({ x: 102, y: 669, isCorner: true });
     expect(board.slots.find(slot => slot.id === "slot-0-inner")).toBeUndefined();
-    expect(board.slots.find(slot => slot.id === "slot-1-outer")).toMatchObject({ x: 46, y: 579 });
-    expect(board.slots.find(slot => slot.id === "slot-5-outer")).toMatchObject({ x: 46, y: 195 });
-    expect(board.slots.find(slot => slot.id === "slot-5-inner")).toMatchObject({ x: 174, y: 323 });
-    expect(board.slots.find(slot => slot.id === "slot-9-inner")).toMatchObject({ x: 366, y: 323 });
-    expect(board.slots.find(slot => slot.id === "slot-9-outer")).toMatchObject({ x: 494, y: 195 });
-    expect(board.slots.find(slot => slot.id === "slot-14-inner")).toMatchObject({ x: 366, y: 595 });
-    expect(board.slots.find(slot => slot.id === "slot-14-outer")).toMatchObject({ x: 494, y: 723 });
-    expect(board.slots.find(slot => slot.id === "slot-17-outer")).toMatchObject({ x: 190, y: 723 });
+    expect(board.slots.find(slot => slot.id === "slot-1-outer")).toMatchObject({ x: 33, y: 585 });
+    expect(board.slots.find(slot => slot.id === "slot-5-outer")).toMatchObject({ x: 33, y: 180 });
+    expect(board.slots.find(slot => slot.id === "slot-5-inner")).toMatchObject({ x: 171, y: 318 });
+    expect(board.slots.find(slot => slot.id === "slot-9-inner")).toMatchObject({ x: 369, y: 318 });
+    expect(board.slots.find(slot => slot.id === "slot-9-outer")).toMatchObject({ x: 507, y: 180 });
+    expect(board.slots.find(slot => slot.id === "slot-14-inner")).toMatchObject({ x: 369, y: 600 });
+    expect(board.slots.find(slot => slot.id === "slot-14-outer")).toMatchObject({ x: 507, y: 738 });
+    expect(board.slots.find(slot => slot.id === "slot-17-outer")).toMatchObject({ x: 186, y: 738 });
     expect(twelveCellBoard.pathCells).toHaveLength(12);
     expect(twelveCellBoard.pathCells.map(cell => cell.isCorner ? cell.index : null).filter(index => index !== null)).toEqual([0, 3, 6, 9]);
     expect(twelveCellBoard.slots).toHaveLength(14);

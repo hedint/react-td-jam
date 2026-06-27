@@ -16,6 +16,7 @@ import {
   enemyAnimationNames,
   getEnemyAnimationTextureKey,
   getEnemyPhaserAnimationKey,
+  getEnemySpritePresentation,
 } from "@app/phaser/scenes/runSceneEnemyPresenter";
 import { getEnemySideFacing, writeBossPosition, writeEnemyIntroPosition, writeEnemyPosition } from "@app/phaser/scenes/runSceneRender";
 import { getCoreEntrancePathCell } from "@entities/game-session/model/boardGeometry";
@@ -79,12 +80,12 @@ describe("board art render helpers", () => {
 
     expect(entrance).toMatchObject({
       x: gameConfig.board.pathCells[0]?.x,
-      y: (gameConfig.board.pathCells[0]?.y ?? 0) + 51,
+      y: 725,
       rotation: 0,
     });
     expect(exit).toMatchObject({
       x: 186,
-      y: 608,
+      y: 613,
       rotation: 0,
     });
   });
@@ -95,12 +96,12 @@ describe("board art render helpers", () => {
 
     expect(coreEntrance).toMatchObject({
       index: 17,
-      x: 190,
-      y: 659,
+      x: 186,
+      y: 669,
     });
     expect(leakTarget).toMatchObject({
-      x: 190,
-      y: 551,
+      x: 186,
+      y: 550,
     });
   });
 
@@ -112,8 +113,8 @@ describe("board art render helpers", () => {
     writeEnemyIntroPosition(gameConfig.board.pathCells, enemy, 0, intro);
     writeEnemyPosition(gameConfig.board.pathCells, enemy, runtime);
 
-    expect(intro).toMatchObject({ x: 110, y: 710 });
-    expect(runtime).toMatchObject({ x: 110, y: 619 });
+    expect(intro).toMatchObject({ x: 102, y: 725 });
+    expect(runtime).toMatchObject({ x: 102, y: 627 });
 
     writeEnemyIntroPosition(gameConfig.board.pathCells, enemy, 1, intro);
 
@@ -201,5 +202,16 @@ describe("board art render helpers", () => {
   it("keeps the boss sprite above tower body layers", () => {
     expect(bossSpritePresentation.spriteDepth).toBeGreaterThan(27);
     expect(bossSpritePresentation.overlayDepth).toBeGreaterThan(bossSpritePresentation.spriteDepth);
+  });
+
+  it("applies the small road and enemy scale pass without resizing the boss", () => {
+    const firstCell = gameConfig.board.pathCells[0]!;
+    const nextCell = gameConfig.board.pathCells[1]!;
+    const roadStep = Math.hypot(nextCell.x - firstCell.x, nextCell.y - firstCell.y);
+
+    expect(roadStep).toBe(84);
+    expect(getEnemySpritePresentation("grunt").displaySize).toBe(Math.round(44 * 1.1));
+    expect(getEnemySpritePresentation("runner").displaySize).toBe(Math.round(76 * 1.1));
+    expect(bossSpritePresentation.displaySize).toBe(132);
   });
 });

@@ -66,8 +66,10 @@ export interface EnemySpritePresentation {
   readonly flyingCue?: true
 }
 
+const NORMAL_ENEMY_DISPLAY_SCALE = 1.1;
+
 const enemySpritePresentations: Record<EnemyId, EnemySpritePresentation> = {
-  grunt: {
+  grunt: scaleEnemySpritePresentation({
     displaySize: 44,
     groundOffsetY: 14,
     hpOffsetY: 36,
@@ -76,8 +78,8 @@ const enemySpritePresentations: Record<EnemyId, EnemySpritePresentation> = {
     labelOffsetY: 17,
     shadowWidth: 17,
     shadowHeight: 6,
-  },
-  swarm: {
+  }),
+  swarm: scaleEnemySpritePresentation({
     displaySize: 58,
     groundOffsetY: 20,
     hpOffsetY: 20,
@@ -86,8 +88,8 @@ const enemySpritePresentations: Record<EnemyId, EnemySpritePresentation> = {
     labelOffsetY: 25,
     shadowWidth: 25,
     shadowHeight: 8,
-  },
-  tank: {
+  }),
+  tank: scaleEnemySpritePresentation({
     displaySize: 56,
     groundOffsetY: 17,
     hpOffsetY: 45,
@@ -96,8 +98,8 @@ const enemySpritePresentations: Record<EnemyId, EnemySpritePresentation> = {
     labelOffsetY: 21,
     shadowWidth: 25,
     shadowHeight: 7,
-  },
-  flyer: {
+  }),
+  flyer: scaleEnemySpritePresentation({
     displaySize: 70,
     groundOffsetY: 5,
     hpOffsetY: 46,
@@ -107,8 +109,8 @@ const enemySpritePresentations: Record<EnemyId, EnemySpritePresentation> = {
     shadowWidth: 26,
     shadowHeight: 7,
     flyingCue: true,
-  },
-  runner: {
+  }),
+  runner: scaleEnemySpritePresentation({
     displaySize: 76,
     groundOffsetY: 21,
     hpOffsetY: 30,
@@ -117,8 +119,8 @@ const enemySpritePresentations: Record<EnemyId, EnemySpritePresentation> = {
     labelOffsetY: 28,
     shadowWidth: 34,
     shadowHeight: 9,
-  },
-  insulated: {
+  }),
+  insulated: scaleEnemySpritePresentation({
     displaySize: 56,
     groundOffsetY: 17,
     hpOffsetY: 42,
@@ -127,8 +129,8 @@ const enemySpritePresentations: Record<EnemyId, EnemySpritePresentation> = {
     labelOffsetY: 21,
     shadowWidth: 25,
     shadowHeight: 7,
-  },
-  flameproof: {
+  }),
+  flameproof: scaleEnemySpritePresentation({
     displaySize: 66,
     groundOffsetY: 17,
     hpOffsetY: 28,
@@ -137,7 +139,7 @@ const enemySpritePresentations: Record<EnemyId, EnemySpritePresentation> = {
     labelOffsetY: 23,
     shadowWidth: 35,
     shadowHeight: 8,
-  },
+  }),
 };
 
 export function getEnemySpritePresentation(enemyId: EnemyId): EnemySpritePresentation {
@@ -378,20 +380,20 @@ export class RunSceneEnemyPresenter {
     const presentation = enemySpritePresentations[enemyId];
 
     graphics.fillStyle(0x070504, enemyId === "flyer" ? 0.2 : 0.34);
-    graphics.fillEllipse(position.x, position.y + 24, presentation.shadowWidth, presentation.shadowHeight);
+    graphics.fillEllipse(position.x, position.y + scaleEnemyVisualValue(24), presentation.shadowWidth, presentation.shadowHeight);
 
     if (!presentation.flyingCue) {
       return;
     }
 
     graphics.lineStyle(2, 0xCBEAFF, 0.48);
-    graphics.strokeEllipse(position.x, position.y + 20, 48, 14);
+    graphics.strokeEllipse(position.x, position.y + scaleEnemyVisualValue(20), scaleEnemyVisualValue(48), scaleEnemyVisualValue(14));
     graphics.lineStyle(1, 0xFFFFFF, 0.34);
     graphics.beginPath();
-    graphics.moveTo(position.x - 16, position.y + 24);
-    graphics.lineTo(position.x - 22, position.y + 16);
-    graphics.moveTo(position.x + 14, position.y + 24);
-    graphics.lineTo(position.x + 21, position.y + 15);
+    graphics.moveTo(position.x - scaleEnemyVisualValue(16), position.y + scaleEnemyVisualValue(24));
+    graphics.lineTo(position.x - scaleEnemyVisualValue(22), position.y + scaleEnemyVisualValue(16));
+    graphics.moveTo(position.x + scaleEnemyVisualValue(14), position.y + scaleEnemyVisualValue(24));
+    graphics.lineTo(position.x + scaleEnemyVisualValue(21), position.y + scaleEnemyVisualValue(15));
     graphics.strokePath();
   }
 
@@ -427,6 +429,24 @@ function getFrameRate(animationName: EnemyAnimationName, enemyId: EnemyId): numb
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function scaleEnemySpritePresentation(presentation: EnemySpritePresentation): EnemySpritePresentation {
+  return {
+    ...presentation,
+    displaySize: scaleEnemyVisualValue(presentation.displaySize),
+    groundOffsetY: scaleEnemyVisualValue(presentation.groundOffsetY),
+    hpOffsetY: scaleEnemyVisualValue(presentation.hpOffsetY),
+    verticalHpOffsetY: scaleEnemyVisualValue(presentation.verticalHpOffsetY),
+    hpWidth: scaleEnemyVisualValue(presentation.hpWidth),
+    labelOffsetY: scaleEnemyVisualValue(presentation.labelOffsetY),
+    shadowWidth: scaleEnemyVisualValue(presentation.shadowWidth),
+    shadowHeight: scaleEnemyVisualValue(presentation.shadowHeight),
+  };
+}
+
+function scaleEnemyVisualValue(value: number): number {
+  return Math.round(value * NORMAL_ENEMY_DISPLAY_SCALE);
 }
 
 function getPathSegmentAxis(cells: readonly PathCell[], pathProgress: number): "horizontal" | "vertical" {

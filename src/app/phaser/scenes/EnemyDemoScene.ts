@@ -382,7 +382,7 @@ function getCombatRoadTileSize(): number {
     })
     .filter(distance => distance > 0);
 
-  return Math.round(Math.min(...distances, 76));
+  return Math.round(distances.length > 0 ? Math.min(...distances) : 76);
 }
 
 function getEnemyDisplayName(enemyId: EnemyId): string {

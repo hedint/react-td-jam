@@ -72,7 +72,7 @@ describe("path flow render helpers", () => {
     const cell = cells[17]!;
     const chevron = getPathChevronPresentation(cells, cell, 0);
 
-    expect(chevron).toMatchObject({ x: 190, y: 659 });
+    expect(chevron).toMatchObject({ x: 186, y: 669 });
     expect(chevron.rotation).toBeCloseTo(-Math.PI / 2);
   });
 

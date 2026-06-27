@@ -28,8 +28,8 @@ export const defaultBoardGeometryConfig: BoardGeometryConfig = {
     right: 408,
     bottom: 677,
   },
-  tileSize: 80,
-  slotOffset: 64,
+  tileSize: 84,
+  slotOffset: 69,
   lockInnerCornerSlots: false,
 };
 

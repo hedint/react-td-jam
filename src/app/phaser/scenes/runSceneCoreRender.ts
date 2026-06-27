@@ -5,7 +5,7 @@ import Phaser from "phaser";
 import { getBoardCenter } from "./runSceneBoardRender";
 
 const CORE_BASE_DISPLAY_SIZE = 204;
-const CORE_DISPLAY_SIZE = Math.round(CORE_BASE_DISPLAY_SIZE * 0.92);
+const CORE_DISPLAY_SIZE = Math.round(CORE_BASE_DISPLAY_SIZE * 0.92 * 0.9);
 const CORE_LIQUID_MIN_FILL = 0.14;
 const CORE_LIQUID_SCALE = CORE_DISPLAY_SIZE / CORE_BASE_DISPLAY_SIZE;
 
