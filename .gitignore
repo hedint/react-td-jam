@@ -12,3 +12,16 @@ node_modules/.tmp/
 output/
 .idea
 .claude
+android/.gradle/
+android/local.properties
+android/app/build/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/public/
+android/build/
+android/capacitor-cordova-android-plugins/build/
+android/keystore.properties
+android/keystores/
+android/*.jks
+android/*.keystore
+*.jks
+*.keystore

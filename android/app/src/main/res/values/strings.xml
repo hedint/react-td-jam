@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">React TD</string>
+    <string name="title_activity_main">React TD</string>
+    <string name="package_name">com.jamtd.reacttd</string>
+    <string name="custom_url_scheme">com.jamtd.reacttd</string>
+</resources>

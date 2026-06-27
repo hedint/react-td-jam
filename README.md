@@ -13,7 +13,12 @@ npm run lint:fix
 npm run typecheck
 npm test
 npm run build
+npm run android:apk:debug
+npm run android:apk:release
+npm run android:aab:release
 ```
+
+Android APK/AAB pipeline описан в [docs/android-apk.md](docs/android-apk.md).
 
 ## Технический baseline
 
