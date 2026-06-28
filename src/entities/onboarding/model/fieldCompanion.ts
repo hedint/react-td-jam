@@ -87,6 +87,10 @@ export function shouldShowFieldShmyg(
 }
 
 export function getFieldShmygRouteTargets(snapshot: RuntimeSnapshot): readonly FieldShmygRouteTarget[] {
+  if (snapshot.phase === "boss") {
+    return [FIELD_SHMYG_FALLBACK_TARGET];
+  }
+
   if (snapshot.placedTowers.length === 0) {
     return [FIELD_SHMYG_FALLBACK_TARGET];
   }
@@ -129,8 +133,9 @@ export function createInitialFieldShmygSpeechMemory(): FieldShmygSpeechMemory {
 
 export function canShowFieldShmygSpeech(memory: FieldShmygSpeechMemory, request: FieldShmygSpeechRequest): boolean {
   const lastSpeechAt = memory.lastSpeechAt;
+  const isCriticalBossSpeech = isCriticalFieldShmygBossSpeech(request);
 
-  if (lastSpeechAt !== null && request.nowMs - lastSpeechAt < FIELD_SHMYG_GLOBAL_SPEECH_COOLDOWN_MS) {
+  if (!isCriticalBossSpeech && lastSpeechAt !== null && request.nowMs - lastSpeechAt < FIELD_SHMYG_GLOBAL_SPEECH_COOLDOWN_MS) {
     return false;
   }
 
@@ -150,11 +155,15 @@ export function canShowFieldShmygSpeech(memory: FieldShmygSpeechMemory, request:
     return false;
   }
 
-  if (memory.importantWaveIndex === request.waveIndex) {
+  if (!isCriticalBossSpeech && memory.importantWaveIndex === request.waveIndex) {
     return false;
   }
 
   const shown = memory.importantById[request.id];
+
+  if (isCriticalBossSpeech) {
+    return true;
+  }
 
   if (!shown) {
     return true;
@@ -162,6 +171,10 @@ export function canShowFieldShmygSpeech(memory: FieldShmygSpeechMemory, request:
 
   return shown.shownCount < FIELD_SHMYG_IMPORTANT_MAX_REPEAT
     && request.nowMs - shown.lastShownAt >= FIELD_SHMYG_IMPORTANT_REPEAT_COOLDOWN_MS;
+}
+
+function isCriticalFieldShmygBossSpeech(request: FieldShmygSpeechRequest): boolean {
+  return request.kind === "important" && (request.id === "bossArrival" || request.id === "bossAbility");
 }
 
 export function recordFieldShmygSpeech(memory: FieldShmygSpeechMemory, request: FieldShmygSpeechRequest): FieldShmygSpeechMemory {

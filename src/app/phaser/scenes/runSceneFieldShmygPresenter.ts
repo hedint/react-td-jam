@@ -120,6 +120,7 @@ export class RunSceneFieldShmygPresenter {
     const isMoving = visualMs >= this.holdUntilMs && this.moveToward(target, deltaMs);
     const direction = getDirection(this.position, target);
     const animationName = isMoving ? "run" : "idle";
+    const atTarget = getDistanceSquared(this.position, target) <= 1;
 
     this.lastVisualMs = visualMs;
     this.renderShadow();
@@ -132,6 +133,8 @@ export class RunSceneFieldShmygPresenter {
     this.playAnimation(animationName, direction);
     gameEvents.emit("field-shmyg:position", {
       visible: true,
+      targetId: target.id,
+      atTarget,
       point: {
         x: Math.round(this.position.x),
         y: Math.round(this.position.y),
@@ -228,6 +231,8 @@ export class RunSceneFieldShmygPresenter {
     gameEvents.emit("field-shmyg:position", {
       visible: false,
       point: null,
+      targetId: null,
+      atTarget: false,
     });
   }
 }

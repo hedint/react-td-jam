@@ -27,6 +27,23 @@ describe("asset manifest", () => {
     });
   });
 
+  it("routes regular enemies through the redraw art experiment", () => {
+    ([
+      ["grunt", assetGroups.enemies.gruntMoveSide, assetGroups.enemies.gruntHitSide, assetGroups.enemies.gruntDeathSide, assetGroups.enemies.gruntHudPreview],
+      ["swarm", assetGroups.enemies.swarmMoveSide, assetGroups.enemies.swarmHitSide, assetGroups.enemies.swarmDeathSide, assetGroups.enemies.swarmHudPreview],
+      ["tank", assetGroups.enemies.tankMoveSide, assetGroups.enemies.tankHitSide, assetGroups.enemies.tankDeathSide, assetGroups.enemies.tankHudPreview],
+      ["flyer", assetGroups.enemies.flyerMoveSide, assetGroups.enemies.flyerHitSide, assetGroups.enemies.flyerDeathSide, assetGroups.enemies.flyerHudPreview],
+      ["runner", assetGroups.enemies.runnerMoveSide, assetGroups.enemies.runnerHitSide, assetGroups.enemies.runnerDeathSide, assetGroups.enemies.runnerHudPreview],
+      ["insulated", assetGroups.enemies.insulatedMoveSide, assetGroups.enemies.insulatedHitSide, assetGroups.enemies.insulatedDeathSide, assetGroups.enemies.insulatedHudPreview],
+      ["flameproof", assetGroups.enemies.flameproofMoveSide, assetGroups.enemies.flameproofHitSide, assetGroups.enemies.flameproofDeathSide, assetGroups.enemies.flameproofHudPreview],
+    ] as const).forEach(([enemyId, moveAsset, hitAsset, deathAsset, hudAsset]) => {
+      expect(moveAsset.src).toBe(`/assets/enemies/${enemyId}/redraw/${enemyId}-move-side-redraw.png`);
+      expect(hitAsset.src).toBe(`/assets/enemies/${enemyId}/redraw/${enemyId}-hit-side-redraw.png`);
+      expect(deathAsset.src).toBe(`/assets/enemies/${enemyId}/redraw/${enemyId}-death-side-redraw.png`);
+      expect(hudAsset.src).toBe(`/assets/enemies/hud/${enemyId}-preview-redraw.png`);
+    });
+  });
+
   it("marks intentional placeholder fallback assets explicitly", () => {
     const placeholders = loadableAssets.filter(asset => asset.key.endsWith(".placeholder"));
 

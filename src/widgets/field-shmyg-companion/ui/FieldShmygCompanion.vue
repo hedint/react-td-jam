@@ -29,6 +29,7 @@ import { LOGICAL_HEIGHT, LOGICAL_WIDTH } from "@app/phaser/scenes/runSceneLayout
 import {
   canShowFieldShmygSpeech,
   createInitialFieldShmygSpeechMemory,
+  FIELD_SHMYG_FALLBACK_TARGET,
   getFieldShmygComboFillerMinWaveIndex,
   getFieldShmygComboFillerReactionId,
   loadOnboardingProgress,
@@ -42,6 +43,8 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 const locale = ru.onboarding.fieldCompanion;
 const snapshot = ref<RuntimeSnapshot | null>(null);
 const shmygPoint = ref<StagePoint | null>(null);
+const shmygTargetId = ref<string | null>(null);
+const shmygAtTarget = ref(false);
 const currentLine = ref("");
 const currentLineUntil = ref(0);
 const now = ref(Date.now());
@@ -55,6 +58,8 @@ let previousPhase: RuntimeSnapshot["phase"] | null = null;
 let previousBossAbilityId: string | null = null;
 let previousSnapshot: RuntimeSnapshot | null = null;
 let seenReactionIds = new Set<ReactionId>();
+let pendingBossArrival = false;
+let pendingBossAbility = false;
 
 const comboFillerIds = [
   "stormCloudCombo",
@@ -100,6 +105,12 @@ onMounted(() => {
     }
 
     snapshot.value = nextSnapshot;
+    if (previousPhase !== "boss" && nextSnapshot.phase === "boss") {
+      pendingBossArrival = true;
+    }
+    if (nextSnapshot.boss?.activeAbility?.id && nextSnapshot.boss.activeAbility.id !== previousBossAbilityId) {
+      pendingBossAbility = true;
+    }
     getActiveReactionIds(nextSnapshot).forEach(reactionId => seenReactionIds.add(reactionId));
     maybeSpeak(nextSnapshot, loadOnboardingProgress());
     previousCoreHp = nextSnapshot.coreHp;
@@ -109,6 +120,8 @@ onMounted(() => {
   });
   unsubscribePosition = gameEvents.on("field-shmyg:position", (position) => {
     shmygPoint.value = position.visible ? position.point : null;
+    shmygTargetId.value = position.visible ? position.targetId : null;
+    shmygAtTarget.value = position.visible && position.atTarget;
   });
   tickTimer = window.setInterval(() => {
     now.value = Date.now();
@@ -171,6 +184,23 @@ function getImportantRequest(snapshotForSpeech: RuntimeSnapshot, progress: Onboa
   }
 
   const activeReactionIds = getActiveReactionIds(snapshotForSpeech);
+  if (pendingBossArrival) {
+    return isShmygReadyForBossArrivalLine()
+      ? {
+          ...base,
+          id: "bossArrival",
+        }
+      : null;
+  }
+
+  const bossAbilityId = snapshotForSpeech.boss?.activeAbility?.id ?? null;
+  if (pendingBossAbility || (bossAbilityId && bossAbilityId !== previousBossAbilityId)) {
+    return {
+      ...base,
+      id: "bossAbility",
+    };
+  }
+
   if (activeReactionIds.has("fireStorm")) {
     return {
       ...base,
@@ -187,21 +217,6 @@ function getImportantRequest(snapshotForSpeech: RuntimeSnapshot, progress: Onboa
     return {
       ...base,
       id: "firstFireVortexReaction",
-    };
-  }
-
-  if (previousPhase !== "boss" && snapshotForSpeech.phase === "boss") {
-    return {
-      ...base,
-      id: "bossArrival",
-    };
-  }
-
-  const bossAbilityId = snapshotForSpeech.boss?.activeAbility?.id ?? null;
-  if (bossAbilityId && bossAbilityId !== previousBossAbilityId) {
-    return {
-      ...base,
-      id: "bossAbility",
     };
   }
 
@@ -257,7 +272,20 @@ function getLine(request: FieldShmygSpeechRequest): string {
 
   const id = request.id satisfies FieldShmygImportantSpeechId | undefined;
 
-  return id ? pickLine(locale.important[id], request.nowMs) : "";
+  const line = id ? pickLine(locale.important[id], request.nowMs) : "";
+
+  if (id === "bossArrival") {
+    pendingBossArrival = false;
+  }
+  if (id === "bossAbility") {
+    pendingBossAbility = false;
+  }
+
+  return line;
+}
+
+function isShmygReadyForBossArrivalLine(): boolean {
+  return shmygAtTarget.value && shmygTargetId.value === FIELD_SHMYG_FALLBACK_TARGET.id;
 }
 
 function getActiveReactionIds(snapshotForSpeech: RuntimeSnapshot): Set<ReactionId> {
@@ -296,6 +324,8 @@ function resetRunLocalSpeechState(): void {
   previousCoreHp = null;
   previousPhase = null;
   previousBossAbilityId = null;
+  pendingBossArrival = false;
+  pendingBossAbility = false;
 }
 
 function clamp(value: number, min: number, max: number): number {

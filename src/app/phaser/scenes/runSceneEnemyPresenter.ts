@@ -3,6 +3,7 @@ import type { EnemyId, EnemyState, GameSnapshot, PathCell } from "@entities/game
 import type Phaser from "phaser";
 import type { RunSceneEntryIntro } from "./runSceneEntryIntro";
 import { assetGroups } from "@shared/assets/manifest";
+import { updateFirstEnemyLabelAssignments } from "./runSceneEnemyLabels";
 import {
   getEnemySideFacing,
   writeEnemyIntroPosition,
@@ -204,7 +205,11 @@ export class RunSceneEnemyPresenter {
   private readonly liveSprites = new Map<string, LiveEnemySpriteEntry>();
   private readonly deathSprites: DeathSpriteEntry[] = [];
   private readonly hitUntilMs = new Map<string, number>();
+  private readonly labeledEnemyInstanceIds = new Map<EnemyId, string>();
   private readonly renderPoint = { x: 0, y: 0 };
+  private previousRunElapsedMs = 0;
+  private previousRunSeed: number | null = null;
+  private previousRunTick = 0;
 
   constructor(private readonly scene: Phaser.Scene) {}
 
@@ -241,8 +246,9 @@ export class RunSceneEnemyPresenter {
     visualMs: number,
     entryIntro: RunSceneEntryIntro,
   ): void {
+    this.resetEnemyLabelAssignmentsForNewRun(snapshot);
     const activeEnemyIds = new Set(snapshot.livingEnemies.map(enemy => enemy.id));
-    const labeledEnemyIds = new Set<EnemyId>();
+    const visibleLabelInstanceIds = updateFirstEnemyLabelAssignments(snapshot.livingEnemies, this.labeledEnemyInstanceIds);
 
     entryIntro.pruneEnemies(snapshot.livingEnemies);
     this.liveSprites.forEach((entry, enemyInstanceId) => {
@@ -266,16 +272,31 @@ export class RunSceneEnemyPresenter {
       this.renderHpBar(graphics, snapshot.board.pathCells, enemy, position);
       this.positionSprite(entry.sprite, enemy.enemyId, position, facing, visualMs);
       this.playAnimation(entry.sprite, enemy.enemyId, animationName);
-      const showEnemyLabel = !labeledEnemyIds.has(enemy.enemyId);
 
-      labeledEnemyIds.add(enemy.enemyId);
       entry.label
-        .setVisible(showEnemyLabel)
+        .setVisible(visibleLabelInstanceIds.has(enemy.id))
         .setPosition(position.x, position.y + presentation.labelOffsetY)
         .setText(enemy.displayName);
     });
 
     this.renderDeathSprites(snapshot, visualMs);
+  }
+
+  private resetEnemyLabelAssignmentsForNewRun(snapshot: GameSnapshot): void {
+    const runRestarted = this.previousRunSeed !== null
+      && (
+        snapshot.seed !== this.previousRunSeed
+        || snapshot.tick < this.previousRunTick
+        || snapshot.elapsedMs < this.previousRunElapsedMs
+      );
+
+    if (runRestarted) {
+      this.labeledEnemyInstanceIds.clear();
+    }
+
+    this.previousRunSeed = snapshot.seed;
+    this.previousRunTick = snapshot.tick;
+    this.previousRunElapsedMs = snapshot.elapsedMs;
   }
 
   private renderDeathSprites(snapshot: GameSnapshot, visualMs: number): void {

@@ -49,6 +49,54 @@ type ShmygSpriteAnim = "idle" | "talk" | "excited" | "angry";
 type FieldShmygSpriteAnim = "idle" | "run" | "joy";
 type FieldShmygSpriteDirection = "up" | "down" | "left" | "right";
 
+const enemySpriteExperimentSources: Partial<Record<EnemySpriteAssetId, Record<EnemySpriteAnim, string>>> = {
+  grunt: {
+    move: "/assets/enemies/grunt/redraw/grunt-move-side-redraw.png",
+    hit: "/assets/enemies/grunt/redraw/grunt-hit-side-redraw.png",
+    death: "/assets/enemies/grunt/redraw/grunt-death-side-redraw.png",
+  },
+  swarm: {
+    move: "/assets/enemies/swarm/redraw/swarm-move-side-redraw.png",
+    hit: "/assets/enemies/swarm/redraw/swarm-hit-side-redraw.png",
+    death: "/assets/enemies/swarm/redraw/swarm-death-side-redraw.png",
+  },
+  tank: {
+    move: "/assets/enemies/tank/redraw/tank-move-side-redraw.png",
+    hit: "/assets/enemies/tank/redraw/tank-hit-side-redraw.png",
+    death: "/assets/enemies/tank/redraw/tank-death-side-redraw.png",
+  },
+  flyer: {
+    move: "/assets/enemies/flyer/redraw/flyer-move-side-redraw.png",
+    hit: "/assets/enemies/flyer/redraw/flyer-hit-side-redraw.png",
+    death: "/assets/enemies/flyer/redraw/flyer-death-side-redraw.png",
+  },
+  runner: {
+    move: "/assets/enemies/runner/redraw/runner-move-side-redraw.png",
+    hit: "/assets/enemies/runner/redraw/runner-hit-side-redraw.png",
+    death: "/assets/enemies/runner/redraw/runner-death-side-redraw.png",
+  },
+  insulated: {
+    move: "/assets/enemies/insulated/redraw/insulated-move-side-redraw.png",
+    hit: "/assets/enemies/insulated/redraw/insulated-hit-side-redraw.png",
+    death: "/assets/enemies/insulated/redraw/insulated-death-side-redraw.png",
+  },
+  flameproof: {
+    move: "/assets/enemies/flameproof/redraw/flameproof-move-side-redraw.png",
+    hit: "/assets/enemies/flameproof/redraw/flameproof-hit-side-redraw.png",
+    death: "/assets/enemies/flameproof/redraw/flameproof-death-side-redraw.png",
+  },
+};
+
+const enemyHudExperimentSources: Partial<Record<EnemySpriteAssetId | "boss-ogre", string>> = {
+  grunt: "/assets/enemies/hud/grunt-preview-redraw.png",
+  swarm: "/assets/enemies/hud/swarm-preview-redraw.png",
+  tank: "/assets/enemies/hud/tank-preview-redraw.png",
+  flyer: "/assets/enemies/hud/flyer-preview-redraw.png",
+  runner: "/assets/enemies/hud/runner-preview-redraw.png",
+  insulated: "/assets/enemies/hud/insulated-preview-redraw.png",
+  flameproof: "/assets/enemies/hud/flameproof-preview-redraw.png",
+};
+
 function enemySpriteSheetAsset(
   enemyId: EnemySpriteAssetId,
   animationName: EnemySpriteAnim,
@@ -57,7 +105,7 @@ function enemySpriteSheetAsset(
     type: "spritesheet",
     group: "enemies",
     key: `enemies.${enemyId}.${animationName}.side`,
-    src: `/assets/enemies/${enemyId}/${enemyId}-${animationName}-side.png`,
+    src: enemySpriteExperimentSources[enemyId]?.[animationName] ?? `/assets/enemies/${enemyId}/${enemyId}-${animationName}-side.png`,
     frame: {
       width: 256,
       height: 256,
@@ -85,7 +133,7 @@ function enemyHudPreviewAsset(enemyId: EnemySpriteAssetId | "boss-ogre"): ImageA
     type: "image",
     group: "enemies",
     key: `enemies.${enemyId}.hud-preview`,
-    src: `/assets/enemies/hud/${enemyId}-preview.png`,
+    src: enemyHudExperimentSources[enemyId] ?? `/assets/enemies/hud/${enemyId}-preview.png`,
     usage: "css",
   };
 }

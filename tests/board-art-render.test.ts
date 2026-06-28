@@ -1,3 +1,4 @@
+import type { EnemyId } from "@entities/game-session/model/types";
 import {
   getBoardRoadPiecePresentation,
   getEnemyLeakTargetPresentation,
@@ -11,6 +12,7 @@ import {
   getBossAnimationTextureKey,
   getBossPhaserAnimationKey,
 } from "@app/phaser/scenes/runSceneBossPresenter";
+import { updateFirstEnemyLabelAssignments } from "@app/phaser/scenes/runSceneEnemyLabels";
 import {
   enemyAnimationDirections,
   enemyAnimationNames,
@@ -168,6 +170,25 @@ describe("board art render helpers", () => {
         });
       });
     });
+  });
+
+  it("keeps enemy name labels on the first spawned instance of each enemy type", () => {
+    const labeledEnemyInstanceIds = new Map<EnemyId, string>();
+    const firstPass = updateFirstEnemyLabelAssignments([
+      { id: "grunt-a", enemyId: "grunt" },
+      { id: "grunt-b", enemyId: "grunt" },
+    ], labeledEnemyInstanceIds);
+
+    expect([...firstPass]).toEqual(["grunt-a"]);
+
+    const afterFirstGruntDies = updateFirstEnemyLabelAssignments([
+      { id: "grunt-b", enemyId: "grunt" },
+      { id: "grunt-c", enemyId: "grunt" },
+      { id: "tank-a", enemyId: "tank" },
+      { id: "tank-b", enemyId: "tank" },
+    ], labeledEnemyInstanceIds);
+
+    expect([...afterFirstGruntDies]).toEqual(["tank-a"]);
   });
 
   it("preloads every boss spritesheet from existing public files", () => {

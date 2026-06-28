@@ -303,7 +303,7 @@ dd {
 }
 
 .run-hud__enemy {
-  --enemy-preview: url("/assets/enemies/hud/grunt-preview.png");
+  --enemy-preview: url("/assets/enemies/hud/grunt-preview-redraw.png");
 
   position: relative;
   flex: 0 0 auto;
@@ -336,31 +336,31 @@ dd {
 }
 
 .run-hud__enemy--grunt {
-  --enemy-preview: url("/assets/enemies/hud/grunt-preview.png");
+  --enemy-preview: url("/assets/enemies/hud/grunt-preview-redraw.png");
 }
 
 .run-hud__enemy--swarm {
-  --enemy-preview: url("/assets/enemies/hud/swarm-preview.png");
+  --enemy-preview: url("/assets/enemies/hud/swarm-preview-redraw.png");
 }
 
 .run-hud__enemy--tank {
-  --enemy-preview: url("/assets/enemies/hud/tank-preview.png");
+  --enemy-preview: url("/assets/enemies/hud/tank-preview-redraw.png");
 }
 
 .run-hud__enemy--flyer {
-  --enemy-preview: url("/assets/enemies/hud/flyer-preview.png");
+  --enemy-preview: url("/assets/enemies/hud/flyer-preview-redraw.png");
 }
 
 .run-hud__enemy--runner {
-  --enemy-preview: url("/assets/enemies/hud/runner-preview.png");
+  --enemy-preview: url("/assets/enemies/hud/runner-preview-redraw.png");
 }
 
 .run-hud__enemy--insulated {
-  --enemy-preview: url("/assets/enemies/hud/insulated-preview.png");
+  --enemy-preview: url("/assets/enemies/hud/insulated-preview-redraw.png");
 }
 
 .run-hud__enemy--flameproof {
-  --enemy-preview: url("/assets/enemies/hud/flameproof-preview.png");
+  --enemy-preview: url("/assets/enemies/hud/flameproof-preview-redraw.png");
 }
 
 .run-hud__enemy--boss-ogre {

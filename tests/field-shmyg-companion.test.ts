@@ -66,6 +66,18 @@ describe("field Шмыг companion decision logic", () => {
     });
   });
 
+  it("routes to the default fallback target during the boss phase", () => {
+    const snapshot = createRuntimeSnapshot({
+      phase: "boss",
+      placedTowers: [
+        createTower("tower-water-a", "water", "slot-2-inner"),
+        createTower("tower-spark-a", "spark", "slot-7-inner"),
+      ],
+    });
+
+    expect(getFieldShmygRouteTargets(snapshot)).toEqual([FIELD_SHMYG_FALLBACK_TARGET]);
+  });
+
   it("offers the wave-3 flyer hint only when the full guide is inactive", () => {
     const inactiveProgress = createCompletedGuideProgress();
     const activeProgress = startGuide(createInitialOnboardingProgress(100), 120);
@@ -100,6 +112,31 @@ describe("field Шмыг companion decision logic", () => {
     memory = recordFieldShmygSpeech(memory, secondRequest);
 
     expect(canShowFieldShmygSpeech(memory, { ...firstRequest, nowMs: 280000, waveIndex: 4 })).toBe(false);
+  });
+
+  it("lets boss arrival and ability lines bypass important speech throttles", () => {
+    let memory = recordFieldShmygSpeech(createInitialFieldShmygSpeechMemory(), {
+      kind: "important",
+      id: "firstTier3Reaction",
+      nowMs: 100000,
+      waveIndex: 9,
+    });
+    const bossArrivalRequest = {
+      kind: "important" as const,
+      id: "bossArrival" as const,
+      nowMs: 101000,
+      waveIndex: 9,
+    };
+
+    expect(canShowFieldShmygSpeech(memory, bossArrivalRequest)).toBe(true);
+    memory = recordFieldShmygSpeech(memory, bossArrivalRequest);
+
+    expect(canShowFieldShmygSpeech(memory, {
+      kind: "important",
+      id: "bossAbility",
+      nowMs: 102000,
+      waveIndex: 9,
+    })).toBe(true);
   });
 
   it("allows filler only after a longer silence window", () => {
